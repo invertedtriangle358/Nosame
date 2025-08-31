@@ -58,28 +58,27 @@ main {
 }
 
 /* 縦書き領域 */
-/* タイムライン全体：横スクロール、右から左へ */
 .vertical-timeline {
   display: flex;
-  flex-direction: row;        /* 横に並べる */
+  flex-direction: row;        /* 横並び */
   align-items: flex-start;
   gap: 16px;
-  overflow-x: auto;           /* 横スクロール */
+  overflow-x: auto;           /* 横スクロールを許可 */
   overflow-y: hidden;
   padding: 20px;
-  direction: rtl;             /* 新しい投稿を右側に配置 */
+  flex-direction: row-reverse; /* 右から左に並べる */
 }
 
-/* 各ノートカード */
+/* ノート本文を縦書き */
 .note {
-  writing-mode: vertical-rl;  /* 本文を縦書き */
+  writing-mode: vertical-rl;
   text-orientation: mixed;
   background: var(--panel);
   border: 1px solid #242733;
   border-radius: 18px;
   padding: 14px;
   min-height: 260px;
-  min-width: 160px;           /* カード幅を確保 */
+  min-width: 160px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.25);
   display: flex;
   flex-direction: column;
@@ -95,12 +94,13 @@ main {
   flex: 1;
 }
 
-/* メタ情報（著者・日時）は横書きのまま */
+/* メタ情報は横書き */
 .note .meta,
 .note .author {
   writing-mode: horizontal-tb;
   font-size: 12px;
 }
+
 
 
 .empty {
