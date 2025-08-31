@@ -58,21 +58,50 @@ main {
 }
 
 /* 縦書き領域 */
+/* タイムライン全体：横スクロール、右から左へ */
 .vertical-timeline {
-  padding: 20px; display: flex; align-items: flex-start; gap: 16px; height: 100%;
-  writing-mode: vertical-rl; text-orientation: mixed;
-  overflow: auto;
+  display: flex;
+  flex-direction: row;        /* 横に並べる */
+  align-items: flex-start;
+  gap: 16px;
+  overflow-x: auto;           /* 横スクロール */
+  overflow-y: hidden;
+  padding: 20px;
+  direction: rtl;             /* 新しい投稿を右側に配置 */
 }
 
+/* 各ノートカード */
 .note {
-  background: var(--panel); border: 1px solid #242733;
-  border-radius: 18px; padding: 14px; line-height: 1.8; min-height: 260px;
+  writing-mode: vertical-rl;  /* 本文を縦書き */
+  text-orientation: mixed;
+  background: var(--panel);
+  border: 1px solid #242733;
+  border-radius: 18px;
+  padding: 14px;
+  min-height: 260px;
+  min-width: 160px;           /* カード幅を確保 */
   box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-  display: inline-flex; flex-direction: column; gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.note .meta { color: var(--muted); font-size: 12px; }
-.note .author { color: var(--accent); font-weight: 600; }
-.note .content { font-size: 16px; }
+
+/* 本文 */
+.note .content {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 16px;
+  line-height: 1.8;
+  flex: 1;
+}
+
+/* メタ情報（著者・日時）は横書きのまま */
+.note .meta,
+.note .author {
+  writing-mode: horizontal-tb;
+  font-size: 12px;
+}
+
 
 .empty {
   color: var(--muted); display: grid; place-items: center; font-size: 14px;
