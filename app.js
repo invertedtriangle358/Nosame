@@ -127,11 +127,16 @@ connectRelays(qs('#relay').value);
 timeline.prepend(noteEl);
 
 //スクロール操作
-const timeline = document.querySelector('.vertical-timeline');
-timeline.addEventListener('wheel', (e) => {
-  if (e.deltaY !== 0) {
+document.addEventListener("DOMContentLoaded", () => {
+  const timeline = document.querySelector(".vertical-timeline");
+  if (!timeline) return;
+
+  timeline.addEventListener("wheel", (e) => {
+    // Shiftキー押下時などは邪魔しない
+    if (e.deltaY === 0) return;
+
     e.preventDefault();
     timeline.scrollLeft += e.deltaY;
-  }
-}, { passive: false });
+  }, { passive: false });
+});
 
