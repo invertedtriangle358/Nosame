@@ -18,7 +18,7 @@
   vertical-align: top;
   writing-mode: vertical-rl;    /* 本文を縦書き */
   text-orientation: mixed;
-  background: var(--panel, #1e1e2f);
+  background: var(--panel, #696969);
   border: 1px solid #242733;
   border-radius: 18px;
   padding: 14px;
