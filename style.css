@@ -1,88 +1,28 @@
-:root {
-  --bg: #0b0b0c;
-  --panel: #141418;
-  --muted: #8a8fa3;
-  --text: #f2f4f8;
-  --accent: #5bb0ff;
-  --ok: #3ecf8e;
-  --warn: #ffaf38;
-  --err: #ff5c5c;
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-  display: grid; grid-template-rows: auto 1fr auto; height: 100vh;
-}
-header {
-  padding: 12px; display: grid; gap: 8px; background: var(--panel);
-  grid-template-columns: 1fr 1fr auto auto auto; align-items: center;
-  border-bottom: 1px solid #23242a;
-}
-header input, header button, header select {
-  background: #0f1013; color: var(--text); border: 1px solid #2a2c33;
-  border-radius: 10px; padding: 10px 12px; font-size: 14px;
-}
-header button { cursor: pointer; }
-header button.primary {
-  background: var(--accent); color: #001627;
-  border-color: #2c7ee6; font-weight: 600;
-}
-header button.ghost { background: transparent; border-color: #2a2c33; }
-header .status { font-size: 12px; color: var(--muted); }
-
-main {
-  display: grid; grid-template-columns: 280px 1fr; gap: 0; height: 100%;
-}
-.sidebar {
-  border-right: 1px solid #23242a; padding: 12px; background: #0e0f12;
-  display: grid; grid-auto-rows: min-content; gap: 10px;
-}
-.sidebar h2 { margin: 6px 0 4px; font-size: 14px; color: var(--muted); font-weight: 600; }
-.sidebar .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.sidebar input, .sidebar button, .sidebar select, textarea {
-  background: #0f1013; color: var(--text); border: 1px solid #2a2c33;
-  border-radius: 10px; padding: 10px 12px; font-size: 14px;
-}
-.sidebar small { color: var(--muted); }
-
-.composer { display: grid; gap: 6px; }
-.composer textarea { width: 100%; min-height: 120px; resize: vertical; }
-.composer .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
-.composer .hint { color: var(--muted); font-size: 12px; }
-
-.timeline-wrap {
-  position: relative; overflow: auto;
-  background: radial-gradient(1200px 80% at 95% 50%, rgba(65,72,90,0.15), transparent 60%);
-  display: grid;
-}
-
-/* 縦書き領域 */
+/* タイムライン全体：横並び強制、右から左へスクロール */
 .vertical-timeline {
   display: flex;
-  flex-direction: row;        /* 横並び */
+  flex-direction: row-reverse;  /* 右から左に並べる */
   align-items: flex-start;
   gap: 16px;
-  overflow-x: auto;           /* 横スクロールを許可 */
+  overflow-x: auto;             /* 横スクロール */
   overflow-y: hidden;
   padding: 20px;
-  flex-direction: row-reverse; /* 右から左に並べる */
+  white-space: nowrap;          /* 改行を禁止して横並びを強制 */
 }
 
-/* ノート本文を縦書き */
+/* 各ノートカード */
 .note {
-  writing-mode: vertical-rl;
+  display: inline-block;        /* 横並びを強制 */
+  vertical-align: top;
+  writing-mode: vertical-rl;    /* 本文を縦書き */
   text-orientation: mixed;
-  background: var(--panel);
+  background: var(--panel, #1e1e2f);
   border: 1px solid #242733;
   border-radius: 18px;
   padding: 14px;
   min-height: 260px;
   min-width: 160px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 /* 本文 */
@@ -91,25 +31,12 @@ main {
   text-orientation: mixed;
   font-size: 16px;
   line-height: 1.8;
-  flex: 1;
 }
 
-/* メタ情報は横書き */
+/* メタ情報（著者・日時）は横書き */
 .note .meta,
 .note .author {
   writing-mode: horizontal-tb;
   font-size: 12px;
 }
 
-
-
-.empty {
-  color: var(--muted); display: grid; place-items: center; font-size: 14px;
-}
-
-footer {
-  padding: 8px 12px; color: var(--muted); font-size: 12px;
-  border-top: 1px solid #23242a; background: #0e0f12;
-  display: flex; justify-content: space-between;
-}
-a { color: var(--accent); text-decoration: none; }
