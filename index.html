@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>縦書きミニNostrクライアント</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <input id="relay" placeholder="Relay: wss://relay.example (複数はカンマ)" value="wss://relay.damus.io,wss://nos.lol" />
+    <input id="author" placeholder="著者pubkey(HEX, 任意)" />
+    <select id="kind">
+      <option value="1" selected>kind:1（テキスト）</option>
+      <option value="6">kind:6（Repost）</option>
+    </select>
+    <button id="btnConnect" class="ghost">接続</button>
+    <div class="status" id="status">未接続</div>
+  </header>
+
+  <main>
+    <aside class="sidebar">
+      <h2>購読</h2>
+      <div class="row">
+        <input id="limit" type="number" min="1" max="200" value="50" />
+        <button id="btnSubscribe">購読/更新</button>
+      </div>
+      <small>author空→全体。authorにHEXを入れるとその著者の投稿のみ。</small>
+
+      <h2>投稿（NIP-07拡張が必要）</h2>
+      <div class="composer">
+        <div class="row">
+          <button id="btnMe" class="ghost">私のpubkey取得</button>
+          <small class="hint">ブラウザ拡張（例: nos2x、Alby等）が必要</small>
+        </div>
+        <textarea id="compose" placeholder="縦書きで表示されます。ここに本文…"></textarea>
+        <div class="row">
+          <button id="btnPublish" class="primary">投稿</button>
+          <small class="hint" id="postHint"></small>
+        </div>
+      </div>
+    </aside>
+
+    <section class="timeline-wrap">
+      <div id="timeline" class="vertical-timeline empty">
+        購読するとここに縦書きでノートが並びます
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div>縦書きミニNostrクライアント / NIP-01 & NIP-07（任意）</div>
+    <div>MITライセンス・自己責任でご利用ください</div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
