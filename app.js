@@ -123,3 +123,5 @@ qs('#btnMe').addEventListener('click', async () => {
 
 // 起動時の簡易接続
 connectRelays(qs('#relay').value);
+
+timeline.prepend(noteEl);
