@@ -125,3 +125,13 @@ qs('#btnMe').addEventListener('click', async () => {
 connectRelays(qs('#relay').value);
 
 timeline.prepend(noteEl);
+
+//スクロール操作
+const timeline = document.querySelector('.vertical-timeline');
+timeline.addEventListener('wheel', (e) => {
+  if (e.deltaY !== 0) {
+    e.preventDefault();
+    timeline.scrollLeft += e.deltaY;
+  }
+}, { passive: false });
+
