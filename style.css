@@ -6,13 +6,15 @@
   gap: 16px;
   overflow-x: auto;             /* 横スクロール */
   overflow-y: hidden;
-  padding: 20px;
+  padding: 16px;
   white-space: nowrap;          /* 改行を禁止して横並びを強制 */
+  -webkit-overflow-scrolling: touch; /* スマホでスムーズスクロール */
+  scrollbar-width: thin;        /* Firefox: 細いスクロールバー */
 }
 
 /* 各ノートカード */
 .note {
-  display: inline-block;        /* 横並びを強制 */
+  display: inline-block;        /* 横並びを確実にする */
   vertical-align: top;
   writing-mode: vertical-rl;    /* 本文を縦書き */
   text-orientation: mixed;
