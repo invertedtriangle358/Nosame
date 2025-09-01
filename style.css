@@ -1,6 +1,7 @@
+/* 全体横並び */
 main {
   display: flex;
-  flex-direction: row; /* 左右並び */
+  flex-direction: row;
   height: 100vh;
   overflow: hidden;
 }
@@ -94,3 +95,4 @@ main {
 .timeline-controls button:hover {
   background: #666;
 }
+
