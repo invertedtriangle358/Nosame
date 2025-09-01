@@ -129,11 +129,18 @@ qs('#btnMe').addEventListener('click', async () => {
 
 // ---- スクロール制御 ----
 document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.getElementById("timeline");
-  const btnLeft = document.getElementById("scrollLeft");
-  const btnRight = document.getElementById("scrollRight");
+  const btnConnect = qs('#btnConnect');
+  const btnSubscribe = qs('#btnSubscribe');
+  const btnPublish = qs('#btnPublish');
+  const btnMe = qs('#btnMe');
 
-  if (!timeline) return;
+  if (btnConnect) btnConnect.addEventListener('click', () => connectRelays(qs('#relay').value));
+  if (btnSubscribe) btnSubscribe.addEventListener('click', subscribe);
+  if (btnPublish) btnPublish.addEventListener('click', publish);
+  if (btnMe) btnMe.addEventListener('click', async () => {
+    if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
+    try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
+  });
 
   // マウスホイールで横スクロール
   timeline.addEventListener("wheel", (e) => {
