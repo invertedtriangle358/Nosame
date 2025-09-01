@@ -32,18 +32,15 @@ main {
   overflow-y: auto;
 }
 
-/* イベントタイムライン（右カラム・横スクロール） */
+/* イベントタイムライン（右カラムの器） */
 .timeline-wrap {
   flex: 1;
   display: flex;
   align-items: flex-start;
-  overflow-x: auto;      /* 横スクロール */
-  overflow-y: hidden;
-  white-space: nowrap;
   background: #fff;
   height: 100vh;
+  overflow: hidden;   /* ここで横スクロール消す */
 }
-
 
 /* 各ノートカード */
 .note {
