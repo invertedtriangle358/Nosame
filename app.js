@@ -70,8 +70,15 @@ function renderEvent(ev) {
     <div class="content"></div>
   `;
   el.querySelector('.content').textContent = content;
-    qs('#timeline').prepend(el);
+
+  // ★ここでタイムラインに追加する必要あり
+  const tl = qs('#timeline');
+  if (tl) {
+    tl.prepend(el); // 新しい投稿を先頭に表示
+    tl.classList.remove('empty'); // 初期メッセージを消すため
+  }
 }
+
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
