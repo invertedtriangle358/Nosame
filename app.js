@@ -35,8 +35,7 @@ function subscribe() {
   if (author) filter.authors = [author];
 
   const tl = qs('#timeline');
-  tl.innerHTML = ''; 
-  tl.classList.remove('empty');
+  tl.innerHTML = ''; tl.classList.remove('empty');
 
   const req = ["REQ", subId, filter];
   sockets.forEach(ws => { if (ws.readyState === 1) ws.send(JSON.stringify(req)); });
@@ -71,14 +70,9 @@ function renderEvent(ev) {
   `;
   el.querySelector('.content').textContent = content;
 
-  // ★ここでタイムラインに追加する必要あり
   const tl = qs('#timeline');
-  if (tl) {
-    tl.prepend(el); // 新しい投稿を先頭に表示
-    tl.classList.remove('empty'); // 初期メッセージを消すため
-  }
+  tl.prepend(el);
 }
-
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
@@ -118,17 +112,9 @@ async function publish() {
   }
 }
 
-// ---- イベント配線 ----
-qs('#btnConnect').addEventListener('click', () => connectRelays(qs('#relay').value));
-qs('#btnSubscribe').addEventListener('click', subscribe);
-qs('#btnPublish').addEventListener('click', publish);
-qs('#btnMe').addEventListener('click', async () => {
-  if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
-  try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
-});
-
-// ---- スクロール制御 ----
+// ---- DOM 読み込み後に全てセット ----
 document.addEventListener("DOMContentLoaded", () => {
+  // ボタン取得
   const btnConnect = qs('#btnConnect');
   const btnSubscribe = qs('#btnSubscribe');
   const btnPublish = qs('#btnPublish');
@@ -142,16 +128,24 @@ document.addEventListener("DOMContentLoaded", () => {
     try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
   });
 
-  // マウスホイールで横スクロール
-  timeline.addEventListener("wheel", (e) => {
-    if (e.deltaY === 0) return;
-    e.preventDefault();
-    timeline.scrollLeft += e.deltaY;
-  }, { passive: false });
+  // タイムライン横スクロール
+  const timeline = document.getElementById("timeline");
+  const btnLeft = document.getElementById("scrollLeft");
+  const btnRight = document.getElementById("scrollRight");
 
-  // ボタンでスクロール
-  if (btnLeft && btnRight) {
-    btnLeft.addEventListener("click", () => { timeline.scrollLeft -= 300; });
-    btnRight.addEventListener("click", () => { timeline.scrollLeft += 300; });
+  if (timeline) {
+    timeline.addEventListener("wheel", (e) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      timeline.scrollLeft += e.deltaY;
+    }, { passive: false });
+
+    if (btnLeft && btnRight) {
+      btnLeft.addEventListener("click", () => { timeline.scrollLeft -= 300; });
+      btnRight.addEventListener("click", () => { timeline.scrollLeft += 300; });
+    }
   }
+
+  // 起動時にリレー接続
+  connectRelays(qs('#relay')?.value || '');
 });
