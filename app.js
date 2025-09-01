@@ -35,7 +35,8 @@ function subscribe() {
   if (author) filter.authors = [author];
 
   const tl = qs('#timeline');
-  tl.innerHTML = ''; tl.classList.remove('empty');
+  tl.innerHTML = ''; 
+  tl.classList.remove('empty');
 
   const req = ["REQ", subId, filter];
   sockets.forEach(ws => { if (ws.readyState === 1) ws.send(JSON.stringify(req)); });
@@ -121,55 +122,30 @@ qs('#btnMe').addEventListener('click', async () => {
   try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
 });
 
-// 起動時の簡易接続
-connectRelays(qs('#relay').value);
-
-timeline.prepend(noteEl);
-
-//スクロール操作
+// ---- スクロール操作 ----
 document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.querySelector(".vertical-timeline");
+  const timeline = qs("#timeline");
   if (!timeline) return;
 
+  // ホイールで横スクロール
   timeline.addEventListener("wheel", (e) => {
-    // Shiftキー押下時などは邪魔しない
-    if (e.deltaY === 0) return;
-
-    e.preventDefault();
-    timeline.scrollLeft += e.deltaY;
-  }, { passive: false });
-});
-
-// --- PC用ホイール横スクロール ---
-document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.querySelector(".vertical-timeline");
-  if (!timeline) {
-    console.log("timeline が見つからない");
-    return;
-  }
-
-  timeline.addEventListener("wheel", (e) => {
-    console.log("wheel event!", e.deltaY); // ←動作確認
     if (e.deltaY === 0) return;
     e.preventDefault();
     timeline.scrollLeft += e.deltaY;
-    console.log("scrollLeft:", timeline.scrollLeft);
   }, { passive: false });
-});
 
-document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.querySelector(".vertical-timeline");
-  if (!timeline) return;
-
-  const btnLeft = document.getElementById("scrollLeft");
-  const btnRight = document.getElementById("scrollRight");
-
+  // ボタン操作
+  const btnLeft = qs("#scrollLeft");
+  const btnRight = qs("#scrollRight");
   if (btnLeft && btnRight) {
     btnLeft.addEventListener("click", () => {
-      timeline.scrollLeft -= 300; // ← 左に300pxスクロール
+      timeline.scrollLeft -= 300;
     });
     btnRight.addEventListener("click", () => {
-      timeline.scrollLeft += 300; // ← 右に300pxスクロール
+      timeline.scrollLeft += 300;
     });
   }
 });
+
+// 起動時の簡易接続
+connectRelays(qs('#relay').value);
