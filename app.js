@@ -156,3 +156,20 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("scrollLeft:", timeline.scrollLeft);
   }, { passive: false });
 });
+
+document.addEventListener("DOMContentLoaded", () => {
+  const timeline = document.querySelector(".vertical-timeline");
+  if (!timeline) return;
+
+  const btnLeft = document.getElementById("scrollLeft");
+  const btnRight = document.getElementById("scrollRight");
+
+  if (btnLeft && btnRight) {
+    btnLeft.addEventListener("click", () => {
+      timeline.scrollLeft -= 300; // ← 左に300pxスクロール
+    });
+    btnRight.addEventListener("click", () => {
+      timeline.scrollLeft += 300; // ← 右に300pxスクロール
+    });
+  }
+});
