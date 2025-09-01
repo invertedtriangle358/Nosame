@@ -70,6 +70,7 @@ function renderEvent(ev) {
     <div class="content"></div>
   `;
   el.querySelector('.content').textContent = content;
+    qs('#timeline').prepend(el);
 }
 
 // ---- 投稿（NIP-07） ----
