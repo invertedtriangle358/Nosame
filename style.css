@@ -14,31 +14,34 @@
 
 main {
   display: flex;
-  height: 100vh;
+  flex-direction: row;   /* 横並び */
+  height: 100vh;         /* 画面全体 */
   overflow: hidden;
 }
 
-/* 左端に固定される投稿欄 */
+/* 投稿欄（左カラム固定） */
 .sidebar {
-  width: 280px;        /* 固定幅 */
+  width: 300px;          /* 左カラムの幅 */
   flex-shrink: 0;
   border-right: 1px solid #ccc;
-  overflow-y: auto;    /* 投稿欄が長くなったら縦スクロール */
   background: #fafafa;
-  position: sticky;
-  left: 0;
-  top: 0;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
-/* タイムラインは横スクロール */
+/* イベントタイムライン（右カラム・横スクロール） */
 .timeline-wrap {
   flex: 1;
-  overflow-x: auto;
-  overflow-y: hidden;
-  white-space: nowrap;
   display: flex;
   align-items: flex-start;
+  overflow-x: auto;      /* 横スクロール */
+  overflow-y: hidden;
+  white-space: nowrap;
+  background: #fff;
+  height: 100vh;
 }
 
 
