@@ -127,21 +127,26 @@ qs('#btnMe').addEventListener('click', async () => {
   try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
 });
 
-// ---- スクロール操作 ----
+// ---- スクロール制御 ----
 document.addEventListener("DOMContentLoaded", () => {
-  const timeline = qs("#timeline");
-  if (!timeline) return;
+  const timeline = document.getElementById("timeline");
+  if (!timeline) {
+    console.warn("timeline が見つからない");
+    return;
+  }
 
-  // ホイールで横スクロール
+  // --- マウスホイールで横スクロール ---
   timeline.addEventListener("wheel", (e) => {
     if (e.deltaY === 0) return;
     e.preventDefault();
     timeline.scrollLeft += e.deltaY;
+    console.log("scrollLeft:", timeline.scrollLeft); // デバッグ用
   }, { passive: false });
 
-  // ボタン操作
-  const btnLeft = qs("#scrollLeft");
-  const btnRight = qs("#scrollRight");
+  // --- 左右ボタンでスクロール ---
+  const btnLeft = document.getElementById("scrollLeft");
+  const btnRight = document.getElementById("scrollRight");
+
   if (btnLeft && btnRight) {
     btnLeft.addEventListener("click", () => {
       timeline.scrollLeft -= 300;
@@ -152,5 +157,3 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 起動時の簡易接続
-connectRelays(qs('#relay').value);
