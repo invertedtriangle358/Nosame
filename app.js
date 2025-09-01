@@ -149,3 +149,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // 起動時にリレー接続
   connectRelays(qs('#relay')?.value || '');
 });
+
+const btnMe = qs('#btnMe');
+if (btnMe) {
+  btnMe.addEventListener('click', async () => {
+    if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
+    try { 
+      const pk = await window.nostr.getPublicKey(); 
+      qs('#author').value = pk; 
+    } catch(_) {}
+  });
+}
