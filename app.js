@@ -140,3 +140,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }, { passive: false });
 });
 
+// --- PC用ホイール横スクロール ---
+document.addEventListener("DOMContentLoaded", () => {
+  const timeline = document.querySelector(".vertical-timeline");
+  if (!timeline) {
+    console.log("timeline が見つからない");
+    return;
+  }
+
+  timeline.addEventListener("wheel", (e) => {
+    console.log("wheel event!", e.deltaY); // ←動作確認
+    if (e.deltaY === 0) return;
+    e.preventDefault();
+    timeline.scrollLeft += e.deltaY;
+    console.log("scrollLeft:", timeline.scrollLeft);
+  }, { passive: false });
+});
