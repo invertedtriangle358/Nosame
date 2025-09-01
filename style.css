@@ -1,27 +1,13 @@
-/* タイムライン全体：横並び強制、右から左へスクロール */
-.vertical-timeline {
-  display: flex;
-  flex-direction: row-reverse;  /* 右から左に並べる */
-  align-items: flex-start;
-  gap: 16px;
-  overflow-x: auto;             /* 横スクロール */
-  overflow-y: hidden;
-  padding: 16px;
-  white-space: nowrap;          /* 改行を禁止して横並びを強制 */
-  -webkit-overflow-scrolling: touch; /* スマホでスムーズスクロール */
-  scrollbar-width: thin;        /* Firefox: 細いスクロールバー */
-}
-
 main {
   display: flex;
-  flex-direction: row;   /* 横並び */
-  height: 100vh;         /* 画面全体 */
+  flex-direction: row; /* 左右並び */
+  height: 100vh;
   overflow: hidden;
 }
 
-/* 投稿欄（左カラム固定） */
+/* 投稿欄（左固定） */
 .sidebar {
-  width: 300px;          /* 左カラムの幅 */
+  width: 300px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
   background: #fafafa;
@@ -30,25 +16,39 @@ main {
   height: 100vh;
   box-sizing: border-box;
   overflow-y: auto;
+  padding: 16px;
 }
 
-/* イベントタイムライン（右カラムの器） */
+/* タイムラインの器 */
 .timeline-wrap {
   flex: 1;
   display: flex;
   align-items: flex-start;
   background: #fff;
   height: 100vh;
-  overflow: hidden;   /* ここで横スクロール消す */
+  overflow: hidden; /* 親はスクロールなし */
 }
 
-/* 各ノートカード */
+/* タイムライン本体（カード単位で横スクロール） */
+.vertical-timeline {
+  display: flex;
+  flex-direction: row-reverse; /* 右から左に並べる */
+  align-items: flex-start;
+  gap: 16px;
+  overflow-x: auto;             /* 横スクロール */
+  overflow-y: hidden;
+  padding: 16px;
+  white-space: nowrap;          /* 改行禁止 */
+  -webkit-overflow-scrolling: touch; /* スマホスムーズスクロール */
+  scrollbar-width: thin;
+}
+
+/* 各カード */
 .note {
-  display: inline-block;        /* 横並びを確実にする */
-  vertical-align: top;
-  writing-mode: vertical-rl;    /* 本文を縦書き */
+  display: inline-block;
+  writing-mode: vertical-rl;
   text-orientation: mixed;
-  background: var(--panel, #696969);
+  background: #696969;
   border: 1px solid #242733;
   border-radius: 18px;
   padding: 14px;
@@ -65,13 +65,14 @@ main {
   line-height: 1.8;
 }
 
-/* メタ情報（著者・日時）は横書き */
+/* メタ情報（横書き） */
 .note .meta,
 .note .author {
   writing-mode: horizontal-tb;
   font-size: 12px;
 }
 
+/* スクロールボタン */
 .timeline-controls {
   display: flex;
   justify-content: center;
