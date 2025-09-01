@@ -12,6 +12,36 @@
   scrollbar-width: thin;        /* Firefox: 細いスクロールバー */
 }
 
+main {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* 左端に固定される投稿欄 */
+.sidebar {
+  width: 280px;        /* 固定幅 */
+  flex-shrink: 0;
+  border-right: 1px solid #ccc;
+  overflow-y: auto;    /* 投稿欄が長くなったら縦スクロール */
+  background: #fafafa;
+  position: sticky;
+  left: 0;
+  top: 0;
+  height: 100vh;
+}
+
+/* タイムラインは横スクロール */
+.timeline-wrap {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  display: flex;
+  align-items: flex-start;
+}
+
+
 /* 各ノートカード */
 .note {
   display: inline-block;        /* 横並びを確実にする */
