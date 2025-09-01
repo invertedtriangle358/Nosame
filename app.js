@@ -130,30 +130,21 @@ qs('#btnMe').addEventListener('click', async () => {
 // ---- スクロール制御 ----
 document.addEventListener("DOMContentLoaded", () => {
   const timeline = document.getElementById("timeline");
-  if (!timeline) {
-    console.warn("timeline が見つからない");
-    return;
-  }
+  const btnLeft = document.getElementById("scrollLeft");
+  const btnRight = document.getElementById("scrollRight");
 
-  // --- マウスホイールで横スクロール ---
+  if (!timeline) return;
+
+  // マウスホイールで横スクロール
   timeline.addEventListener("wheel", (e) => {
     if (e.deltaY === 0) return;
     e.preventDefault();
     timeline.scrollLeft += e.deltaY;
-    console.log("scrollLeft:", timeline.scrollLeft); // デバッグ用
   }, { passive: false });
 
-  // --- 左右ボタンでスクロール ---
-  const btnLeft = document.getElementById("scrollLeft");
-  const btnRight = document.getElementById("scrollRight");
-
+  // ボタンでスクロール
   if (btnLeft && btnRight) {
-    btnLeft.addEventListener("click", () => {
-      timeline.scrollLeft -= 300;
-    });
-    btnRight.addEventListener("click", () => {
-      timeline.scrollLeft += 300;
-    });
+    btnLeft.addEventListener("click", () => { timeline.scrollLeft -= 300; });
+    btnRight.addEventListener("click", () => { timeline.scrollLeft += 300; });
   }
 });
-
