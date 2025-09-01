@@ -118,15 +118,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnConnect = qs('#btnConnect');
   const btnSubscribe = qs('#btnSubscribe');
   const btnPublish = qs('#btnPublish');
-  const btnMe = qs('#btnMe');
+  const btnMe = qs('#btnMe'); // NIP-07ボタン（存在チェック必須）
 
   if (btnConnect) btnConnect.addEventListener('click', () => connectRelays(qs('#relay').value));
   if (btnSubscribe) btnSubscribe.addEventListener('click', subscribe);
   if (btnPublish) btnPublish.addEventListener('click', publish);
-  if (btnMe) btnMe.addEventListener('click', async () => {
-    if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
-    try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
-  });
+
+  // btnMe が存在する場合のみイベントを付与
+  if (btnMe) {
+    btnMe.addEventListener('click', async () => {
+      if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
+      try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
+    });
+  }
 
   // タイムライン横スクロール
   const timeline = document.getElementById("timeline");
@@ -150,13 +154,3 @@ document.addEventListener("DOMContentLoaded", () => {
   connectRelays(qs('#relay')?.value || '');
 });
 
-const btnMe = qs('#btnMe');
-if (btnMe) {
-  btnMe.addEventListener('click', async () => {
-    if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
-    try { 
-      const pk = await window.nostr.getPublicKey(); 
-      qs('#author').value = pk; 
-    } catch(_) {}
-  });
-}
