@@ -8,7 +8,7 @@ main {
 
 /* 投稿欄（左固定） */
 .sidebar {
-  width: 300px;
+  width: 100px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
   background: #fafafa;
@@ -69,7 +69,7 @@ main {
 /* メタ情報（横書き） */
 .note .meta,
 .note .author {
-  writing-mode: horizontal-tb;
+  writing-mode: vertical-rl;
   font-size: 12px;
 }
 
