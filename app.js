@@ -19,9 +19,13 @@ function connectRelays(relayList) {
   let openCount = 0;
   relays.forEach(url => {
     const ws = new WebSocket(url);
-    ws.onopen = () => { openCount++; status.textContent = `接続: ${openCount}/${relays.length}`; };
-    ws.onclose = () => { status.textContent = `切断: ${url}`; };
-    ws.onerror = () => { status.textContent = `エラー: ${url}`; };
+    ws.onopen = () => { 
+      openCount++; 
+      status.textContent = `接続: ${openCount}/${relays.length}`; 
+      console.log("接続成功:", url);
+    };
+    ws.onclose = () => { console.log("切断:", url); status.textContent = `切断: ${url}`; };
+    ws.onerror = () => { console.log("エラー:", url); status.textContent = `エラー: ${url}`; };
     ws.onmessage = onMessage;
     sockets.push(ws);
   });
@@ -34,21 +38,34 @@ function subscribe() {
   const filter = { kinds: [kind], limit };
   if (author) filter.authors = [author];
 
+  console.log("REQ フィルタ:", filter);
+
   const tl = qs('#timeline');
-  tl.innerHTML = ''; tl.classList.remove('empty');
+  tl.innerHTML = ''; 
+  tl.classList.remove('empty');
 
   const req = ["REQ", subId, filter];
-  sockets.forEach(ws => { if (ws.readyState === 1) ws.send(JSON.stringify(req)); });
+  sockets.forEach(ws => { 
+    if (ws.readyState === 1) {
+      console.log("送信:", req, "->", ws.url);
+      ws.send(JSON.stringify(req)); 
+    } else {
+      console.log("送信失敗 (readyState=", ws.readyState, "):", ws.url);
+    }
+  });
 }
 
 function onMessage(ev) {
+  console.log("受信:", ev.data);
   try {
     const msg = JSON.parse(ev.data);
     if (msg[0] === 'EVENT' && msg[1] === subId) {
       const event = msg[2];
       renderEvent(event);
     }
-  } catch (e) { /* noop */ }
+  } catch (e) { 
+    console.error("JSON parse error:", e, ev.data); 
+  }
 }
 
 function renderEvent(ev) {
@@ -112,44 +129,46 @@ async function publish() {
   }
 }
 
-// ---- DOM 読み込み後に全てセット ----
+// ---- イベント配線 ----
+qs('#btnConnect')?.addEventListener('click', () => connectRelays(qs('#relay').value));
+qs('#btnSubscribe')?.addEventListener('click', subscribe);
+qs('#btnPublish')?.addEventListener('click', publish);
+qs('#btnMe')?.addEventListener('click', async () => {
+  if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
+  try { 
+    const pk = await window.nostr.getPublicKey(); 
+    qs('#author').value = pk; 
+  } catch(_) {}
+});
+
+// 起動時の簡易接続
+connectRelays(qs('#relay').value);
+
+// --- PC用ホイール横スクロール ---
 document.addEventListener("DOMContentLoaded", () => {
-  // ボタン取得
-  const btnConnect = qs('#btnConnect');
-  const btnSubscribe = qs('#btnSubscribe');
-  const btnPublish = qs('#btnPublish');
-  const btnMe = qs('#btnMe'); // NIP-07ボタン（存在チェック必須）
-
-  if (btnConnect) btnConnect.addEventListener('click', () => connectRelays(qs('#relay').value));
-  if (btnSubscribe) btnSubscribe.addEventListener('click', subscribe);
-  if (btnPublish) btnPublish.addEventListener('click', publish);
-
-  // btnMe が存在する場合のみイベントを付与
-  if (btnMe) {
-    btnMe.addEventListener('click', async () => {
-      if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
-      try { const pk = await window.nostr.getPublicKey(); qs('#author').value = pk; } catch(_) {}
-    });
+  const timeline = document.querySelector(".vertical-timeline");
+  if (!timeline) {
+    console.log("timeline が見つからない");
+    return;
   }
 
-  // タイムライン横スクロール
-  const timeline = document.getElementById("timeline");
+  timeline.addEventListener("wheel", (e) => {
+    console.log("wheel event!", e.deltaY); 
+    if (e.deltaY === 0) return;
+    e.preventDefault();
+    timeline.scrollLeft += e.deltaY;
+    console.log("scrollLeft:", timeline.scrollLeft);
+  }, { passive: false });
+
   const btnLeft = document.getElementById("scrollLeft");
   const btnRight = document.getElementById("scrollRight");
 
-  if (timeline) {
-    timeline.addEventListener("wheel", (e) => {
-      if (e.deltaY === 0) return;
-      e.preventDefault();
-      timeline.scrollLeft += e.deltaY;
-    }, { passive: false });
-
-    if (btnLeft && btnRight) {
-      btnLeft.addEventListener("click", () => { timeline.scrollLeft -= 300; });
-      btnRight.addEventListener("click", () => { timeline.scrollLeft += 300; });
-    }
+  if (btnLeft && btnRight) {
+    btnLeft.addEventListener("click", () => {
+      timeline.scrollLeft -= 300;
+    });
+    btnRight.addEventListener("click", () => {
+      timeline.scrollLeft += 300;
+    });
   }
-
-  // 起動時にリレー接続
-  connectRelays(qs('#relay')?.value || '');
 });
