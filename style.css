@@ -8,21 +8,16 @@ main {
 
 /* 投稿欄（左固定） */
 .sidebar {
-  width: 150px;
+  width: 170px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
-  background: #fafafa;
+  background: #b0c4de;
   display: flex;
   flex-direction: column;
   height: 100vh;
   box-sizing: border-box;
   overflow-y: auto;
   padding: 16px;
-}
-
-.comporsor {
-  width: 150px
-  background: #b0c4de;
 }
 
 /* タイムラインの器 */
