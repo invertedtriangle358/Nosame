@@ -153,4 +153,3 @@ document.addEventListener("DOMContentLoaded", () => {
   // 起動時にリレー接続
   connectRelays(qs('#relay')?.value || '');
 });
-
