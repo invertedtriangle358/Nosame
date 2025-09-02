@@ -87,6 +87,13 @@ main {
   justify-content: center;
   gap: 1rem;
   margin: 0.5rem 0;
+  
+  /* 以下の3行を追加 */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%; /* 横幅を画面いっぱいに広げる */
 }
 
 .timeline-controls button {
@@ -103,4 +110,3 @@ main {
 .timeline-controls button:hover {
   background: #666;
 }
-
