@@ -1,3 +1,7 @@
+body {
+  background: #93bdd5;
+}
+
 /* 全体横並び */
 main {
   display: flex;
