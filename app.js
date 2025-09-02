@@ -70,12 +70,34 @@ function onMessage(ev) {
 }
 
 function renderEvent(ev) {
-  console.log("renderEvent呼び出し:", ev); // ←これ追加
+  console.log("renderEvent呼び出し:", ev);
+
   let content = ev.content || '';
-  ...
+  if (ev.kind === 6) {
+    try {
+      const inner = JSON.parse(content);
+      if (inner && inner.content) content = `RP › ${inner.content}`;
+    } catch(e){}
+  }
+
+  const el = document.createElement('article');
+  el.className = 'note';
+  const ts = new Date(ev.created_at * 1000).toLocaleString();
+  el.innerHTML = `
+    <div class="meta">${ts}</div>
+    <div class="author">${ev.pubkey.slice(0, 8)}…</div>
+    <div class="content"></div>
+  `;
+  el.querySelector('.content').textContent = content;
+
+  const tl = qs('#timeline');
+  if (!tl) {
+    console.error("timeline が見つからない");
+    return;
+  }
+  tl.prepend(el);
 }
 
-}
 
 function renderEvent(ev) {
   let content = ev.content || '';
