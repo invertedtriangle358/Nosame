@@ -20,6 +20,11 @@ main {
   padding: 16px;
 }
 
+.complementary {
+  width: 100px
+  background: #b0c4de;
+}
+
 /* タイムラインの器 */
 .timeline-wrap {
   flex: 1;
