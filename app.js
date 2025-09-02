@@ -56,16 +56,25 @@ function subscribe() {
 }
 
 function onMessage(ev) {
-  console.log("受信:", ev.data);
+  console.log("受信した生データ:", ev.data); // ←これを追加
   try {
     const msg = JSON.parse(ev.data);
     if (msg[0] === 'EVENT' && msg[1] === subId) {
+      console.log("EVENTを検出:", msg[2]); // ←これも追加
       const event = msg[2];
       renderEvent(event);
     }
-  } catch (e) { 
-    console.error("JSON parse error:", e, ev.data); 
+  } catch (e) {
+    console.error("JSON parse error:", e);
   }
+}
+
+function renderEvent(ev) {
+  console.log("renderEvent呼び出し:", ev); // ←これ追加
+  let content = ev.content || '';
+  ...
+}
+
 }
 
 function renderEvent(ev) {
