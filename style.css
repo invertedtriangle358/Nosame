@@ -2,6 +2,10 @@ body {
   background: #93bdd5;
 }
 
+h1 {
+  font-family: sawarabi minchou;
+}
+
 /* 全体横並び */
 main {
   display: flex;
