@@ -16,25 +16,32 @@ function connectRelays(relayList) {
   sockets.forEach((ws) => ws.close?.());
   sockets = [];
 
-  const relays = relayList.split(",").map((s) => s.trim()).filter(Boolean);
+  const relays = relayList
+    ? relayList.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  if (!relays.length) {
+    console.warn("リレーが指定されていません");
+    return;
+  }
+
   const status = qs("#status");
-  status.textContent = "接続中…";
+  if (status) status.textContent = "接続中…";
 
   let openCount = 0;
   relays.forEach((url) => {
     const ws = new WebSocket(url);
     ws.onopen = () => {
       openCount++;
-      status.textContent = `接続: ${openCount}/${relays.length}`;
+      if (status) status.textContent = `接続: ${openCount}/${relays.length}`;
       console.log("接続成功:", url);
     };
     ws.onclose = () => {
       console.log("切断:", url);
-      status.textContent = `切断: ${url}`;
+      if (status) status.textContent = `切断: ${url}`;
     };
     ws.onerror = () => {
       console.log("エラー:", url);
-      status.textContent = `エラー: ${url}`;
+      if (status) status.textContent = `エラー: ${url}`;
     };
     ws.onmessage = onMessage;
     sockets.push(ws);
@@ -59,7 +66,9 @@ function subscribe() {
   console.log("購読リクエスト送信:", req);
 
   sockets.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(req));
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(req));
+    }
   });
 }
 
@@ -103,7 +112,7 @@ async function publish() {
   const hint = qs("#postHint");
   if (!ext) return (hint.textContent = "NIP-07対応拡張が見つかりません");
 
-  const content = qs("#compose").value.trim();
+  const content = qs("#compose")?.value.trim();
   if (!content) return (hint.textContent = "本文が空です");
 
   try {
@@ -138,7 +147,7 @@ async function publish() {
     );
 
     hint.textContent = `送信: OK ${okCount} / NG ${errCount}`;
-    qs("#compose").value = "";
+    if (qs("#compose")) qs("#compose").value = "";
   } catch (e) {
     hint.textContent = "投稿失敗: " + (e?.message || e);
   }
@@ -147,7 +156,7 @@ async function publish() {
 // ---- 初期化 ----
 document.addEventListener("DOMContentLoaded", () => {
   qs("#btnConnect")?.addEventListener("click", () =>
-    connectRelays(qs("#relay").value)
+    connectRelays(qs("#relay")?.value || "")
   );
   qs("#btnSubscribe")?.addEventListener("click", subscribe);
   qs("#btnPublish")?.addEventListener("click", publish);
@@ -158,6 +167,9 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch {}
   });
 
-  connectRelays(qs("#relay").value);
+  // 起動時に自動接続（relay入力欄がある場合のみ）
+  const relayInput = qs("#relay");
+  if (relayInput?.value) {
+    connectRelays(relayInput.value);
+  }
 });
-
