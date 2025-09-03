@@ -177,29 +177,17 @@ connectRelays(qs('#relay').value);
 
 // --- PC用ホイール横スクロール ---
 document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.querySelector(".vertical-timeline");
-  if (!timeline) {
-    console.log("timeline が見つからない");
-    return;
-  }
+  qs('#btnConnect')?.addEventListener('click', () => connectRelays(qs('#relay').value));
+  qs('#btnSubscribe')?.addEventListener('click', subscribe);
+  qs('#btnPublish')?.addEventListener('click', publish);
+  qs('#btnMe')?.addEventListener('click', async () => {
+    if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
+    try { 
+      const pk = await window.nostr.getPublicKey(); 
+      qs('#author').value = pk; 
+    } catch(_) {}
+  });
 
-  timeline.addEventListener("wheel", (e) => {
-    console.log("wheel event!", e.deltaY); 
-    if (e.deltaY === 0) return;
-    e.preventDefault();
-    timeline.scrollLeft += e.deltaY;
-    console.log("scrollLeft:", timeline.scrollLeft);
-  }, { passive: false });
-
-  const btnLeft = document.getElementById("scrollLeft");
-  const btnRight = document.getElementById("scrollRight");
-
-  if (btnLeft && btnRight) {
-    btnLeft.addEventListener("click", () => {
-      timeline.scrollLeft -= 300;
-    });
-    btnRight.addEventListener("click", () => {
-      timeline.scrollLeft += 300;
-    });
-  }
+  // 起動時に自動接続
+  connectRelays(qs('#relay').value);
 });
