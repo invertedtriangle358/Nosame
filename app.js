@@ -32,28 +32,35 @@ function connectRelays(relayList) {
 }
 
 function subscribe() {
-  const kind = Number(qs('#kind').value);
-  const author = qs('#author').value.trim();
-  const limit = Number(qs('#limit').value) || 50;
+  const kindEl = qs('#kind');
+  if (!kindEl) {
+    console.error("kind セレクトが見つかりません");
+    return;
+  }
+
+  const kind = Number(kindEl.value);
+  const authorEl = qs('#author');
+  const author = authorEl ? authorEl.value.trim() : "";
+  const limitEl = qs('#limit');
+  const limit = limitEl ? Number(limitEl.value) || 50 : 50;
+
   const filter = { kinds: [kind], limit };
   if (author) filter.authors = [author];
 
-  console.log("REQ フィルタ:", filter);
-
   const tl = qs('#timeline');
-  tl.innerHTML = ''; 
-  tl.classList.remove('empty');
+  if (tl) {
+    tl.innerHTML = '';
+    tl.classList.remove('empty');
+  }
 
   const req = ["REQ", subId, filter];
-  sockets.forEach(ws => { 
-    if (ws.readyState === 1) {
-      console.log("送信:", req, "->", ws.url);
-      ws.send(JSON.stringify(req)); 
-    } else {
-      console.log("送信失敗 (readyState=", ws.readyState, "):", ws.url);
-    }
+  console.log("購読リクエスト送信:", req);
+
+  sockets.forEach(ws => {
+    if (ws.readyState === 1) ws.send(JSON.stringify(req));
   });
 }
+
 
 function onMessage(ev) {
   console.log("受信した生データ:", ev.data); // ←これを追加
