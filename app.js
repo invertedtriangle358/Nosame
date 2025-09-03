@@ -1,4 +1,8 @@
 // ---- 簡易ユーティリティ ----
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("kind要素:", document.querySelector("#kind"));
+});
+
 const qs = (s) => document.querySelector(s);
 const enc = (obj) => new TextEncoder().encode(JSON.stringify(obj));
 const sha256 = async (bytes) => {
