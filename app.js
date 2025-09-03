@@ -77,36 +77,6 @@ function onMessage(ev) {
 }
 
 function renderEvent(ev) {
-  console.log("renderEvent呼び出し:", ev);
-
-  let content = ev.content || '';
-  if (ev.kind === 6) {
-    try {
-      const inner = JSON.parse(content);
-      if (inner && inner.content) content = `RP › ${inner.content}`;
-    } catch(e){}
-  }
-
-  const el = document.createElement('article');
-  el.className = 'note';
-  const ts = new Date(ev.created_at * 1000).toLocaleString();
-  el.innerHTML = `
-    <div class="meta">${ts}</div>
-    <div class="author">${ev.pubkey.slice(0, 8)}…</div>
-    <div class="content"></div>
-  `;
-  el.querySelector('.content').textContent = content;
-
-  const tl = qs('#timeline');
-  if (!tl) {
-    console.error("timeline が見つからない");
-    return;
-  }
-  tl.prepend(el);
-}
-
-
-function renderEvent(ev) {
   let content = ev.content || '';
   if (ev.kind === 6) {
     try {
@@ -166,18 +136,6 @@ async function publish() {
     hint.textContent = '投稿失敗: ' + (e?.message || e);
   }
 }
-
-// ---- イベント配線 ----
-qs('#btnConnect')?.addEventListener('click', () => connectRelays(qs('#relay').value));
-qs('#btnSubscribe')?.addEventListener('click', subscribe);
-qs('#btnPublish')?.addEventListener('click', publish);
-qs('#btnMe')?.addEventListener('click', async () => {
-  if (!window.nostr) { alert('NIP-07拡張が必要です'); return; }
-  try { 
-    const pk = await window.nostr.getPublicKey(); 
-    qs('#author').value = pk; 
-  } catch(_) {}
-});
 
 // 起動時の簡易接続
 connectRelays(qs('#relay').value);
