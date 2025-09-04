@@ -35,6 +35,20 @@ main {
   padding: 16px;
 }
 
+/* 投稿欄のテキストエリア */
+.sidebar .composer textarea {
+  writing-mode: vertical-rl;   /* 縦書き */
+  text-orientation: mixed;     /* 横文字も自然に */
+  height: 80vh;                /* 高さを画面の8割くらい */
+  width: 100%;                 /* 横幅いっぱい */
+  resize: none;                /* サイズ変更を禁止 */
+  font-size: 16px;
+  line-height: 1.8;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+
 /* タイムラインの器 */
 .timeline-wrap {
   flex: 1;
