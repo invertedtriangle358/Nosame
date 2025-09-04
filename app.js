@@ -63,18 +63,28 @@ function subscribe() {
   });
 }
 
+// ---- 表示済みイベントを記録するSet ----
+const seenEvents = new Set();
+
 function onMessage(ev) {
-  console.log("受信:", ev.data);
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === "EVENT" && msg[1] === subId) {
-      console.log("EVENT:", msg[2]);
-      renderEvent(msg[2]);
+    if (msg[0] === 'EVENT' && msg[1] === subId) {
+      const event = msg[2];
+
+      // すでに表示済みならスキップ
+      if (seenEvents.has(event.id)) {
+        return;
+      }
+      seenEvents.add(event.id);
+
+      renderEvent(event);
     }
   } catch (e) {
     console.error("JSON parse error:", e);
   }
 }
+
 
 function renderEvent(ev) {
   let content = ev.content || "";
