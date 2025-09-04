@@ -17,6 +17,15 @@
   <button id="btnConnect" class="ghost">接続</button>
 
   <div class="status" id="status">未接続</div>
+      <input id="relay" placeholder="Relay: wss://relay.example (複数はカンマ)" 
+    value="wss://relay-jp.nostr.wirednet.jp,wss://r.kojira.io,wss://relay.barine.co" />
+
+  <input id="author" placeholder="著者pubkey(HEX, 任意)" />
+
+  <select id="kind">
+    <option value="1" selected>kind:1（テキスト）</option>
+    <option value="6">kind:6（リポスト）</option>
+  </select>
   </header>
   
   <main>
@@ -47,15 +56,6 @@
 </main>
 
 <footer>
-  <input id="relay" placeholder="Relay: wss://relay.example (複数はカンマ)" 
-    value="wss://relay-jp.nostr.wirednet.jp,wss://r.kojira.io,wss://relay.barine.co" />
-
-  <input id="author" placeholder="著者pubkey(HEX, 任意)" />
-
-  <select id="kind">
-    <option value="1" selected>kind:1（テキスト）</option>
-    <option value="6">kind:6（リポスト）</option>
-  </select>
   <div class="copylight">Inverted.triangle358 © 2025</div>
   <script src="app.js"></script>
 </footer>
