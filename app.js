@@ -170,3 +170,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   connectRelays(qs("#relay").value);
 });
+
+//----スクロール----
+document.addEventListener("DOMContentLoaded", () => {
+  const timeline = document.getElementById("timeline");
+  const btnLeft = document.getElementById("scrollLeft");
+  const btnRight = document.getElementById("scrollRight");
+
+  if (timeline && btnLeft && btnRight) {
+    btnLeft.addEventListener("click", () => {
+      timeline.scrollBy({ left: -300, behavior: "smooth" });
+    });
+
+    btnRight.addEventListener("click", () => {
+      timeline.scrollBy({ left: 300, behavior: "smooth" });
+    });
+  } else {
+    console.warn("scrollボタンまたはtimelineが見つかりません");
+  }
+});
