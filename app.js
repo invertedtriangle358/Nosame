@@ -144,7 +144,7 @@ async function publish() {
 // 起動時の簡易接続
 connectRelays(qs('#relay').value);
 
-// --- PC用ホイール横スクロール ---
+// --- 各種ボタン ---
 document.addEventListener("DOMContentLoaded", () => {
   qs('#btnConnect')?.addEventListener('click', () => connectRelays(qs('#relay').value));
   qs('#btnSubscribe')?.addEventListener('click', subscribe);
