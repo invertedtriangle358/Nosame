@@ -23,7 +23,7 @@ main {
 
 /* 投稿欄（左固定） */
 .sidebar {
-  width: 198px;
+  width: 120px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
   background: #b0c4de;
