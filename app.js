@@ -1,16 +1,15 @@
 // ---- 簡易ユーティリティ ----
 const qs = (s) => document.querySelector(s);
 const enc = (obj) => new TextEncoder().encode(JSON.stringify(obj));
-const sha256 = async (bytes) => {
-  const buf = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(buf))
+const sha256 = async (bytes) =>
+  Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-};
 
 // ---- Nostr 基本 ----
 let sockets = [];
 const subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+const seenEvents = new Set(); // 表示済みイベント
 
 function connectRelays(relayList) {
   sockets.forEach((ws) => ws.close?.());
@@ -18,24 +17,30 @@ function connectRelays(relayList) {
 
   const relays = relayList.split(",").map((s) => s.trim()).filter(Boolean);
   const status = qs("#status");
-  status.textContent = "接続中…";
+  if (!status) return;
 
+  status.textContent = "接続中…";
   let openCount = 0;
+
   relays.forEach((url) => {
     const ws = new WebSocket(url);
+
     ws.onopen = () => {
       openCount++;
       status.textContent = `接続: ${openCount}/${relays.length}`;
       console.log("接続成功:", url);
     };
+
     ws.onclose = () => {
       console.log("切断:", url);
       status.textContent = `切断: ${url}`;
     };
+
     ws.onerror = () => {
       console.log("エラー:", url);
       status.textContent = `エラー: ${url}`;
     };
+
     ws.onmessage = onMessage;
     sockets.push(ws);
   });
@@ -63,19 +68,13 @@ function subscribe() {
   });
 }
 
-// ---- 表示済みイベントを記録するSet ----
-const seenEvents = new Set();
-
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === 'EVENT' && msg[1] === subId) {
+    if (msg[0] === "EVENT" && msg[1] === subId) {
       const event = msg[2];
 
-      // すでに表示済みならスキップ
-      if (seenEvents.has(event.id)) {
-        return;
-      }
+      if (seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
 
       renderEvent(event);
@@ -85,36 +84,34 @@ function onMessage(ev) {
   }
 }
 
-
 function renderEvent(ev) {
-  let content = ev.content || '';
+  let content = ev.content || "";
   if (ev.kind === 6) {
     try {
       const inner = JSON.parse(content);
-      if (inner && inner.content) content = `RP › ${inner.content}`;
-    } catch(e){}
+      if (inner?.content) content = `RP › ${inner.content}`;
+    } catch {}
   }
 
-  const el = document.createElement('article');
-  el.className = 'note';
+  const el = document.createElement("article");
+  el.className = "note";
+
   const ts = new Date(ev.created_at * 1000).toLocaleString();
   el.innerHTML = `
     <div class="meta">${ts}</div>
     <div class="author">${ev.pubkey.slice(0, 8)}…</div>
     <div class="content"></div>
   `;
-  el.querySelector('.content').textContent = content;
+  el.querySelector(".content").textContent = content;
 
-  // ❤️ リアクションボタンを追加
+  // ❤️ リアクションボタン
   const reactBtn = document.createElement("button");
   reactBtn.textContent = "❤️";
   reactBtn.onclick = () => reactToEvent(ev, "❤️");
   el.appendChild(reactBtn);
 
-  const tl = qs('#timeline');
-  tl.prepend(el);
+  qs("#timeline")?.prepend(el);
 }
-
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
@@ -163,49 +160,10 @@ async function publish() {
   }
 }
 
-// ---- 初期化 ----
-document.addEventListener("DOMContentLoaded", () => {
-  qs("#btnConnect")?.addEventListener("click", () =>
-    connectRelays(qs("#relay").value)
-  );
-  qs("#btnSubscribe")?.addEventListener("click", subscribe);
-  qs("#btnPublish")?.addEventListener("click", publish);
-  qs("#btnMe")?.addEventListener("click", async () => {
-    if (!window.nostr) return alert("NIP-07拡張が必要です");
-    try {
-      qs("#author").value = await window.nostr.getPublicKey();
-    } catch {}
-  });
-
-  connectRelays(qs("#relay").value);
-});
-
-//----スクロール----
-document.addEventListener("DOMContentLoaded", () => {
-  const timeline = document.getElementById("timeline");
-  const btnLeft = document.getElementById("scrollLeft");
-  const btnRight = document.getElementById("scrollRight");
-
-  if (timeline && btnLeft && btnRight) {
-    btnLeft.addEventListener("click", () => {
-      timeline.scrollBy({ left: -300, behavior: "smooth" });
-    });
-
-    btnRight.addEventListener("click", () => {
-      timeline.scrollBy({ left: 300, behavior: "smooth" });
-    });
-  } else {
-    console.warn("scrollボタンまたはtimelineが見つかりません");
-  }
-});
-
-//----リアクション----
+// ---- リアクション（kind:7） ----
 async function reactToEvent(targetEvent, emoji = "❤️") {
   const ext = window.nostr;
-  if (!ext) {
-    alert("NIP-07拡張が必要です");
-    return;
-  }
+  if (!ext) return alert("NIP-07拡張が必要です");
 
   try {
     const pubkey = await ext.getPublicKey();
@@ -220,8 +178,9 @@ async function reactToEvent(targetEvent, emoji = "❤️") {
     const id = await sha256(enc([0, pubkey, created_at, kind, tags, emoji]));
     const ev = await ext.signEvent({ ...unsigned, id });
 
-    sockets.forEach(ws => {
-      if (ws.readyState === 1) ws.send(JSON.stringify(["EVENT", ev]));
+    sockets.forEach((ws) => {
+      if (ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify(["EVENT", ev]));
     });
 
     console.log(`+ リアクション送信 → ${targetEvent.id}`);
@@ -229,3 +188,30 @@ async function reactToEvent(targetEvent, emoji = "❤️") {
     console.error("リアクション送信失敗:", e);
   }
 }
+
+// ---- 初期化 ----
+document.addEventListener("DOMContentLoaded", () => {
+  qs("#btnConnect")?.addEventListener("click", () =>
+    connectRelays(qs("#relay").value)
+  );
+  qs("#btnSubscribe")?.addEventListener("click", subscribe);
+  qs("#btnPublish")?.addEventListener("click", publish);
+  qs("#btnMe")?.addEventListener("click", async () => {
+    if (!window.nostr) return alert("NIP-07拡張が必要です");
+    try {
+      qs("#author").value = await window.nostr.getPublicKey();
+    } catch {}
+  });
+
+  // 起動時に接続
+  connectRelays(qs("#relay").value);
+
+  // スクロールボタン
+  const timeline = qs("#timeline");
+  qs("#scrollLeft")?.addEventListener("click", () =>
+    timeline?.scrollBy({ left: -300, behavior: "smooth" })
+  );
+  qs("#scrollRight")?.addEventListener("click", () =>
+    timeline?.scrollBy({ left: 300, behavior: "smooth" })
+  );
+});
