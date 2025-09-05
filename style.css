@@ -131,3 +131,21 @@ main {
 .timeline-controls button:hover {
   background: #666;
 }
+
+/* ❤️ リアクションボタン */
+.note .react-btn {
+  writing-mode: horizontal-tb; /* 横書き */
+  font-size: 14px;
+  padding: 4px 8px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #e63946;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.note .react-btn:hover {
+  background: #c9182a;
+}
