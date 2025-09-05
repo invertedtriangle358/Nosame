@@ -87,25 +87,34 @@ function onMessage(ev) {
 
 
 function renderEvent(ev) {
-  let content = ev.content || "";
+  let content = ev.content || '';
   if (ev.kind === 6) {
     try {
       const inner = JSON.parse(content);
-      if (inner?.content) content = `RP › ${inner.content}`;
-    } catch {}
+      if (inner && inner.content) content = `RP › ${inner.content}`;
+    } catch(e){}
   }
 
-  const el = document.createElement("article");
-  el.className = "note";
+  const el = document.createElement('article');
+  el.className = 'note';
+  const ts = new Date(ev.created_at * 1000).toLocaleString();
   el.innerHTML = `
-    <div class="meta">${new Date(ev.created_at * 1000).toLocaleString()}</div>
+    <div class="meta">${ts}</div>
     <div class="author">${ev.pubkey.slice(0, 8)}…</div>
     <div class="content"></div>
   `;
-  el.querySelector(".content").textContent = content;
+  el.querySelector('.content').textContent = content;
 
-  qs("#timeline")?.prepend(el);
+  // ❤️ リアクションボタンを追加
+  const reactBtn = document.createElement("button");
+  reactBtn.textContent = "❤️";
+  reactBtn.onclick = () => reactToEvent(ev, "❤️");
+  el.appendChild(reactBtn);
+
+  const tl = qs('#timeline');
+  tl.prepend(el);
 }
+
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
@@ -191,14 +200,32 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 //----リアクション----
-if (event.kind === 7) {
-  const targetId = event.tags.find(t => t[0] === 'e')?.[1];
-  if (targetId) {
-    const targetEl = document.querySelector(
-      `[data-event-id="${targetId}"] .reactions`
-    );
-    if (targetEl) {
-      targetEl.textContent += event.content || "❤️";
-    }
+async function reactToEvent(targetEvent, emoji = "❤️") {
+  const ext = window.nostr;
+  if (!ext) {
+    alert("NIP-07拡張が必要です");
+    return;
+  }
+
+  try {
+    const pubkey = await ext.getPublicKey();
+    const created_at = Math.floor(Date.now() / 1000);
+    const kind = 7;
+    const tags = [
+      ["e", targetEvent.id],
+      ["p", targetEvent.pubkey],
+    ];
+
+    const unsigned = { kind, created_at, tags, content: emoji, pubkey };
+    const id = await sha256(enc([0, pubkey, created_at, kind, tags, emoji]));
+    const ev = await ext.signEvent({ ...unsigned, id });
+
+    sockets.forEach(ws => {
+      if (ws.readyState === 1) ws.send(JSON.stringify(["EVENT", ev]));
+    });
+
+    console.log(`❤️ リアクション送信 → ${targetEvent.id}`);
+  } catch (e) {
+    console.error("リアクション送信失敗:", e);
   }
 }
