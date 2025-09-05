@@ -189,3 +189,16 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("scrollボタンまたはtimelineが見つかりません");
   }
 });
+
+//----リアクション----
+if (event.kind === 7) {
+  const targetId = event.tags.find(t => t[0] === 'e')?.[1];
+  if (targetId) {
+    const targetEl = document.querySelector(
+      `[data-event-id="${targetId}"] .reactions`
+    );
+    if (targetEl) {
+      targetEl.textContent += event.content || "❤️";
+    }
+  }
+}
