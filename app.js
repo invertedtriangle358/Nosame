@@ -224,7 +224,7 @@ async function reactToEvent(targetEvent, emoji = "❤️") {
       if (ws.readyState === 1) ws.send(JSON.stringify(["EVENT", ev]));
     });
 
-    console.log(`❤️ リアクション送信 → ${targetEvent.id}`);
+    console.log(`+ リアクション送信 → ${targetEvent.id}`);
   } catch (e) {
     console.error("リアクション送信失敗:", e);
   }
