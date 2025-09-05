@@ -107,7 +107,7 @@ function renderEvent(ev) {
   // ❤️ リアクションボタン
   const reactBtn = document.createElement("button");
   reactBtn.textContent = "❤️";
-  reactBtn.onclick = () => reactToEvent(ev, "❤️");
+  reactBtn.onclick = () => reactToEvent(ev, "+");
   el.appendChild(reactBtn);
 
   qs("#timeline")?.prepend(el);
@@ -161,7 +161,7 @@ async function publish() {
 }
 
 // ---- リアクション（kind:7） ----
-async function reactToEvent(targetEvent, emoji = "❤️") {
+async function reactToEvent(targetEvent, emoji = "+") {
   const ext = window.nostr;
   if (!ext) return alert("NIP-07拡張が必要です");
 
