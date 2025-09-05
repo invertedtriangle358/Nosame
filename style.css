@@ -170,6 +170,13 @@ main {
   background: #c9182a;
 }
 
+footer {
+  height: 100px;  /* 高さを固定 */
+  padding: 16px;  /* 内側の余白 */
+  box-sizing: border-box;
+  background: #b0c4de;
+}
+
 .copylight {
   text-align: center;
 }
