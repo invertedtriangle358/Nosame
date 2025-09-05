@@ -76,7 +76,7 @@ const MAX_LENGTH = 256;
 // NGワード（自己管理でここに追加していく）
 const NG_WORDS = [
   "バカ", "アホ", "クズ", "キチガイ", "ガイジ", "ケンモ", "マヌケ", "ウヨ", "サヨ", "与党", "野党",
-  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP",
+  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "http://", ".jpg", ".png", ".webp",
 ];
 
 // フィルタ判定関数
