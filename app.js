@@ -106,7 +106,7 @@ function renderEvent(ev) {
 
   // ❤️ リアクションボタン
   const reactBtn = document.createElement("button");
-  reactBtn.textContent = "❤️";
+  reactBtn.textContent = "+";
   reactBtn.onclick = () => reactToEvent(ev, "+");
   el.appendChild(reactBtn);
 
