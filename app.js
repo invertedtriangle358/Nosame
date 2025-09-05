@@ -174,9 +174,9 @@ async function reactToEvent(targetEvent, emoji = "❤️") {
       ["p", targetEvent.pubkey],
     ];
 
+    // 🚩 id を自前で計算せず、拡張に unsigned を渡す
     const unsigned = { kind, created_at, tags, content: emoji, pubkey };
-    const id = await sha256(enc([0, pubkey, created_at, kind, tags, emoji]));
-    const ev = await ext.signEvent({ ...unsigned, id });
+    const ev = await ext.signEvent(unsigned);
 
     sockets.forEach((ws) => {
       if (ws.readyState === WebSocket.OPEN)
@@ -188,6 +188,7 @@ async function reactToEvent(targetEvent, emoji = "❤️") {
     console.error("リアクション送信失敗:", e);
   }
 }
+
 
 // ---- 初期化 ----
 document.addEventListener("DOMContentLoaded", () => {
