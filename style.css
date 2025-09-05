@@ -16,10 +16,11 @@ h1 {
 /* 全体横並び */
 main {
   display: flex;
-  flex-direction: row;
+  flex-direction: row-reverse; /* ← 右にsidebar, 左にtimeline */
   height: 100vh;
   overflow: hidden;
 }
+
 
 /* 投稿欄（左固定） */
 .sidebar {
