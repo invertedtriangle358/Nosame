@@ -49,6 +49,25 @@ main {
   box-sizing: border-box;
 }
 
+.sidebar-header {
+  display: flex;
+  justify-content: space-between; /* 左にh2, 右にボタン */
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.sidebar-header button {
+  padding: 4px 10px;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 
 /* タイムラインの器 */
 .timeline-wrap {
