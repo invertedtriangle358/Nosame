@@ -68,21 +68,61 @@ function subscribe() {
   });
 }
 
+// ==== フィルタ設定 ====
+
+// 最大文字数（これを超える投稿は除外）
+const MAX_LENGTH = 256;
+
+// NGワード（自己管理でここに追加していく）
+const NG_WORDS = [
+  "バカ", "アホ", "クズ", "キチガイ", "ガイジ", "ケンモ", "マヌケ", "ウヨ", "サヨ", "与党", "野党",
+  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP",
+];
+
+// フィルタ判定関数
+function isBlocked(text) {
+  if (!text) return false;
+
+  // 文字数チェック
+  if (text.length > MAX_LENGTH) return true;
+
+  // NGワードチェック（小文字化して比較）
+  const lowered = text.toLowerCase();
+  for (const word of NG_WORDS) {
+    if (lowered.includes(word.toLowerCase())) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ==== イベント受信処理 ====
+
+// onMessageの中で利用
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
     if (msg[0] === "EVENT" && msg[1] === subId) {
       const event = msg[2];
 
+      // フィルタリング処理
+      if (isBlocked(event.content)) {
+        console.log("除外:", event.content);
+        return;
+      }
+
+      // ここから先は通常処理
       if (seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
-
       renderEvent(event);
     }
   } catch (e) {
     console.error("JSON parse error:", e);
   }
 }
+
+
 
 function renderEvent(ev) {
   let content = ev.content || "";
@@ -112,6 +152,7 @@ function renderEvent(ev) {
 
   qs("#timeline")?.prepend(el);
 }
+
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
