@@ -111,7 +111,7 @@ main {
 
 .note .content {
   font-size: 16px;
-  color: #333;
+  color: #FFF;
   line-height: 1.8;
   word-break: break-word;   /* ← 単語が長いとき折り返す */
   white-space: normal;      /* ← 改行可能に */
