@@ -54,13 +54,14 @@ function subscribe() {
   const filter = { kinds: [kind], limit };
   if (author) filter.authors = [author];
 
-  // タイムラインはクリアしない（既存の投稿を残す）
   const tl = qs("#timeline");
   if (tl) {
-    tl.classList.remove("empty");
+    tl.classList.remove("empty"); // クリアはしない
   }
 
-  const req = ["REQ", subId, filter];
+  // ★ 新しい subId を生成
+  const newSubId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  const req = ["REQ", newSubId, filter];
   console.log("購読リクエスト送信:", req);
 
   sockets.forEach((ws) => {
@@ -70,11 +71,10 @@ function subscribe() {
   });
 }
 
-
 // ==== フィルタ設定 ====
 
 // 最大文字数（これを超える投稿は除外）
-const MAX_LENGTH = 128;
+const MAX_LENGTH = 108;
 
 // NGワード（自己管理でここに追加していく）
 const NG_WORDS = [
