@@ -40,7 +40,7 @@ main {
 .sidebar .composer textarea {
   writing-mode: vertical-rl;   /* 縦書き */
   text-orientation: mixed;     /* 横文字も自然に */
-  height: 80vh;                /* 高さを画面の8割くらい */
+  height: 90vh;                /* 高さを画面の8割くらい */
   width: 100%;                 /* 横幅いっぱい */
   resize: none;                /* サイズ変更を禁止 */
   font-size: 16px;
@@ -62,7 +62,7 @@ main {
 }
 
 .sidebar-header button {
-  padding: 4px 10px;
+  padding: 4px 7px;
   font-size: 0.9rem;
   border-radius: 6px;
   cursor: pointer;
