@@ -93,13 +93,15 @@ main {
 
 /* ==== ノートカード ==== */
 .note {
-  display: inline-block;
+  display: inline-flex;           /* flexに変更して高さ調整 */
+  flex-direction: column;         /* 縦方向に中身を積む */
   writing-mode: vertical-rl;
   text-orientation: mixed;
   border: 1px solid #242733;
   border-radius: 12px;
   padding: 14px;
   min-height: 600px;
+　height: 100%;                   /* 親に合わせて伸縮 */
   width: auto;              /* ← 自動幅 */
   max-width: 200px;         /* ← 最大幅を設定 */
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
@@ -113,6 +115,7 @@ main {
   line-height: 1.8;
   word-break: break-word;   /* ← 単語が長いとき折り返す */
   white-space: normal;      /* ← 改行可能に */
+  flex: 1;                         /* 残りの高さを埋める */
 }
 
 
