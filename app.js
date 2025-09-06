@@ -54,13 +54,22 @@ function subscribe() {
   const filter = { kinds: [kind], limit };
   if (author) filter.authors = [author];
 
+  // タイムラインはクリアしない（既存の投稿を残す）
+  const tl = qs("#timeline");
+  if (tl) {
+    tl.classList.remove("empty");
+  }
+
   const req = ["REQ", subId, filter];
   console.log("購読リクエスト送信:", req);
 
   sockets.forEach((ws) => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(req));
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(req));
+    }
   });
 }
+
 
 // ==== フィルタ設定 ====
 
