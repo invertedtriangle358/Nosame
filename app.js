@@ -80,7 +80,7 @@ const MAX_LENGTH = 128;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "右翼", "左翼", "ウヨ", "サヨ", "与党", "野党", "在日", "クルド",
   "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool",
-  "http://", "https://", ".jpg", ".png", ".webp", "nostr:npub",
+  "http://", "https://", ".jpg", ".png", ".webp", "nostr:n",
 ];
 
 // フィルタ判定関数
