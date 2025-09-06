@@ -19,7 +19,7 @@ h1 {
 main {
   display: flex;
   flex-direction: row-reverse; /* 右にsidebar, 左にtimeline */
-  height: 100vh;
+  height: 650px;
   overflow: hidden;
 }
 
