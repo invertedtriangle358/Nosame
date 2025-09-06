@@ -5,16 +5,16 @@
 }
 
 
-.body {
+body {
   background: #93bdd5;
 }
 
-.h1 {
+h1 {
   font-size: 40px;
 }
 
 /* 全体横並び */
-.main {
+main {
   display: flex;
   flex-direction: row-reverse; /* ← 右にsidebar, 左にtimeline */
   height: 100vh;
