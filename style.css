@@ -17,7 +17,12 @@ h1 {
     0deg,       /* ← 135度 = 左上 → 右下 方向 */
     #909dc5,      
     #9779b8,       
-    #465b95  
+    #465b95
+);
+  -webkit-background-clip: text; 
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ==== レイアウト ==== */
