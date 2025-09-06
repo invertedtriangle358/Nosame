@@ -107,8 +107,16 @@ function isBlocked(text) {
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === "EVENT" && msg[1] === subId) {
+    if (msg[0] === 'EVENT') {   // ← subIdチェックを外す
       const event = msg[2];
+      if (seenEvents.has(event.id)) return;
+      seenEvents.add(event.id);
+      renderEvent(event);
+    }
+  } catch (e) {
+    console.error("JSON parse error:", e);
+  }
+}
 
       // フィルタリング処理
       if (isBlocked(event.content)) {
