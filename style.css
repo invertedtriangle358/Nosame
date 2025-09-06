@@ -15,7 +15,7 @@ h1 {
   font-size: 40px;
   margin: 21px;
     background: linear-gradient(
-    0deg,       /* ← 135度 = 左上 → 右下 方向 */
+    180deg,       /* ← 135度 = 左上 → 右下 方向 */
     #909dc5,      
     #9779b8,       
     #465b95
