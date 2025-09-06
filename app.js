@@ -71,7 +71,7 @@ function subscribe() {
 // ==== フィルタ設定 ====
 
 // 最大文字数（これを超える投稿は除外）
-const MAX_LENGTH = 256;
+const MAX_LENGTH = 128;
 
 // NGワード（自己管理でここに追加していく）
 const NG_WORDS = [
