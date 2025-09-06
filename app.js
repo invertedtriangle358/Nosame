@@ -78,8 +78,9 @@ const MAX_LENGTH = 108;
 
 // NGワード（自己管理でここに追加していく）
 const NG_WORDS = [
-  "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "与党", "野党", "在日", "クルド", "あんこ……",
-  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool",
+  "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "与党", "野党", "在日", "クルド",
+  "あんこ……", "かまど", "ごーまぁり", "スジャータのめ", "",
+  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky",
   "http://", "https://", ".jpg", ".png", ".webp", "nostr:n",
 ];
 
