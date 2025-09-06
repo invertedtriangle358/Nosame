@@ -154,9 +154,27 @@ function renderEvent(ev) {
   reactBtn.onclick = () => reactToEvent(ev, "+");
   el.appendChild(reactBtn);
 
-  qs("#timeline")?.prepend(el);
-}
+  const timeline = qs("#timeline");
+  if (!timeline) return;
 
+  // ---- 挿入位置を created_at の降順に保つ ----
+  const existing = timeline.querySelectorAll("article");
+  let inserted = false;
+  for (const node of existing) {
+    const tsAttr = node.getAttribute("data-ts");
+    if (tsAttr && Number(tsAttr) < ev.created_at) {
+      timeline.insertBefore(el, node);
+      inserted = true;
+      break;
+    }
+  }
+  if (!inserted) {
+    timeline.appendChild(el); // 一番古い位置に追加
+  }
+
+  // ソート用にタイムスタンプを埋め込む
+  el.setAttribute("data-ts", ev.created_at);
+}
 
 // ---- 投稿（NIP-07） ----
 async function publish() {
