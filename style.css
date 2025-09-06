@@ -1,28 +1,29 @@
+/* ==== フォント ==== */
 .sawarabi-mincho-regular {
   font-family: "Sawarabi Mincho", serif;
   font-weight: 400;
   font-style: normal;
 }
 
-
+/* ==== 全体 ==== */
 body {
   background: #93bdd5;
+  margin: 0;
 }
 
 h1 {
   font-size: 40px;
 }
 
-/* 全体横並び */
+/* ==== レイアウト ==== */
 main {
   display: flex;
-  flex-direction: row-reverse; /* ← 右にsidebar, 左にtimeline */
+  flex-direction: row-reverse; /* 右にsidebar, 左にtimeline */
   height: 100vh;
   overflow: hidden;
 }
 
-
-/* 投稿欄（左固定） */
+/* ==== 投稿欄 ==== */
 .sidebar {
   width: 90px;
   flex-shrink: 0;
@@ -36,22 +37,9 @@ main {
   padding: 16px;
 }
 
-/* 投稿欄のテキストエリア */
-.sidebar .composer textarea {
-  writing-mode: vertical-rl;   /* 縦書き */
-  text-orientation: mixed;     /* 横文字も自然に */
-  height: 75vh;                /* 高さを画面の7割くらい */
-  width: 100%;                 /* 横幅いっぱい */
-  resize: none;                /* サイズ変更を禁止 */
-  font-size: 16px;
-  line-height: 1.8;
-  padding: 8px;
-  box-sizing: border-box;
-}
-
 .sidebar-header {
   display: flex;
-  justify-content: space-between; /* 左にh2, 右にボタン */
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
 }
@@ -68,74 +56,77 @@ main {
   cursor: pointer;
 }
 
+.sidebar .composer textarea {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: 75vh;
+  width: 100%;
+  resize: none;
+  font-size: 16px;
+  line-height: 1.8;
+  padding: 8px;
+  box-sizing: border-box;
+}
 
-/* タイムラインの器 */
+/* ==== タイムライン ==== */
 .timeline-wrap {
   flex: 1;
   display: flex;
   align-items: flex-start;
   background: #fff;
   height: 100vh;
-  overflow: hidden; /* 親はスクロールなし */
+  overflow: hidden;
 }
 
-/* タイムライン本体（カード単位で横スクロール） */
 .vertical-timeline {
   background: #93bdd5;
   display: flex;
-  flex-direction: row-reverse; /* 右から左に並べる */
+  flex-direction: row-reverse; /* 新しいものを右端に */
   align-items: flex-start;
   gap: 7px;
-  overflow-x: auto;             /* 横スクロール */
+  overflow-x: auto;
   overflow-y: hidden;
   padding: 7px;
-  -webkit-overflow-scrolling: touch; /* スマホスムーズスクロール */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
 
-/* 各カード */
+/* ==== ノートカード ==== */
 .note {
   display: inline-block;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  background: #00;
   border: 1px solid #242733;
   border-radius: 12px;
   padding: 14px;
   min-height: 600px;
   min-width: 100px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  background: #fff;
 }
 
-/* 本文 */
 .note .content {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
   font-size: 16px;
-  font-color: #F0F0F0;
+  color: #333;
   line-height: 1.8;
 }
 
-/* メタ情報（横書き） */
 .note .meta,
 .note .author {
-  writing-mode: vertical-rl;
   font-size: 12px;
 }
 
-/* スクロールボタン */
+/* ==== スクロールボタン ==== */
 .timeline-controls {
   display: flex;
   justify-content: center;
   gap: 1rem;
   margin: 0.5rem 0;
-  
-  /* 以下の3行を追加 */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  width: 100%; /* 横幅を画面いっぱいに広げる */
+  width: 100%;
 }
 
 .timeline-controls button {
@@ -153,9 +144,9 @@ main {
   background: #666;
 }
 
-/* ❤️ リアクションボタン */
+/* ==== リアクションボタン ==== */
 .note .react-btn {
-  writing-mode: horizontal-tb; /* 横書き */
+  writing-mode: horizontal-tb;
   font-size: 14px;
   padding: 4px 8px;
   margin-top: 8px;
@@ -171,9 +162,10 @@ main {
   background: #c9182a;
 }
 
+/* ==== フッター ==== */
 footer {
-  height: 100px;  /* 高さを固定 */
-  padding: 16px;  /* 内側の余白 */
+  height: 100px;
+  padding: 16px;
   box-sizing: border-box;
   background: #b0c4de;
 }
