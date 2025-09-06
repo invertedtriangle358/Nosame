@@ -54,12 +54,6 @@ function subscribe() {
   const filter = { kinds: [kind], limit };
   if (author) filter.authors = [author];
 
-  const tl = qs("#timeline");
-  if (tl) {
-    tl.innerHTML = "";
-    tl.classList.remove("empty");
-  }
-
   const req = ["REQ", subId, filter];
   console.log("購読リクエスト送信:", req);
 
