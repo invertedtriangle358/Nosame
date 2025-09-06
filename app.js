@@ -116,8 +116,6 @@ function onMessage(ev) {
   } catch (e) {
     console.error("JSON parse error:", e);
   }
-}
-
       // フィルタリング処理
       if (isBlocked(event.content)) {
         console.log("除外:", event.content);
