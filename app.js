@@ -107,32 +107,26 @@ function isBlocked(text) {
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === 'EVENT') {   // ← subIdチェックを外す
+    if (msg[0] === "EVENT") {
       const event = msg[2];
-      if (seenEvents.has(event.id)) return;
-      seenEvents.add(event.id);
-      renderEvent(event);
-    }
-  } catch (e) {
-    console.error("JSON parse error:", e);
-  }
-      // フィルタリング処理
+
+      // ---- フィルタリング ----
       if (isBlocked(event.content)) {
         console.log("除外:", event.content);
         return;
       }
 
-      // ここから先は通常処理
+      // ---- 重複チェック ----
       if (seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
+
+      // ---- 通常処理 ----
       renderEvent(event);
     }
   } catch (e) {
     console.error("JSON parse error:", e);
   }
 }
-
-
 
 function renderEvent(ev) {
   let content = ev.content || "";
