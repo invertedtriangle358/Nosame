@@ -6,49 +6,51 @@
   <title>野雨-Nosame-</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
 </head>
 <body>
   <header>
     <h1 class="sawarabi-mincho-regular">野雨 -Nosame-</h1>
-  <div class="status" id="status">未接続</div>
-      <input id="relay" placeholder="Relay: wss://relay.example (複数はカンマ)" 
-    value="wss://relay-jp.nostr.wirednet.jp,wss://r.kojira.io,wss://relay.barine.co,wss://yabu.me,wss://lang.relays.land/ja" />
-   <button id="btnConnect" class="ghost">接続</button>
-   <button id="btnSubscribe">購読/更新</button>
+    <div class="status" id="status">未接続</div>
+    <input id="relay" placeholder="Relay: wss://relay.example (複数はカンマ)" 
+      value="wss://relay-jp.nostr.wirednet.jp,wss://r.kojira.io,wss://relay.barine.co,wss://yabu.me,wss://lang.relays.land/ja" />
+    <button id="btnConnect" class="ghost">接続</button>
+    <button id="btnSubscribe">購読/更新</button>
   </header>
   
   <main>
-  <!-- 投稿欄（左固定カラム） -->
-<aside class="sidebar">
-  <div class="sidebar-header">
-    <button id="btnPublish">投稿する</button>
-  </div>
-  <div class="composer" style="position: relative;">
-    <textarea id="compose" placeholder="本文を入力......"></textarea>
-    <small id="charCount" style="position:absolute; bottom:5px; right:8px; font-size:0.8em; color:#333;">
-      0 / 40
-    </small>
-  </div>
-</aside>
+    <!-- 投稿欄（左固定カラム） -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button id="btnPublish">投稿する</button>
+      </div>
+      <div class="composer" style="position: relative;">
+        <textarea id="compose" placeholder="本文を入力......"></textarea>
+        <small id="charCount" style="position:absolute; bottom:5px; right:8px; font-size:0.8em; color:#333;">
+          0 / 40
+        </small>
+      </div>
+    </aside>
 
-  <!-- スクロールボタン -->
-  <section class="timeline-controls">
-    <button id="scrollLeft">◀</button>
-    <button id="scrollRight">▶</button>
-  </section>
+    <!-- スクロールボタン -->
+    <section class="timeline-controls">
+      <button id="scrollLeft">◀</button>
+      <button id="scrollRight">▶</button>
+    </section>
 
-  <!-- タイムライン -->
-  <section class="timeline-wrap">
-    <div id="timeline" class="vertical-timeline empty">
-      <!-- 投稿カードがここに追加される -->
-    </div>
-  </section>
-</main>
+    <!-- タイムライン -->
+    <section class="timeline-wrap">
+      <div id="timeline" class="vertical-timeline empty">
+        <!-- 投稿カードがここに追加される -->
+      </div>
+    </section>
+  </main>
 
-<footer>
-  <div class="copylight">inverted.triangle358 © 2025</div>
+  <footer>
+    <div class="copylight">inverted.triangle358 © 2025</div>
+  </footer>
+
   <script src="app.js"></script>
-</footer>
-
+</body>
+</html>
