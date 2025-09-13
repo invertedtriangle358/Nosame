@@ -256,6 +256,7 @@ async function reactToEvent(targetEvent, emoji = "+") {
 
 // ---- 初期化 ----
 document.addEventListener("DOMContentLoaded", () => {
+  // 既存の初期化コード
   qs("#btnConnect")?.addEventListener("click", () =>
     connectRelays(qs("#relay").value)
   );
@@ -267,6 +268,29 @@ document.addEventListener("DOMContentLoaded", () => {
       qs("#author").value = await window.nostr.getPublicKey();
     } catch {}
   });
+
+  // Ctrl+Enter で投稿 / 文字数カウント
+  const compose = qs("#compose");
+  if (compose) {
+    // Ctrl+Enter で投稿
+    compose.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "Enter") {
+        publish();
+      }
+    });
+
+    // 文字数カウント
+    const counter = qs("#charCount");
+    compose.addEventListener("input", () => {
+      const len = compose.value.length;
+      if (counter) {
+        counter.textContent = `${len} / 40`;
+        counter.style.color = len > 40 ? "red" : "inherit";
+      }
+    });
+  }
+});
+
 
   // 起動時に接続
   connectRelays(qs("#relay").value);
