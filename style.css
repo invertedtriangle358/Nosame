@@ -178,6 +178,7 @@ main {
   left: 0;
   right: 0;
   width: 100%;
+  z-index: 1000; /* ← ここを追加 */
 }
 
 .timeline-controls button {
