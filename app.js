@@ -198,25 +198,25 @@ async function reactToEvent(targetEvent, emoji="+") {
 
 // ---- 初期化 ----
 document.addEventListener("DOMContentLoaded", () => {
-  qs("#btnConnect")?.addEventListener("click", ()=>connectRelays(qs("#relay").value));
+  qs("#btnConnect")?.addEventListener("click", () =>
+    connectRelays(qs("#relay").value)
+  );
   qs("#btnSubscribe")?.addEventListener("click", subscribe);
   qs("#btnPublish")?.addEventListener("click", publish);
 
+  // Ctrl+Enter で投稿 / 文字数カウント
   const compose = qs("#compose");
-  if(compose){
-    // Ctrl+Enterで投稿
-    compose.addEventListener("keydown", e=>{
-      if(e.ctrlKey && e.key==="Enter") publish();
+  if (compose) {
+    compose.addEventListener("keydown", (e) => {
+      if (e.ctrlKey && e.key === "Enter") publish();
     });
 
-    // 文字数カウント
     const counter = qs("#charCount");
-    compose.addEventListener("input", ()=>{
+    compose.addEventListener("input", () => {
+      if (!counter) return;
       const len = compose.value.length;
-      if(counter){
-        counter.textContent=`${len} / 40`;
-        counter.style.color=len>40?"red":"inherit";
-      }
+      counter.textContent = `${len} / 40`;
+      counter.style.color = len > 40 ? "red" : "inherit";
     });
   }
 
@@ -225,6 +225,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // スクロールボタン
   const timeline = qs("#timeline");
-  qs("#scrollLeft")?.addEventListener("click", ()=>timeline?.scrollBy({left:-300,behavior:"smooth"}));
-  qs("#scrollRight")?.addEventListener("click", ()=>timeline?.scrollBy({left:300,behavior:"smooth"}));
+  qs("#scrollLeft")?.addEventListener("click", () =>
+    timeline?.scrollBy({ left: -300, behavior: "smooth" })
+  );
+  qs("#scrollRight")?.addEventListener("click", () =>
+    timeline?.scrollBy({ left: 300, behavior: "smooth" })
+  );
 });
