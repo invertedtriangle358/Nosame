@@ -150,7 +150,7 @@ main {
 
 .note .react-btn {
   position: absolute;
-  top: 170px;       /* カード上端からの距離 */
+  top: 140px;       /* カード上端からの距離 */
   right: 8px;     /* 右端に寄せる */
   writing-mode: horizontal-tb; /* 横書きにする */
   font-size: 14px;
