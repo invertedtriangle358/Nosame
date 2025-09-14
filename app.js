@@ -181,13 +181,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // リレー一覧モダール
-  const modal = qs("#relayModal");
-  qs("#btnRelayList")?.addEventListener("click", () => { modal.style.display="block"; });
-  qs("#closeModal")?.addEventListener("click", () => { modal.style.display="none"; });
-  window.addEventListener("click", (e) => {
-    if (e.target === modal) modal.style.display="none";
-  });
+// リレー一覧モダール
+const modal = qs("#relayModal");
+qs("#btnRelayList")?.addEventListener("click", () => {
+  modal.classList.add("show");
+});
+qs("#closeModal")?.addEventListener("click", () => {
+  modal.classList.remove("show");
+});
+window.addEventListener("click", (e) => {
+  if (e.target === modal) modal.classList.remove("show");
+});
+
 
   // 初期接続
   connectRelays(qs("#relay").value);
