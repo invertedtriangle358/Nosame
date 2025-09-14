@@ -194,10 +194,23 @@ window.addEventListener("click", (e) => {
 });
 
 
-// 初期接続（モダールのリレー一覧から取得）
-const relayInputs = document.querySelectorAll("#relayList input");
-const relayList = Array.from(relayInputs).map(i => i.value).join(",");
-connectRelays(relayList);
+// ---- 初期接続（ページロード時） ----
+document.addEventListener("DOMContentLoaded", () => {
+  const initialRelay = qs("#relay")?.value || "";
+  if (initialRelay) connectRelays(initialRelay);
+});
+
+// ---- モダール接続ボタン ----
+qs("#btnConnectModal")?.addEventListener("click", () => {
+  const relayInputs = document.querySelectorAll("#relayList input");
+  const relayList = Array.from(relayInputs)
+    .map(i => i.value.trim())
+    .filter(Boolean)
+    .join(",");
+  if (relayList) connectRelays(relayList);
+  // 初期値保持のため #relay の値は変更しない
+});
+
 
 
   // スクロール
