@@ -84,15 +84,30 @@ main {
     display: flex;
     flex-direction: column;
     background: #fff;
-    height: 100vh;
+    overflow: hidden; /* 横スクロールは内部の .vertical-timeline で制御 */
+}
+
+.vertical-timeline {
+    flex: 1; /* タイムラインが残り高さを占める */
+    display: flex;
+    flex-direction: row-reverse;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 7px 7px 0 7px; /* 上の余白を少し減らす */
 }
 
 .timeline-controls {
+    flex-shrink: 0;
     display: flex;
     justify-content: center;
     gap: 1rem;
     padding: 8px 0;
+    background: rgba(255,255,255,0.9);
+    position: sticky;
+    bottom: 0; /* 常に下に固定 */
+    z-index: 10;
 }
+
 
 .timeline-controls button {
     padding: 0.5rem 1rem;
