@@ -70,6 +70,27 @@ function subscribeTo(ws) {
 }
 
 function subscribeAll() { sockets.forEach(ws => subscribeTo(ws)); }
+qs("#btnSubscribe")?.addEventListener("click", async () => {
+  const spinner = qs("#subscribeSpinner");
+  spinner.style.display = "inline-block";  // スピナー表示
+  subId = `sub-${Math.random().toString(36).slice(2,8)}`;
+
+  // 全リレーに購読リクエスト送信
+  await Promise.all(sockets.map(ws => new Promise(resolve => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }]));
+      resolve();
+    } else {
+      ws.addEventListener("open", () => {
+        ws.send(JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }]));
+        resolve();
+      }, { once: true });
+    }
+  })));
+
+  // 購読送信完了後にスピナー非表示
+  spinner.style.display = "none";
+});
 
 // ==== イベント受信 ====
 function onMessage(ev) {
