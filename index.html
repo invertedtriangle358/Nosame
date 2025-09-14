@@ -12,19 +12,21 @@
 <body>
   <header>
     <h1 class="sawarabi-mincho-regular">野雨 -Nosame-</h1>
-<button id="btnRelayModal">設定</button>
-<div id="relayModal" class="modal">
-  <div class="modal-content">
-    <h2>接続</h2>
-    <div id="relayList"></div>
-    <button id="btnAddRelay">リレー追加</button>
-    <button id="btnConnectModal">購読</button>
-    <button id="btnCloseModal">閉じる</button>
-  </div>
-</div>
-
+    <button id="btnRelayModal">設定</button>
+    <button id="btnSubscribe">購読</button>
   </header>
-  
+
+  <!-- リレー一覧モダール -->
+  <div id="relayModal" class="modal">
+    <div class="modal-content">
+      <h2>接続リレー一覧</h2>
+      <div id="relayList"></div>
+      <button id="btnAddRelay">リレー追加</button>
+      <button id="btnConnectModal">購読</button>
+      <button id="btnCloseModal">閉じる</button>
+    </div>
+  </div>
+
   <main>
     <!-- 投稿欄 -->
     <aside class="sidebar">
@@ -37,7 +39,7 @@
       </div>
     </aside>
 
-    <!-- スクロールボタン -->
+    <!-- タイムラインスクロール -->
     <section class="timeline-controls">
       <button id="scrollLeft">◀</button>
       <button id="scrollRight">▶</button>
@@ -52,15 +54,6 @@
   <footer>
     <div class="copylight">inverted.triangle358 © 2025</div>
   </footer>
-
-  <!-- リレー一覧モダール -->
-  <div id="relayModal" class="modal">
-    <div class="modal-content">
-      <h2>接続リレー一覧</h2>
-      <div id="relayList"></div>
-      <button id="closeModal">閉じる</button>
-    </div>
-  </div>
 
   <script src="app.js"></script>
 </body>
