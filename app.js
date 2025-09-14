@@ -85,19 +85,38 @@ function subscribe() {
 
 // ==== 投稿イベント処理 ====
 const MAX_LENGTH = 41;
-function isBlocked(text) { return text && text.length > MAX_LENGTH; }
+const NG_WORDS = [
+  "キチガイ","ガイジ","ケンモ","嫌儲","右翼","左翼","ウヨ","サヨ","与党","野党","在日","クルド",
+  "fuck","shit","sex","porn","gay","ass","dick","pussy","CP","mempool", "http://", "https://",
+];
+
+function isBlocked(text) {
+  if (!text) return false;
+  if (text.length > MAX_LENGTH) return true;
+  const lowered = text.toLowerCase();
+  return NG_WORDS.some(word => lowered.includes(word.toLowerCase()));
+}
 
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if(msg[0] === "EVENT") {
+    if (msg[0] === "EVENT") {
       const event = msg[2];
-      if(isBlocked(event.content)) return;
-      if(seenEvents.has(event.id)) return;
+
+      // ← ここでワードフィルタ
+      if (isBlocked(event.content)) {
+        console.log("除外:", event.content);
+        return;
+      }
+
+      if (seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
+
       renderEvent(event);
     }
-  } catch(e) { console.error(e); }
+  } catch (e) {
+    console.error("JSON parse error:", e);
+  }
 }
 
 function renderEvent(ev) {
