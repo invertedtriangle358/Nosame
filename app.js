@@ -232,7 +232,31 @@ document.addEventListener("DOMContentLoaded", () => {
     timeline?.scrollBy({ left: 300, behavior: "smooth" })
   );
 });
-// モーダル開閉
+
+function updateRelayList() {
+  const container = qs("#relayList");
+  if (!container) return;
+  container.innerHTML = "";
+
+  sockets.forEach(ws => {
+    const div = document.createElement("div");
+    div.className = "relay-item";
+
+    // 信号（接続中=緑 / それ以外=赤）
+    const signal = document.createElement("span");
+    signal.className = "signal " + 
+      (ws.readyState === WebSocket.OPEN ? "green" : "red");
+
+    // リレーURLの短縮表示（ドメイン部分だけ）
+    const url = new URL(ws.url);
+    div.appendChild(signal);
+    div.appendChild(document.createTextNode(url.host));
+
+    container.appendChild(div);
+  });
+}
+
+// ---- モーダル開閉処理 ----
 document.addEventListener("DOMContentLoaded", () => {
   const modal = qs("#relayModal");
   const openBtn = qs("#openRelays");
@@ -247,7 +271,6 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.style.display = "none";
   });
 
-  // 背景クリックで閉じる
   window.addEventListener("click", (e) => {
     if (e.target === modal) {
       modal.style.display = "none";
