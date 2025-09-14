@@ -72,13 +72,16 @@ function updateRelayList() {
 
 // ==== 購読 ====
 function subscribe() {
-  const kind = 1; // 固定
-  subId = `sub-${Math.random().toString(36).slice(2,8)}`;
-  const req = ["REQ", subId, { kinds: [kind], limit: 50 }];
+  const kind = 1; // 投稿のみ購読
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  const filter = { kinds: [kind], limit: 50 };
+  const req = ["REQ", subId, filter];
   sockets.forEach(ws => {
-    if(ws.readyState === 1) ws.send(JSON.stringify(req));
+    if(ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(req));
   });
+  console.log("購読リクエスト送信:", req);
 }
+
 
 // ==== 投稿イベント処理 ====
 const MAX_LENGTH = 41;
