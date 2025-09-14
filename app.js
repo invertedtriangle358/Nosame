@@ -194,8 +194,11 @@ window.addEventListener("click", (e) => {
 });
 
 
-  // 初期接続
-  connectRelays(qs("#relay").value);
+// 初期接続（モダールのリレー一覧から取得）
+const relayInputs = document.querySelectorAll("#relayList input");
+const relayList = Array.from(relayInputs).map(i => i.value).join(",");
+connectRelays(relayList);
+
 
   // スクロール
   const timeline = qs("#timeline");
