@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>野雨-Nosame-</title>
+  <title>野雨 - Nosame -</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,18 +12,22 @@
 <body>
   <header>
     <h1 class="sawarabi-mincho-regular">野雨 -Nosame-</h1>
-    <button id="btnRelayModal">設定</button>
-    <button id="btnSubscribe">購読</button>
+    <div class="header-actions">
+      <button id="btnRelayModal">設定</button>
+      <button id="btnSubscribe">購読</button>
+    </div>
   </header>
 
   <!-- モダール -->
-  <div id="relayModal" class="modal">
-    <div class="modal-content">
-      <h2>接続リレー一覧</h2>
+  <div id="relayModal" class="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
+      <h2 id="relayModalTitle">接続リレー一覧</h2>
       <div id="relayList"></div>
-      <button id="btnAddRelay">リレー追加</button>
-      <button id="btnConnectModal">購読</button>
-      <button id="btnCloseModal">閉じる</button>
+      <div class="modal-actions">
+        <button id="btnAddRelay">リレー追加</button>
+        <button id="btnConnectModal">接続して購読</button>
+        <button id="btnCloseModal">閉じる</button>
+      </div>
     </div>
   </div>
 
@@ -39,15 +43,13 @@
       </div>
     </aside>
 
-    <!-- タイムラインスクロール -->
-    <section class="timeline-controls">
-      <button id="scrollLeft">◀</button>
-      <button id="scrollRight">▶</button>
-    </section>
-
-    <!-- タイムライン -->
+    <!-- タイムラインとスクロール -->
     <section class="timeline-wrap">
-      <div id="timeline" class="vertical-timeline empty"></div>
+      <div class="timeline-controls">
+        <button id="scrollLeft">◀</button>
+        <button id="scrollRight">▶</button>
+      </div>
+      <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
     </section>
   </main>
 
