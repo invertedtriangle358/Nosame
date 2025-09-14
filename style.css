@@ -116,8 +116,7 @@ main {
     overflow-x: auto;
     padding: 7px;
     -webkit-overflow-scrolling: touch;
-    writing-mode: vertical-rl; /* 縦書き維持 */
-    scroll-behavior: smooth;
+    scrollbar-width: thin;
 }
 
 
