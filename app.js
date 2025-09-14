@@ -15,7 +15,9 @@ const timeline = document.getElementById("timeline");
 // ==== ミュート判定 ====
 function isBlocked(text) {
   if (!text) return false;
-  return NG_WORDS.some(word => text.includes(word));
+  if (text.length > MAX_LENGTH) return true;
+  const lowered = text.toLowerCase();
+  return NG_WORDS.some(word => lowered.includes(word.toLowerCase()));
 }
 
 // ==== リレー接続 ====
@@ -33,7 +35,6 @@ function connectRelays(relayStr) {
       ws.onopen = () => {
         console.log("接続成功:", url);
         updateRelayListStatus();
-        subscribeTo(ws);
       };
       ws.onmessage = onMessage;
       ws.onclose = () => {
@@ -57,7 +58,7 @@ function connectRelays(relayStr) {
 
 // ==== 購読 ====
 function subscribeTo(ws) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
   const filter = { kinds: [1], limit: 50 };
   try {
     ws.send(JSON.stringify(["REQ", subId, filter]));
@@ -74,33 +75,9 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   const spinner = document.getElementById("subscribeSpinner");
   if (spinner) spinner.style.display = "inline-block";
 
+  // 新しい subId に更新
   subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-
-  // 全リレーに購読リクエスト送信
-  await Promise.all(
-    sockets.map(
-      ws =>
-        new Promise(resolve => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(
-              JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }])
-            );
-            resolve();
-          } else {
-            ws.addEventListener(
-              "open",
-              () => {
-                ws.send(
-                  JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }])
-                );
-                resolve();
-              },
-              { once: true }
-            );
-          }
-        })
-    )
-  );
+  subscribeAll();
 
   if (spinner) spinner.style.display = "none";
 });
@@ -111,13 +88,7 @@ function onMessage(ev) {
     const msg = JSON.parse(ev.data);
     if (msg[0] === "EVENT") {
       const event = msg[2];
-      if (
-        !event ||
-        seenEvents.has(event.id) ||
-        isBlocked(event.content)
-      )
-        return;
-
+      if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
       seenEvents.add(event.id);
       renderEvent(event);
     }
@@ -133,20 +104,28 @@ function renderEvent(event) {
 
   noteEl.innerHTML = `
     <div class="content">${escapeHtml(event.content)}</div>
-    <div class="author">${event.pubkey.slice(0, 8)}</div>
+    <div class="meta">${new Date(event.created_at * 1000).toLocaleString()}</div>
+    <div class="author">${event.pubkey.slice(0, 8)}...</div>
   `;
 
+  // 古い投稿左 / 新しい投稿右
   timeline.appendChild(noteEl);
 
-  // 新しい投稿が見えるように右端へスクロール
+  // 新しい投稿が右端に来るようにスクロール
   timeline.scrollLeft = timeline.scrollWidth;
 }
+
+// ==== スクロールボタン ====
+document.getElementById("scrollLeft")?.addEventListener("click", () => {
+  timeline.scrollBy({ left: -200, behavior: "smooth" });
+});
+document.getElementById("scrollRight")?.addEventListener("click", () => {
+  timeline.scrollBy({ left: 200, behavior: "smooth" });
+});
 
 // ==== ユーティリティ ====
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, s =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
-      s
-    ])
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])
   );
 }
