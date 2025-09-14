@@ -44,6 +44,55 @@ h1 {
   box-shadow: 0 8px 20px rgba(0,0,0,0.25);
 }
 
+/* ==== モーダル ==== */
+#relayModal {
+  display: none; 
+  position: fixed;
+  z-index: 2000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+}
+
+#relayModal .modal-content {
+  background: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 12px;
+  width: 60%;
+  max-height: 70%;
+  overflow-y: auto;
+}
+
+/* 縦書きリスト */
+#relayList {
+  display: flex;
+  gap: 12px;
+  writing-mode: vertical-rl;   /* 縦書きにする */
+  text-orientation: mixed;
+}
+
+.relay-item {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  margin: 4px;
+  background: #f0f0f0;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+/* 信号ランプ */
+.signal {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin: 2px;
+}
+.signal.green { background: green; }
+.signal.red { background: red; }
+
 /* 閉じるボタン */
 .close {
   float: right;
