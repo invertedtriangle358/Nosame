@@ -232,3 +232,25 @@ document.addEventListener("DOMContentLoaded", () => {
     timeline?.scrollBy({ left: 300, behavior: "smooth" })
   );
 });
+// モーダル開閉
+document.addEventListener("DOMContentLoaded", () => {
+  const modal = qs("#relayModal");
+  const openBtn = qs("#openRelays");
+  const closeBtn = qs("#closeRelays");
+
+  openBtn?.addEventListener("click", () => {
+    modal.style.display = "block";
+    updateRelayList();
+  });
+
+  closeBtn?.addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  // 背景クリックで閉じる
+  window.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+});
