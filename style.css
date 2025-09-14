@@ -2,7 +2,6 @@
 .sawarabi-mincho-regular {
   font-family: "Sawarabi Mincho", serif;
   font-weight: 400;
-  font-style: normal;
 }
 
 /* ==== 全体 ==== */
@@ -20,110 +19,11 @@ h1 {
   background-clip: text;
   color: transparent;
 }
-/* モーダルの背景 */
-.modal {
-  display: none; /* 初期は非表示 */
-  position: fixed;
-  z-index: 1000; /* 一番上に */
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.5);
-  backdrop-filter: blur(2px);
-}
-
-/* モーダルの中身 */
-.modal-content {
-  background: #fff;
-  margin: 10% auto;
-  padding: 20px;
-  border-radius: 12px;
-  width: 80%;
-  max-width: 500px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-}
-
-/* ==== モーダル ==== */
-#relayModal {
-  display: none; 
-  position: fixed;
-  z-index: 2000;
-  left: 0; top: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-}
-
-#relayModal .modal-content {
-  background: #fff;
-  margin: 10% auto;
-  padding: 20px;
-  border-radius: 12px;
-  width: 60%;
-  max-height: 70%;
-  overflow-y: auto;
-}
-
-/* 縦書きリスト */
-#relayList {
-  display: flex;
-  gap: 12px;
-  writing-mode: vertical-rl;   /* 縦書きにする */
-  text-orientation: mixed;
-}
-
-.relay-item {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  margin: 4px;
-  background: #f0f0f0;
-  padding: 6px;
-  border-radius: 6px;
-}
-
-/* 信号ランプ */
-.signal {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin: 2px;
-}
-.signal.green { background: green; }
-.signal.red { background: red; }
-
-/* 閉じるボタン */
-.close {
-  float: right;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-/* リレーリスト */
-.relay-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  margin: 4px 0;
-}
-
-.signal {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.signal.green { background: green; }
-.signal.red { background: red; }
 
 /* ==== レイアウト ==== */
 main {
   display: flex;
-  flex-direction: row-reverse; /* 右にsidebar, 左にtimeline */
+  flex-direction: row-reverse;
   height: 650px;
   overflow: hidden;
 }
@@ -138,25 +38,11 @@ main {
   flex-direction: column;
   height: 100vh;
   box-sizing: border-box;
-  overflow-y: auto;
   padding: 16px;
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.sidebar-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
 }
 
 .sidebar-header button {
   padding: 12px 13px;
-  font-size: 0.9rem;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -193,17 +79,14 @@ main {
   align-items: flex-start;
   background: #fff;
   height: 100vh;
-  overflow: hidden;
 }
 
 .vertical-timeline {
   background: #93bdd5;
   display: flex;
   flex-direction: row-reverse;
-  align-items: flex-start;
   gap: 7px;
   overflow-x: auto;
-  overflow-y: hidden;
   padding: 7px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
@@ -211,7 +94,6 @@ main {
 
 /* ==== ノートカード ==== */
 .note {
-  position: relative;              /* リアクションボタン配置基準 */
   display: inline-flex;
   flex-direction: column;
   writing-mode: vertical-rl;
@@ -219,18 +101,15 @@ main {
   border: 1px solid #242733;
   border-radius: 12px;
   padding: 14px;
-  min-height: 610px;
-  height: 610px;
-  width: auto;
+  min-height: 600px;
   max-width: 200px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  background: #93bdd5; /* デフォルト背景色 */
-  margin-bottom: auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  background: #93bdd5;
 }
 
 .note .content {
   font-size: 16px;
-  color: #FFF;
+  color: #fff;
   line-height: 1.8;
   word-break: break-word;
   white-space: normal;
@@ -242,44 +121,30 @@ main {
   font-size: 12px;
 }
 
-/* ==== リアクションボタン（左下に小さく） ==== */
-.note {
-  position: relative; /* 必須: 絶対配置の基準にする */
-}
-
 .note .react-btn {
-  position: absolute;
-  top: 140px;       /* カード上端からの距離 */
-  right: 17px;     /* 右端に寄せる */
-  writing-mode: horizontal-tb; /* 横書きにする */
+  writing-mode: horizontal-tb;
   font-size: 14px;
   padding: 4px 8px;
+  margin-bottom: 8px;
+  border: none;
   border-radius: 6px;
-  background: #b0c4de;
+  background: #e63946;
   color: white;
   cursor: pointer;
   transition: background 0.2s;
 }
-
-.note .react-btn:hover {
-  background: #0f0;
-}
-
+.note .react-btn:hover { background: #c9182a; }
 
 /* ==== スクロールボタン ==== */
 .timeline-controls {
   display: flex;
   justify-content: center;
   gap: 1rem;
-  margin: 0.5rem 0;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  width: 100%;
-  z-index: 1000; /* ← ここを追加 */
 }
-
 .timeline-controls button {
   padding: 0.5rem 1rem;
   font-size: 1.2rem;
@@ -288,21 +153,56 @@ main {
   background: #444;
   color: #fff;
   cursor: pointer;
-  transition: background 0.2s;
 }
+.timeline-controls button:hover { background: #666; }
 
-.timeline-controls button:hover {
-  background: #666;
+/* ==== モダール ==== */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
 }
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 500px;
+  max-height: 80vh;
+  margin: 10vh auto;
+  display: flex;
+  flex-direction: column;
+}
+#relayList {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px;
+  background: #f9f9f9;
+  font-family: monospace;
+  font-size: 14px;
+}
+.relay-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.relay-status {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.relay-status.green { background: green; }
+.relay-status.red { background: red; }
 
 /* ==== フッター ==== */
 footer {
   height: 100px;
   padding: 16px;
-  box-sizing: border-box;
   background: #b0c4de;
 }
+.copylight { text-align: center; }
 
-.copylight {
-  text-align: center;
-}
