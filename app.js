@@ -194,9 +194,13 @@ document.addEventListener("DOMContentLoaded", () => {
     counter.style.color = len > 40 ? "red" : "inherit";
   });
 
-  // ボタン
-  qs("#btnPublish")?.addEventListener("click", publish);
-  qs("#btnSubscribe")?.addEventListener("click", subscribeAll);
+qs("#scrollLeft")?.addEventListener("click", () => {
+    if(timeline) timeline.scrollLeft -= 300; // 左へスクロール
+});
+qs("#scrollRight")?.addEventListener("click", () => {
+    if(timeline) timeline.scrollLeft += 300; // 右へスクロール
+});
+
 
   // モダール操作
   const modal = qs("#relayModal");
