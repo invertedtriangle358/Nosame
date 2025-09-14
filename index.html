@@ -12,11 +12,17 @@
 <body>
   <header>
     <h1 class="sawarabi-mincho-regular">野雨 -Nosame-</h1>
-    <div class="status" id="status">未接続</div>
-    <input id="relay" placeholder="Relay: wss://..." value="wss://relay-jp.nostr.wirednet.jp,wss://r.kojira.io,wss://relay.barine.co,wss://yabu.me,wss://lang.relays.land/ja" />
-    <button id="btnConnect" class="ghost">接続</button>
-    <button id="btnSubscribe">購読/更新</button>
-    <button id="btnRelayList">リレー一覧</button>
+<button id="btnRelayModal">リレー一覧</button>
+<div id="relayModal" class="modal">
+  <div class="modal-content">
+    <h2>リレー一覧</h2>
+    <div id="relayList"></div>
+    <button id="btnAddRelay">リレー追加</button>
+    <button id="btnConnectModal">接続 & 購読</button>
+    <button id="btnCloseModal">閉じる</button>
+  </div>
+</div>
+
   </header>
   
   <main>
