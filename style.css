@@ -134,7 +134,7 @@ main {
   transition: background 0.2s;
 }
 
-.note .react-btn:hover { background: #c9182a; }
+.note .react-btn:hover { background: #faf; }
 
 /* ==== スクロールボタン ==== */
 .timeline-controls {
