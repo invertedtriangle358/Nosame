@@ -1,7 +1,6 @@
 /* ==== フォント ==== */
 .sawarabi-mincho-regular {
   font-family: "Sawarabi Mincho", serif;
-  font-weight: 400;
 }
 
 /* ==== 全体 ==== */
@@ -37,8 +36,8 @@ main {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  box-sizing: border-box;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .sidebar-header button {
@@ -47,11 +46,12 @@ main {
   cursor: pointer;
 }
 
-.sidebar .composer {
+.composer {
   position: relative;
+  flex: 1;
 }
 
-.sidebar .composer textarea {
+.composer textarea {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   height: 75vh;
@@ -65,8 +65,8 @@ main {
 
 #charCount {
   position: absolute;
-  bottom: 4px;
-  right: 6px;
+  bottom: 8px;
+  right: 8px;
   font-size: 12px;
   color: #666;
   pointer-events: none;
@@ -112,8 +112,8 @@ main {
   color: #fff;
   line-height: 1.8;
   word-break: break-word;
-  white-space: normal;
   flex: 1;
+  overflow-y: auto;
 }
 
 .note .meta,
@@ -126,7 +126,6 @@ main {
   font-size: 14px;
   padding: 4px 8px;
   margin-bottom: 8px;
-  height: 50px;
   border: none;
   border-radius: 6px;
   background: #b0c4de;
@@ -134,6 +133,7 @@ main {
   cursor: pointer;
   transition: background 0.2s;
 }
+
 .note .react-btn:hover { background: #c9182a; }
 
 /* ==== スクロールボタン ==== */
@@ -146,6 +146,7 @@ main {
   left: 0;
   right: 0;
 }
+
 .timeline-controls button {
   padding: 0.5rem 1rem;
   font-size: 1.2rem;
@@ -155,13 +156,14 @@ main {
   color: #fff;
   cursor: pointer;
 }
+
 .timeline-controls button:hover { background: #666; }
 
 /* ==== モダール ==== */
 .modal {
-  display: none; /* 初期は非表示 */
+  display: none;
   position: fixed;
-  z-index: 1000; /* タイムラインより上 */
+  z-index: 1000;
   left: 0;
   top: 0;
   width: 100%;
@@ -172,7 +174,7 @@ main {
 
 .modal-content {
   background: #fff;
-  margin: 5% auto; /* 画面中央に配置 */
+  margin: 5% auto;
   padding: 20px;
   width: 80%;
   max-width: 500px;
@@ -195,7 +197,7 @@ main {
   flex-direction: column;
   gap: 6px;
   max-height: 300px;
-  overflow-y: auto; /* スクロール可能 */
+  overflow-y: auto;
   border: 1px solid #ccc;
   padding: 8px;
   border-radius: 8px;
@@ -232,9 +234,7 @@ main {
   transition: background 0.2s;
 }
 
-.relay-item button:hover {
-  background: #c9182a;
-}
+.relay-item button:hover { background: #c9182a; }
 
 /* ==== モダールボタン ==== */
 #btnAddRelay, #btnConnectModal, #btnCloseModal {
@@ -255,12 +255,11 @@ main {
 #btnCloseModal { background: #e63946; color: #fff; }
 #btnCloseModal:hover { background: #c9182a; }
 
-
 /* ==== フッター ==== */
 footer {
   height: 100px;
   padding: 16px;
   background: #b0c4de;
+  text-align: center;
 }
-.copylight { text-align: center; }
 
