@@ -1,4 +1,4 @@
-// ---- ユーティリティ ----
+// ==== ユーティリティ ====
 const qs = (s) => document.querySelector(s);
 const enc = (obj) => new TextEncoder().encode(JSON.stringify(obj));
 const sha256 = async (bytes) =>
@@ -6,99 +6,95 @@ const sha256 = async (bytes) =>
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
+// ==== グローバル ====
 let sockets = [];
 const seenEvents = new Set();
 let subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+let relayList = [
+  "wss://relay-jp.nostr.wirednet.jp",
+  "wss://r.kojira.io",
+  "wss://relay.barine.co",
+  "wss://yabu.me",
+  "wss://lang.relays.land/ja"
+];
 
-// ---- Nostr接続 ----
-function connectRelays(relayList) {
-  sockets.forEach((ws) => ws.close?.());
+// ==== Nostr接続 ====
+function connectRelays(relayStr) {
+  sockets.forEach(ws => ws.close?.());
   sockets = [];
+  const relays = relayStr.split(",").map(s => s.trim()).filter(Boolean);
 
-  const relays = relayList.split(",").map(s => s.trim()).filter(Boolean);
-  const status = qs("#status");
-  if (!status) return;
-
-  status.textContent = "接続中…";
-  let openCount = 0;
-
-  relays.forEach((url) => {
+  relays.forEach(url => {
     const ws = new WebSocket(url);
-
-    ws.onopen = () => {
-      openCount++;
-      status.textContent = `接続: ${openCount}/${relays.length}`;
-      updateRelayList(relays);
-    };
-    ws.onclose = () => { updateRelayList(relays); };
-    ws.onerror = () => { updateRelayList(relays); };
+    ws._url = url;
+    ws.onopen = () => console.log("接続:", url);
+    ws.onclose = () => console.log("切断:", url);
+    ws.onerror = () => console.log("エラー:", url);
     ws.onmessage = onMessage;
-
-    ws._url = url; // 保存
     sockets.push(ws);
   });
 
-  updateRelayList(relays);
+  updateRelayList();
 }
 
-// ---- リレー一覧更新 ----
-function updateRelayList(relays) {
-  const list = qs("#relayList");
-  if (!list) return;
-  list.innerHTML = "";
-  relays.forEach((url) => {
-    const item = document.createElement("div");
-    item.className = "relay-item";
+// ==== リレー一覧更新 ====
+function updateRelayList() {
+  const container = qs("#relayList");
+  if (!container) return;
+  container.innerHTML = "";
+  relayList.forEach((url, i) => {
+    const div = document.createElement("div");
+    div.className = "relay-item";
 
     const status = document.createElement("span");
-    status.className = "relay-status red";
-    const ws = sockets.find(s => s._url === url);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      status.classList.remove("red");
-      status.classList.add("green");
-    }
+    status.style.width = "10px";
+    status.style.height = "10px";
+    status.style.borderRadius = "50%";
+    status.style.display = "inline-block";
+    status.style.marginRight = "5px";
+    status.style.background = sockets[i]?.readyState === 1 ? "green" : "red";
 
     const input = document.createElement("input");
     input.type = "text";
     input.value = url;
-    input.style.width = "100%";
+    input.style.width = "calc(100% - 40px)";
 
-    item.appendChild(status);
-    item.appendChild(input);
-    list.appendChild(item);
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✕";
+    delBtn.onclick = () => { relayList.splice(i,1); updateRelayList(); };
+
+    div.appendChild(status);
+    div.appendChild(input);
+    div.appendChild(delBtn);
+    container.appendChild(div);
   });
 }
 
-// ---- 購読 ----
+// ==== 購読 ====
 function subscribe() {
-  const kind = Number(qs("#kind")?.value ?? 1);
-  const author = qs("#author")?.value.trim();
-  const limit = Number(qs("#limit")?.value) || 50;
-  const filter = { kinds: [kind], limit };
-  if (author) filter.authors = [author];
-
-  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-  const req = ["REQ", subId, filter];
+  const kind = 1; // 固定
+  subId = `sub-${Math.random().toString(36).slice(2,8)}`;
+  const req = ["REQ", subId, { kinds: [kind], limit: 50 }];
   sockets.forEach(ws => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(req));
+    if(ws.readyState === 1) ws.send(JSON.stringify(req));
   });
 }
 
-// ---- イベント処理 ----
+// ==== 投稿イベント処理 ====
 const MAX_LENGTH = 41;
 function isBlocked(text) { return text && text.length > MAX_LENGTH; }
 
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === "EVENT") {
+    if(msg[0] === "EVENT") {
       const event = msg[2];
-      if (isBlocked(event.content)) return;
-      if (seenEvents.has(event.id)) return;
+      if(isBlocked(event.content)) return;
+      if(seenEvents.has(event.id)) return;
       seenEvents.add(event.id);
       renderEvent(event);
     }
-  } catch (e) { console.error("JSON parse error:", e); }
+  } catch(e) { console.error(e); }
 }
 
 function renderEvent(ev) {
@@ -106,7 +102,7 @@ function renderEvent(ev) {
   const el = document.createElement("article");
   el.className = "note";
 
-  const ts = new Date(ev.created_at * 1000).toLocaleString();
+  const ts = new Date(ev.created_at*1000).toLocaleString();
   el.innerHTML = `
     <button class="react-btn">+</button>
     <div class="meta">${ts}</div>
@@ -122,14 +118,14 @@ function renderEvent(ev) {
   el.setAttribute("data-ts", ev.created_at);
 }
 
-// ---- 投稿 ----
+// ==== 投稿 ====
 async function publish() {
   const ext = window.nostr;
   const hint = qs("#postHint");
-  if (!ext) return (hint.textContent = "NIP-07拡張が必要です");
+  if(!ext) return (hint.textContent = "NIP-07対応拡張が必要です");
 
   const content = qs("#compose").value.trim();
-  if (!content) return (hint.textContent = "本文が空です");
+  if(!content) return (hint.textContent = "本文が空です");
 
   try {
     const pubkey = await ext.getPublicKey();
@@ -137,156 +133,57 @@ async function publish() {
     const unsigned = { kind:1, created_at, tags:[], content, pubkey };
     const id = await sha256(enc([0,pubkey,created_at,1,[],content]));
     const ev = await ext.signEvent({...unsigned, id});
-    sockets.forEach(ws => {
-      if(ws.readyState===1) ws.send(JSON.stringify(["EVENT", ev]));
-    });
-    qs("#compose").value="";
-    qs("#charCount").textContent="0 / 40";
+    sockets.forEach(ws => { if(ws.readyState===1) ws.send(JSON.stringify(["EVENT", ev])); });
+    qs("#compose").value = "";
+    qs("#charCount").textContent = "0 / 40";
   } catch(e) { console.error(e); }
 }
 
-// ---- リアクション ----
-async function reactToEvent(targetEvent, emoji="+") {
+// ==== リアクション ====
+async function reactToEvent(ev, emoji="+") {
   const ext = window.nostr;
-  if (!ext) return alert("NIP-07拡張が必要です");
+  if(!ext) return alert("NIP-07拡張が必要です");
   const pubkey = await ext.getPublicKey();
   const created_at = Math.floor(Date.now()/1000);
-  const tags = [["e", targetEvent.id],["p", targetEvent.pubkey]];
+  const tags = [["e", ev.id], ["p", ev.pubkey]];
   const unsigned = { kind:7, created_at, tags, content: emoji, pubkey };
-  const ev = await ext.signEvent(unsigned);
-  sockets.forEach(ws => {
-    if(ws.readyState===1) ws.send(JSON.stringify(["EVENT", ev]));
-  });
+  const signed = await ext.signEvent(unsigned);
+  sockets.forEach(ws => { if(ws.readyState===1) ws.send(JSON.stringify(["EVENT", signed])); });
 }
 
-// ---- 初期化 ----
+// ==== 初期化 ====
 document.addEventListener("DOMContentLoaded", () => {
-  qs("#btnConnect")?.addEventListener("click", () =>
-    connectRelays(qs("#relay").value)
-  );
-  qs("#btnSubscribe")?.addEventListener("click", subscribe);
+  // 投稿ボタン
   qs("#btnPublish")?.addEventListener("click", publish);
-
-  // Ctrl+Enter 投稿 & カウント
   const compose = qs("#compose");
   const counter = qs("#charCount");
-  compose?.addEventListener("keydown", e => {
-    if (e.ctrlKey && e.key === "Enter") publish();
-  });
+  compose?.addEventListener("keydown", e => { if(e.ctrlKey && e.key==="Enter") publish(); });
   compose?.addEventListener("input", () => {
     const len = compose.value.length;
-    if (counter) {
-      counter.textContent = `${len} / 40`;
-      counter.style.color = len > 40 ? "red" : "inherit";
-    }
+    if(counter){ counter.textContent = `${len} / 40`; counter.style.color = len>40?"red":"inherit"; }
   });
 
-// リレー一覧モダール
-const modal = qs("#relayModal");
-qs("#btnRelayList")?.addEventListener("click", () => {
-  modal.classList.add("show");
-});
-qs("#closeModal")?.addEventListener("click", () => {
-  modal.classList.remove("show");
-});
-window.addEventListener("click", (e) => {
-  if (e.target === modal) modal.classList.remove("show");
-});
+  // モダール
+  const modal = qs("#relayModal");
+  qs("#btnRelayModal")?.addEventListener("click", () => { updateRelayList(); modal.style.display="block"; });
+  qs("#btnCloseModal")?.addEventListener("click", () => modal.style.display="none");
+  window.addEventListener("click", e => { if(e.target===modal) modal.style.display="none"; });
 
-
-// ---- 初期接続（ページロード時） ----
-document.addEventListener("DOMContentLoaded", () => {
-  const initialRelay = qs("#relay")?.value || "";
-  if (initialRelay) connectRelays(initialRelay);
-});
-
-let relayList = [
-  "wss://relay-jp.nostr.wirednet.jp",
-  "wss://r.kojira.io",
-  "wss://relay.barine.co",
-  "wss://yabu.me",
-  "wss://lang.relays.land/ja"
-];
-let sockets = [];
-
-// ---- モダール開閉 ----
-const modal = qs("#relayModal");
-qs("#btnRelayModal")?.addEventListener("click", () => { populateRelayList(); modal.style.display = "block"; });
-qs("#btnCloseModal")?.addEventListener("click", () => modal.style.display = "none");
-
-// ---- リレーリスト生成 ----
-function populateRelayList() {
-  const container = qs("#relayList");
-  container.innerHTML = "";
-  relayList.forEach((url,i) => {
-    const div = document.createElement("div");
-    div.className = "relay-item";
-    
-    const status = document.createElement("span");
-    status.style.background = sockets[i]?.readyState===1?"green":"red";
-
-    const input = document.createElement("input");
-    input.value = url;
-
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "✕";
-    delBtn.onclick = () => { relayList.splice(i,1); populateRelayList(); };
-
-    div.appendChild(status);
-    div.appendChild(input);
-    div.appendChild(delBtn);
-    container.appendChild(div);
+  qs("#btnAddRelay")?.addEventListener("click", () => { relayList.push(""); updateRelayList(); });
+  qs("#btnConnectModal")?.addEventListener("click", () => {
+    const inputs = qs("#relayList").querySelectorAll("input");
+    relayList = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+    connectRelays(relayList.join(","));
+    subscribe();
+    modal.style.display="none";
   });
-}
 
-// ---- リレー追加 ----
-qs("#btnAddRelay")?.addEventListener("click", () => {
-  relayList.push("");
-  populateRelayList();
-});
-
-// ---- 接続 & 購読 ----
-qs("#btnConnectModal")?.addEventListener("click", () => {
-  const inputs = document.querySelectorAll("#relayList input");
-  relayList = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+  // 初期接続
   connectRelays(relayList.join(","));
   subscribe();
-  modal.style.display="none";
-});
 
-// ---- Nostr接続 ----
-function connectRelays(relayStr){
-  sockets.forEach(ws => ws.close?.());
-  sockets=[];
-  const relays=relayStr.split(",").map(s=>s.trim()).filter(Boolean);
-  relays.forEach(url=>{
-    const ws=new WebSocket(url);
-    ws.onopen = ()=>console.log("接続:",url);
-    ws.onclose = ()=>console.log("切断:",url);
-    ws.onerror = ()=>console.log("エラー:",url);
-    ws.onmessage = onMessage;
-    sockets.push(ws);
-  });
-}
-
-// ---- 購読 ----
-function subscribe(){ console.log("購読開始"); }
-
-// ---- ユーティリティ ----
-function qs(s){ return document.querySelector(s); }
-
-// ---- 初期接続 ----
-document.addEventListener("DOMContentLoaded",()=>{
-  connectRelays(relayList.join(","));
-  subscribe();
-});
-
-  // スクロール
+  // タイムラインスクロール
   const timeline = qs("#timeline");
-  qs("#scrollLeft")?.addEventListener("click", () =>
-    timeline?.scrollBy({ left: -300, behavior: "smooth" })
-  );
-  qs("#scrollRight")?.addEventListener("click", () =>
-    timeline?.scrollBy({ left: 300, behavior: "smooth" })
-  );
+  qs("#scrollLeft")?.addEventListener("click", ()=>timeline?.scrollBy({ left:-300, behavior:"smooth" }));
+  qs("#scrollRight")?.addEventListener("click", ()=>timeline?.scrollBy({ left:300, behavior:"smooth" }));
 });
