@@ -109,10 +109,13 @@ main {
 }
 
 .vertical-timeline {
+    background: #93bdd5;
     display: flex;
-    flex-direction: row; /* row-reverse を row にする */
-    flex-wrap: nowrap;
+    flex-direction: row-reverse;
+    gap: 7px;
     overflow-x: auto;
+    padding: 7px;
+    -webkit-overflow-scrolling: touch;
     writing-mode: vertical-rl; /* 縦書き維持 */
     scroll-behavior: smooth;
 }
