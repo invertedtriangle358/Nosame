@@ -200,18 +200,86 @@ document.addEventListener("DOMContentLoaded", () => {
   if (initialRelay) connectRelays(initialRelay);
 });
 
-// ---- モダール接続ボタン ----
-qs("#btnConnectModal")?.addEventListener("click", () => {
-  const relayInputs = document.querySelectorAll("#relayList input");
-  const relayList = Array.from(relayInputs)
-    .map(i => i.value.trim())
-    .filter(Boolean)
-    .join(",");
-  if (relayList) connectRelays(relayList);
-  // 初期値保持のため #relay の値は変更しない
+let relayList = [
+  "wss://relay-jp.nostr.wirednet.jp",
+  "wss://r.kojira.io",
+  "wss://relay.barine.co",
+  "wss://yabu.me",
+  "wss://lang.relays.land/ja"
+];
+let sockets = [];
+
+// ---- モダール開閉 ----
+const modal = qs("#relayModal");
+qs("#btnRelayModal")?.addEventListener("click", () => { populateRelayList(); modal.style.display = "block"; });
+qs("#btnCloseModal")?.addEventListener("click", () => modal.style.display = "none");
+
+// ---- リレーリスト生成 ----
+function populateRelayList() {
+  const container = qs("#relayList");
+  container.innerHTML = "";
+  relayList.forEach((url,i) => {
+    const div = document.createElement("div");
+    div.className = "relay-item";
+    
+    const status = document.createElement("span");
+    status.style.background = sockets[i]?.readyState===1?"green":"red";
+
+    const input = document.createElement("input");
+    input.value = url;
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✕";
+    delBtn.onclick = () => { relayList.splice(i,1); populateRelayList(); };
+
+    div.appendChild(status);
+    div.appendChild(input);
+    div.appendChild(delBtn);
+    container.appendChild(div);
+  });
+}
+
+// ---- リレー追加 ----
+qs("#btnAddRelay")?.addEventListener("click", () => {
+  relayList.push("");
+  populateRelayList();
 });
 
+// ---- 接続 & 購読 ----
+qs("#btnConnectModal")?.addEventListener("click", () => {
+  const inputs = document.querySelectorAll("#relayList input");
+  relayList = Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+  connectRelays(relayList.join(","));
+  subscribe();
+  modal.style.display="none";
+});
 
+// ---- Nostr接続 ----
+function connectRelays(relayStr){
+  sockets.forEach(ws => ws.close?.());
+  sockets=[];
+  const relays=relayStr.split(",").map(s=>s.trim()).filter(Boolean);
+  relays.forEach(url=>{
+    const ws=new WebSocket(url);
+    ws.onopen = ()=>console.log("接続:",url);
+    ws.onclose = ()=>console.log("切断:",url);
+    ws.onerror = ()=>console.log("エラー:",url);
+    ws.onmessage = onMessage;
+    sockets.push(ws);
+  });
+}
+
+// ---- 購読 ----
+function subscribe(){ console.log("購読開始"); }
+
+// ---- ユーティリティ ----
+function qs(s){ return document.querySelector(s); }
+
+// ---- 初期接続 ----
+document.addEventListener("DOMContentLoaded",()=>{
+  connectRelays(relayList.join(","));
+  subscribe();
+});
 
   // スクロール
   const timeline = qs("#timeline");
