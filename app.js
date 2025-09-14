@@ -32,78 +32,46 @@ function isBlocked(text) {
 }
 
 // ==== WebSocket 接続・購読 ====
-function connectRelays(relayStr) {
-  // 既存接続を閉じる
-  sockets.forEach(ws => ws.close?.());
-  sockets = [];
-
-  const relays = relayStr.split(",").map(s => s.trim()).filter(Boolean);
-  relays.forEach(url => {
-    try {
-      const ws = new WebSocket(url);
-      ws._url = url;
-
-      ws.onopen = () => {
-        console.log("接続成功:", url);
-        updateRelayListStatus();
-        subscribeTo(ws);
-      };
-      ws.onmessage = onMessage;
-      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
-      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
-
-      sockets.push(ws);
-    } catch (e) {
-      console.error("WebSocket error:", e);
-    }
-  });
-
-  updateRelayListStatus();
-  populateRelayList();
-}
+let subId = null;
 
 function subscribeTo(ws) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) return;
-  const filter = { kinds: [1], limit: 50 };
-  try { ws.send(JSON.stringify(["REQ", subId, filter])); }
-  catch (e) { console.error("send REQ failed:", e); }
+  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
+  const filter = {
+    kinds: [1],
+    limit: 50,
+    since: Math.floor(Date.now() / 1000)  // 新しい投稿を購読
+  };
+  try {
+    ws.send(JSON.stringify(["REQ", subId, filter]));
+    console.log("📡 Sent subscription:", ws._url, filter);
+  } catch (e) {
+    console.error("send REQ failed:", e);
+  }
 }
 
-function subscribeAll() { sockets.forEach(ws => subscribeTo(ws)); }
-qs("#btnSubscribe")?.addEventListener("click", async () => {
+qs("#btnConnectModal")?.addEventListener("click", async () => {
   const spinner = qs("#subscribeSpinner");
-  spinner.style.display = "inline-block";  // スピナー表示
-  subId = `sub-${Math.random().toString(36).slice(2,8)}`;
+  if (spinner) spinner.style.display = "inline-block";  // スピナー表示
 
-  // 全リレーに購読リクエスト送信
-  await Promise.all(sockets.map(ws => new Promise(resolve => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }]));
-      resolve();
-    } else {
-      ws.addEventListener("open", () => {
-        ws.send(JSON.stringify(["REQ", subId, { kinds: [1], limit: 50 }]));
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+
+  await Promise.all(
+    sockets.map(ws => new Promise(resolve => {
+      if (ws.readyState === WebSocket.OPEN) {
+        subscribeTo(ws);
         resolve();
-      }, { once: true });
-    }
-  })));
+      } else {
+        ws.addEventListener("open", () => {
+          subscribeTo(ws);
+          resolve();
+        }, { once: true });
+      }
+    }))
+  );
 
-  // 購読送信完了後にスピナー非表示
-  spinner.style.display = "none";
+  if (spinner) spinner.style.display = "none";  // 購読送信完了後にスピナー非表示
 });
 
-// ==== イベント受信 ====
-function onMessage(ev) {
-  try {
-    const msg = JSON.parse(ev.data);
-    if (msg[0] === "EVENT") {
-      const event = msg[2];
-      if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
-      seenEvents.add(event.id);
-      renderEvent(event);
-    }
-  } catch (e) { console.error("JSON parse error:", e); }
-}
 
 // ==== 投稿カード描画 ====
 function renderEvent(ev) {
