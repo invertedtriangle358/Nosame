@@ -1,3 +1,6 @@
+console.log("JSロード完了");
+console.log("btnSubscribe要素:", document.getElementById("btnSubscribe"));
+
 // ==== 設定 ====
 const MAX_LENGTH = 41;
 const NG_WORDS = [
