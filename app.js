@@ -59,7 +59,7 @@ let subId = null;
 const seenEvents = new Set();
 const timeline = document.getElementById("timeline");
 
-// ==== ユーティリティ関数 ====
+// ==== ユーティリティ ====
 function escapeHtml(str) {
   return str.replace(/[&<>"']/g, s =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])
@@ -116,12 +116,12 @@ function connectRelays(relayStr) {
 
       ws.onopen = () => {
         console.log("接続成功:", url);
-        updateRelayListStatus?.();
+        updateRelayListStatus();
         if (subId) subscribeTo(ws);
       };
       ws.onmessage = onMessage;
-      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus?.(); };
-      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus?.(); };
+      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
+      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
 
       sockets.push(ws);
     } catch(e) {
@@ -129,8 +129,8 @@ function connectRelays(relayStr) {
     }
   });
 
-  updateRelayListStatus?.();
-  populateRelayList?.();
+  updateRelayListStatus();
+  populateRelayList();
 }
 
 // ==== 購読関数 ====
@@ -154,10 +154,15 @@ function populateRelayList() {
     const div = document.createElement("div");
     div.className = "relay-item";
     div.innerHTML = `
-      <span style="background:${ws.readyState===WebSocket.OPEN?'green':'red'}"></span>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${ws.readyState===WebSocket.OPEN?'green':'red'}"></span>
       <input type="text" value="${ws._url}" readonly />
-      <button onclick="ws.close()">切断</button>
+      <button class="btnDisconnect">切断</button>
     `;
+    // 切断ボタン
+    div.querySelector(".btnDisconnect").addEventListener("click", () => {
+      ws.close();
+      updateRelayListStatus();
+    });
     container.appendChild(div);
   });
 }
@@ -177,6 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const btnRelayModal = document.getElementById("btnRelayModal");
   const modal = document.getElementById("relayModal");
   const btnCloseModal = document.getElementById("btnCloseModal");
+  const btnAddRelay = document.getElementById("btnAddRelay");
   const btnLeft = document.getElementById("scrollLeft");
   const btnRight = document.getElementById("scrollRight");
   const spinner = document.getElementById("subscribeSpinner");
@@ -197,5 +203,26 @@ document.addEventListener("DOMContentLoaded", () => {
     subscribeAll();
 
     if (spinner) spinner.style.display = "none";
+  });
+
+  // リレー追加
+  btnAddRelay?.addEventListener("click", () => {
+    const url = prompt("追加するリレーのURLを入力してください:", "wss://");
+    if (url) {
+      const ws = new WebSocket(url);
+      ws._url = url;
+
+      ws.onopen = () => {
+        console.log("追加リレー接続成功:", url);
+        updateRelayListStatus();
+        if (subId) subscribeTo(ws);
+      };
+      ws.onmessage = onMessage;
+      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
+      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
+
+      sockets.push(ws);
+      populateRelayList();
+    }
   });
 });
