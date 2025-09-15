@@ -141,29 +141,6 @@ function subscribeTo(ws) {
   }
 }
 
-// ==== モダール制御 ====
-const relayModal = document.getElementById("relayModal");
-const btnRelayModal = document.getElementById("btnRelayModal");
-const btnCloseModal = document.getElementById("btnCloseModal");
-
-// 開く
-btnRelayModal?.addEventListener("click", () => {
-  relayModal.style.display = "block";
-});
-
-// 閉じる
-btnCloseModal?.addEventListener("click", () => {
-  relayModal.style.display = "none";
-});
-
-// 背景クリックでも閉じる
-window.addEventListener("click", (e) => {
-  if (e.target === relayModal) {
-    relayModal.style.display = "none";
-  }
-});
-
-
 // ==== 初期化 ====
 document.addEventListener("DOMContentLoaded", () => {
   // 起動時にデフォルトリレーへ接続
@@ -189,4 +166,26 @@ document.addEventListener("DOMContentLoaded", () => {
       populateRelayList();
     }
   });
+});
+
+// ==== モダール制御 ====
+const relayModal = document.getElementById("relayModal");
+const btnRelayModal = document.getElementById("btnRelayModal");
+const btnCloseModal = document.getElementById("btnCloseModal");
+
+// 開く
+btnRelayModal?.addEventListener("click", () => {
+  relayModal.style.display = "block";
+});
+
+// 閉じる
+btnCloseModal?.addEventListener("click", () => {
+  relayModal.style.display = "none";
+});
+
+// 背景クリックでも閉じる
+window.addEventListener("click", (e) => {
+  if (e.target === relayModal) {
+    relayModal.style.display = "none";
+  }
 });
