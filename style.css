@@ -25,13 +25,13 @@ header {
 
 .header-inner {
   display: flex;
-  align-items: flex-start; /* 上端を揃える */
-  gap: 12px;               /* タイトルとボタンの間隔 */
+  align-items: flex-start; /* PC時はh1とボタンを上端で揃える */
+  gap: 12px;
 }
 
 .header-actions {
   display: flex;
-  flex-direction: column; /* ボタンを縦並び */
+  flex-direction: column; /* デフォルトは縦並び */
   gap: 6px;
 }
 
@@ -48,6 +48,18 @@ header {
   background: #666;
 }
 
+/* ==== スマホ時のレイアウト ==== */
+@media (max-width: 768px) {
+  .header-inner {
+    flex-direction: column;  /* タイトルの下に配置 */
+    align-items: flex-start; /* 左寄せ */
+  }
+
+  .header-actions {
+    flex-direction: row; /* ボタン横並び */
+    margin-top: 8px;
+  }
+}
 
 .spinner {
   display: inline-block;
