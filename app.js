@@ -16,23 +16,32 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   console.log("新しい subId:", subId);
 
   // 全リレーに購読リクエスト送信
-  await Promise.all(sockets.map(ws => new Promise(resolve => {
-    if (ws.readyState === WebSocket.OPEN) {
-      console.log("OPEN状態: REQ送信", ws._url);
-      subscribeTo(ws);
-      resolve();
-    } else {
-      console.log("まだ接続中: openイベント待ち", ws._url);
-      ws.addEventListener("open", () => {
-        console.log("接続完了: REQ送信", ws._url);
-        subscribeTo(ws);
-        resolve();
-      }, { once: true });
-    }
-  })));
+  await Promise.all(
+    sockets.map(ws =>
+      new Promise(resolve => {
+        if (ws.readyState === WebSocket.OPEN) {
+          console.log("OPEN状態: REQ送信", ws._url);
+          subscribeTo(ws);
+          resolve();
+        } else {
+          console.log("まだ接続中: openイベント待ち", ws._url);
+          ws.addEventListener(
+            "open",
+            () => {
+              console.log("接続完了: REQ送信", ws._url);
+              subscribeTo(ws);
+              resolve();
+            },
+            { once: true }
+          );
+        }
+      })
+    )
+  );
 
   if (spinner) spinner.style.display = "none";
 });
+
 
 
 // ==== 設定 ====
