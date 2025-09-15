@@ -19,11 +19,35 @@ h1 {
     color: transparent;
 }
 
-.header-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+header {
+  padding: 8px 16px;
 }
+
+.header-inner {
+  display: flex;
+  align-items: flex-start; /* 上端を揃える */
+  gap: 12px;               /* タイトルとボタンの間隔 */
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column; /* ボタンを縦並び */
+  gap: 6px;
+}
+
+.header-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #444;
+  color: #fff;
+}
+
+.header-actions button:hover {
+  background: #666;
+}
+
 
 .spinner {
   display: inline-block;
