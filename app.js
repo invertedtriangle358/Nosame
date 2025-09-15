@@ -21,8 +21,8 @@ function isBlocked(text) {
 }
 
 // ==== リレー接続 ====
+// ==== リレー接続 ====
 function connectRelays(relayStr) {
-  // 既存接続を閉じる
   sockets.forEach(ws => ws.close?.());
   sockets = [];
 
@@ -35,16 +35,11 @@ function connectRelays(relayStr) {
       ws.onopen = () => {
         console.log("接続成功:", url);
         updateRelayListStatus();
+        if (subId) subscribeTo(ws); // ★購読を忘れず送信
       };
       ws.onmessage = onMessage;
-      ws.onclose = () => {
-        console.log("切断:", url);
-        updateRelayListStatus();
-      };
-      ws.onerror = () => {
-        console.log("エラー:", url);
-        updateRelayListStatus();
-      };
+      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
+      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
 
       sockets.push(ws);
     } catch (e) {
@@ -56,36 +51,11 @@ function connectRelays(relayStr) {
   populateRelayList();
 }
 
-// ==== 購読 ====
-function subscribeTo(ws) {
-  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
-  const filter = { kinds: [1], limit: 50 };
-  try {
-    ws.send(JSON.stringify(["REQ", subId, filter]));
-  } catch (e) {
-    console.error("send REQ failed:", e);
-  }
-}
-
-function subscribeAll() {
-  sockets.forEach(ws => subscribeTo(ws));
-}
-
-document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
-  const spinner = document.getElementById("subscribeSpinner");
-  if (spinner) spinner.style.display = "inline-block";
-
-  // 新しい subId に更新
-  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-  subscribeAll();
-
-  if (spinner) spinner.style.display = "none";
-});
-
 // ==== イベント受信 ====
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
+    console.log("受信:", msg); // ★デバッグ出力
     if (msg[0] === "EVENT") {
       const event = msg[2];
       if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
@@ -93,9 +63,10 @@ function onMessage(ev) {
       renderEvent(event);
     }
   } catch (e) {
-    console.error("JSON parse error:", e);
+    console.error("JSON parse error:", e, ev.data);
   }
 }
+
 
 // ==== 投稿描画 ====
 function renderEvent(event) {
