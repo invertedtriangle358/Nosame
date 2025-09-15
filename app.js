@@ -1,5 +1,11 @@
-console.log("JSロード完了");
-console.log("btnSubscribe要素:", document.getElementById("btnSubscribe"));
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnSubscribe");
+  console.log("購読ボタン要素:", btn);
+
+  btn?.addEventListener("click", () => {
+    console.log("購読ボタンがクリックされた");
+  });
+});
 
 // ==== 設定 ====
 const MAX_LENGTH = 41;
