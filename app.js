@@ -1,25 +1,34 @@
-// ==== 設定 ====
+// ==== 定数設定 ==== //
 const MAX_LENGTH = 41;
 const NG_WORDS = [
   "キチガイ","ガイジ","ケンモ","嫌儲","右翼","左翼","ウヨ","サヨ","与党","野党","在日","クルド",
   "fuck","shit","sex","porn","gay","ass","dick","pussy","CP","mempool","http://","https://"
 ];
-
-// デフォルトで接続するリレー
 const DEFAULT_RELAYS = [
+  "wss://relay.damus.io",
   "wss://relay-jp.nostr.wirednet.jp",
   "wss://yabu.me",
   "wss://r.kojira.io",
   "wss://relay.barine.co"
 ];
 
-// ==== 状態管理 ====
+// ==== 状態管理 ==== //
 let sockets = [];
 let subId = null;
 const seenEvents = new Set();
-const timeline = document.getElementById("timeline");
+let relayListState = JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS];
 
-// ==== ミュート判定 ====
+// DOM要素キャッシュ
+const timeline = document.getElementById("timeline");
+const spinner = document.getElementById("subscribeSpinner");
+
+// ==== ユーティリティ ==== //
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, s =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])
+  );
+}
+
 function isBlocked(text) {
   if (!text) return false;
   if (text.length > MAX_LENGTH) return true;
@@ -27,9 +36,8 @@ function isBlocked(text) {
   return NG_WORDS.some(word => lowered.includes(word.toLowerCase()));
 }
 
-// ==== リレー接続 ====
+// ==== リレー接続処理 ==== //
 function connectRelays(relayStr) {
-  // 既存接続を閉じる
   sockets.forEach(ws => ws.close?.());
   sockets = [];
 
@@ -42,11 +50,11 @@ function connectRelays(relayStr) {
       ws.onopen = () => {
         console.log("接続成功:", url);
         updateRelayListStatus();
-        if (subId) subscribeTo(ws); // 購読中なら再購読
+        if (subId) subscribeTo(ws);
       };
       ws.onmessage = onMessage;
       ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
-      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
+      ws.onerror  = () => { console.log("エラー:", url); updateRelayListStatus(); };
 
       sockets.push(ws);
     } catch (e) {
@@ -58,12 +66,11 @@ function connectRelays(relayStr) {
   populateRelayList();
 }
 
-// ==== イベント受信 ====
+// ==== イベント処理 ==== //
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
     console.log("受信:", msg);
-
     if (msg[0] === "EVENT") {
       const event = msg[2];
       if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
@@ -75,7 +82,6 @@ function onMessage(ev) {
   }
 }
 
-// ==== 投稿描画 ====
 function renderEvent(event) {
   const noteEl = document.createElement("div");
   noteEl.className = "note";
@@ -87,49 +93,10 @@ function renderEvent(event) {
   `;
 
   timeline.appendChild(noteEl);
-  timeline.scrollLeft = timeline.scrollWidth; // 最新を表示
+  timeline.scrollLeft = timeline.scrollWidth; // 右端にスクロール
 }
 
-// ==== スクロールボタン ====
-document.getElementById("scrollLeft")?.addEventListener("click", () => {
-  timeline.scrollBy({ left: -200, behavior: "smooth" });
-});
-document.getElementById("scrollRight")?.addEventListener("click", () => {
-  timeline.scrollBy({ left: 200, behavior: "smooth" });
-});
-
-// ==== ユーティリティ ====
-function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, s =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])
-  );
-}
-
-// ==== 購読 ====
-document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
-  const spinner = document.getElementById("subscribeSpinner");
-  if (spinner) spinner.style.display = "inline-block";
-
-  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-
-  await Promise.all(
-    sockets.map(ws => new Promise(resolve => {
-      if (ws.readyState === WebSocket.OPEN) {
-        subscribeTo(ws);
-        resolve();
-      } else {
-        ws.addEventListener("open", () => {
-          subscribeTo(ws);
-          resolve();
-        }, { once: true });
-      }
-    }))
-  );
-
-  if (spinner) spinner.style.display = "none";
-});
-
-// ==== 購読処理 ====
+// ==== 購読 ==== //
 function subscribeTo(ws) {
   if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
   const filter = { kinds: [1], limit: 50 };
@@ -141,75 +108,59 @@ function subscribeTo(ws) {
   }
 }
 
-// ==== 初期化 ====
-document.addEventListener("DOMContentLoaded", () => {
-  // 起動時にデフォルトリレーへ接続
-  connectRelays(DEFAULT_RELAYS.join(","));
-
-  // リレー追加ボタン
-  document.getElementById("btnAddRelay")?.addEventListener("click", () => {
-    const url = prompt("追加するリレーのURLを入力してください:", "wss://");
-    if (url) {
-      const ws = new WebSocket(url);
-      ws._url = url;
-
-      ws.onopen = () => {
-        console.log("追加リレー接続成功:", url);
-        updateRelayListStatus();
-        if (subId) subscribeTo(ws);
-      };
-      ws.onmessage = onMessage;
-      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
-      ws.onerror = () => { console.log("エラー:", url); updateRelayListStatus(); };
-
-      sockets.push(ws);
-      populateRelayList();
-    }
-  });
-});
-
-// ==== モダール制御 ====
-const relayModal = document.getElementById("relayModal");
-const btnRelayModal = document.getElementById("btnRelayModal");
-const btnCloseModal = document.getElementById("btnCloseModal");
-
-// 開く
-btnRelayModal?.addEventListener("click", () => {
-  relayModal.style.display = "block";
-});
-
-// 閉じる
-btnCloseModal?.addEventListener("click", () => {
-  relayModal.style.display = "none";
-});
-
-// 背景クリックでも閉じる
-window.addEventListener("click", (e) => {
-  if (e.target === relayModal) {
-    relayModal.style.display = "none";
-  }
-});
-// ==== リレー管理 ====
-let relayListState = JSON.parse(localStorage.getItem("relays")) || DEFAULT_RELAYS.slice();
-
-// リレー一覧をモダールに表示
+// ==== リレー管理 (モダール関連) ==== //
 function populateRelayList() {
   const listEl = document.getElementById("relayList");
   listEl.innerHTML = "";
 
   relayListState.forEach(url => {
-    const item = document.createElement("div");
     const connected = sockets.some(ws => ws._url === url && ws.readyState === WebSocket.OPEN);
+    const item = document.createElement("div");
     item.textContent = `${url} ${connected ? "✅ 接続中" : "❌ 未接続"}`;
     listEl.appendChild(item);
   });
 }
 
+// ==== イベントリスナー ==== //
+// 購読ボタン
+document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+  console.log("=== 購読ボタン押された ===");
+  if (spinner) spinner.style.display = "inline-block";
+
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  console.log("新しい subId:", subId);
+
+  await Promise.all(
+    sockets.map(ws =>
+      new Promise(resolve => {
+        if (ws.readyState === WebSocket.OPEN) {
+          subscribeTo(ws);
+          resolve();
+        } else {
+          ws.addEventListener("open", () => {
+            subscribeTo(ws);
+            resolve();
+          }, { once: true });
+        }
+      })
+    )
+  );
+
+  if (spinner) spinner.style.display = "none";
+});
+
+// スクロールボタン
+document.getElementById("scrollLeft")?.addEventListener("click", () => {
+  timeline.scrollBy({ left: -200, behavior: "smooth" });
+});
+document.getElementById("scrollRight")?.addEventListener("click", () => {
+  timeline.scrollBy({ left: 200, behavior: "smooth" });
+});
+
 // リレー追加
 document.getElementById("btnAddRelay")?.addEventListener("click", () => {
   const url = prompt("追加するリレーURLを入力してください (例: wss://relay.example.com)");
   if (!url || relayListState.includes(url)) return;
-
   relayListState.push(url);
   populateRelayList();
 });
@@ -218,12 +169,9 @@ document.getElementById("btnAddRelay")?.addEventListener("click", () => {
 document.getElementById("btnConnectModal")?.addEventListener("click", () => {
   localStorage.setItem("relays", JSON.stringify(relayListState));
   connectRelays(relayListState.join(","));
-
-  // モダールを閉じる
   document.getElementById("relayModal").style.display = "none";
-
-  // 購読を再送
-  if (subId) {
-    sockets.forEach(ws => subscribeTo(ws));
-  }
+  if (subId) sockets.forEach(ws => subscribeTo(ws));
 });
+
+// ==== 初期処理 ==== //
+connectRelays(relayListState.join(","));
