@@ -189,3 +189,41 @@ window.addEventListener("click", (e) => {
     relayModal.style.display = "none";
   }
 });
+// ==== リレー管理 ====
+let relayListState = JSON.parse(localStorage.getItem("relays")) || DEFAULT_RELAYS.slice();
+
+// リレー一覧をモダールに表示
+function populateRelayList() {
+  const listEl = document.getElementById("relayList");
+  listEl.innerHTML = "";
+
+  relayListState.forEach(url => {
+    const item = document.createElement("div");
+    const connected = sockets.some(ws => ws._url === url && ws.readyState === WebSocket.OPEN);
+    item.textContent = `${url} ${connected ? "✅ 接続中" : "❌ 未接続"}`;
+    listEl.appendChild(item);
+  });
+}
+
+// リレー追加
+document.getElementById("btnAddRelay")?.addEventListener("click", () => {
+  const url = prompt("追加するリレーURLを入力してください (例: wss://relay.example.com)");
+  if (!url || relayListState.includes(url)) return;
+
+  relayListState.push(url);
+  populateRelayList();
+});
+
+// 接続ボタン
+document.getElementById("btnConnectModal")?.addEventListener("click", () => {
+  localStorage.setItem("relays", JSON.stringify(relayListState));
+  connectRelays(relayListState.join(","));
+
+  // モダールを閉じる
+  document.getElementById("relayModal").style.display = "none";
+
+  // 購読を再送
+  if (subId) {
+    sockets.forEach(ws => subscribeTo(ws));
+  }
+});
