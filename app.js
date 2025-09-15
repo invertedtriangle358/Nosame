@@ -120,6 +120,18 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
         resolve();
       }, { once: true });
     }
+    
+    function subscribeTo(ws) {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
+  const filter = { kinds: [1], limit: 50 };
+  console.log("REQ送信:", ws._url, subId, filter);
+  try {
+    ws.send(JSON.stringify(["REQ", subId, filter]));
+  } catch (e) {
+    console.error("send REQ failed:", e);
+  }
+}
+
   })));
 
   if (spinner) spinner.style.display = "none";
