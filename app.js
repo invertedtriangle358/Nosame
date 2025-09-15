@@ -137,6 +137,3 @@ function subscribeTo(ws) {
     console.error("send REQ failed:", e);
   }
 }
-
-  if (spinner) spinner.style.display = "none";
-});
