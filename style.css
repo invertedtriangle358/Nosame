@@ -42,8 +42,8 @@ header {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  background: #444;
-  color: #fff;
+  background: #0f0;
+  color: #b0c4de;
 }
 
 .header-actions button:hover {
