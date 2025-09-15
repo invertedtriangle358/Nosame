@@ -112,7 +112,7 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   // 全リレーに購読リクエスト送信
   await Promise.all(sockets.map(ws => new Promise(resolve => {
     if (ws.readyState === WebSocket.OPEN) {
-      subscribeTo(ws);
+      subscribeTo(ws);   // ← 関数を呼ぶだけ
       resolve();
     } else {
       ws.addEventListener("open", () => {
@@ -120,19 +120,23 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
         resolve();
       }, { once: true });
     }
-    
-    function subscribeTo(ws) {
+  })));
+
+  if (spinner) spinner.style.display = "none";
+});
+
+// ==== 購読処理 ====
+// ここに独立して定義しておく
+function subscribeTo(ws) {
   if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
   const filter = { kinds: [1], limit: 50 };
-  console.log("REQ送信:", ws._url, subId, filter);
+  console.log("REQ送信:", ws._url, subId, filter); // ← ログ
   try {
     ws.send(JSON.stringify(["REQ", subId, filter]));
   } catch (e) {
     console.error("send REQ failed:", e);
   }
 }
-
-  })));
 
   if (spinner) spinner.style.display = "none";
 });
