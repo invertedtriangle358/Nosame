@@ -3,11 +3,36 @@ console.log("app.js 読み込まれた！");
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btnSubscribe");
   console.log("購読ボタン要素:", btn);
+  
+document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+  console.log("=== 購読ボタン押された ===");
 
-  btn?.addEventListener("click", () => {
-    console.log("購読ボタンがクリックされた");
-  });
+  const spinner = document.getElementById("subscribeSpinner");
+  if (spinner) spinner.style.display = "inline-block";
+
+  // 新しい subId に更新
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  console.log("新しい subId:", subId);
+
+  // 全リレーに購読リクエスト送信
+  await Promise.all(sockets.map(ws => new Promise(resolve => {
+    if (ws.readyState === WebSocket.OPEN) {
+      console.log("OPEN状態: REQ送信", ws._url);
+      subscribeTo(ws);
+      resolve();
+    } else {
+      console.log("まだ接続中: openイベント待ち", ws._url);
+      ws.addEventListener("open", () => {
+        console.log("接続完了: REQ送信", ws._url);
+        subscribeTo(ws);
+        resolve();
+      }, { once: true });
+    }
+  })));
+
+  if (spinner) spinner.style.display = "none";
 });
+
 
 // ==== 設定 ====
 const MAX_LENGTH = 41;
