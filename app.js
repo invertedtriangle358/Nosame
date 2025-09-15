@@ -4,7 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btnSubscribe");
   console.log("購読ボタン要素:", btn);
 
-  document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+  if (!btn) return; // ボタンがなければここで終了
+
+  btn.addEventListener("click", async () => {
     console.log("=== 購読ボタン押された ===");
 
     const spinner = document.getElementById("subscribeSpinner");
@@ -41,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (spinner) spinner.style.display = "none";
   });
 });
+
 
 
 
