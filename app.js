@@ -20,7 +20,7 @@ function isBlocked(text) {
   return NG_WORDS.some(word => lowered.includes(word.toLowerCase()));
 }
 
-// ==== リレー接続 ====
+
 // ==== リレー接続 ====
 function connectRelays(relayStr) {
   sockets.forEach(ws => ws.close?.());
@@ -100,3 +100,27 @@ function escapeHtml(str) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[s])
   );
 }
+
+// ==== 購読 ====
+document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+  const spinner = document.getElementById("subscribeSpinner");
+  if (spinner) spinner.style.display = "inline-block";
+
+  // 新しい subId に更新
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+
+  // 全リレーに購読リクエスト送信
+  await Promise.all(sockets.map(ws => new Promise(resolve => {
+    if (ws.readyState === WebSocket.OPEN) {
+      subscribeTo(ws);
+      resolve();
+    } else {
+      ws.addEventListener("open", () => {
+        subscribeTo(ws);
+        resolve();
+      }, { once: true });
+    }
+  })));
+
+  if (spinner) spinner.style.display = "none";
+});
