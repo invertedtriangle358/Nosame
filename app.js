@@ -3,43 +3,43 @@ console.log("app.js 読み込まれた！");
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btnSubscribe");
   console.log("購読ボタン要素:", btn);
-}
-  
-document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
-  console.log("=== 購読ボタン押された ===");
 
-  const spinner = document.getElementById("subscribeSpinner");
-  if (spinner) spinner.style.display = "inline-block";
+  document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+    console.log("=== 購読ボタン押された ===");
 
-  // 新しい subId に更新
-  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-  console.log("新しい subId:", subId);
+    const spinner = document.getElementById("subscribeSpinner");
+    if (spinner) spinner.style.display = "inline-block";
 
-  // 全リレーに購読リクエスト送信
-  await Promise.all(
-    sockets.map(ws =>
-      new Promise(resolve => {
-        if (ws.readyState === WebSocket.OPEN) {
-          console.log("OPEN状態: REQ送信", ws._url);
-          subscribeTo(ws);
-          resolve();
-        } else {
-          console.log("まだ接続中: openイベント待ち", ws._url);
-          ws.addEventListener(
-            "open",
-            () => {
-              console.log("接続完了: REQ送信", ws._url);
-              subscribeTo(ws);
-              resolve();
-            },
-            { once: true }
-          );
-        }
-      })
-    )
-  );
+    // 新しい subId に更新
+    subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+    console.log("新しい subId:", subId);
 
-  if (spinner) spinner.style.display = "none";
+    // 全リレーに購読リクエスト送信
+    await Promise.all(
+      sockets.map(ws =>
+        new Promise(resolve => {
+          if (ws.readyState === WebSocket.OPEN) {
+            console.log("OPEN状態: REQ送信", ws._url);
+            subscribeTo(ws);
+            resolve();
+          } else {
+            console.log("まだ接続中: openイベント待ち", ws._url);
+            ws.addEventListener(
+              "open",
+              () => {
+                console.log("接続完了: REQ送信", ws._url);
+                subscribeTo(ws);
+                resolve();
+              },
+              { once: true }
+            );
+          }
+        })
+      )
+    );
+
+    if (spinner) spinner.style.display = "none";
+  });
 });
 
 
