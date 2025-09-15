@@ -1,3 +1,5 @@
+console.log("app.js 読み込まれた！");
+
 document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("btnSubscribe");
   console.log("購読ボタン要素:", btn);
