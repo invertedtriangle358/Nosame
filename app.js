@@ -113,7 +113,7 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   // 全リレーに購読リクエスト送信
   await Promise.all(sockets.map(ws => new Promise(resolve => {
     if (ws.readyState === WebSocket.OPEN) {
-      subscribeTo(ws);   // ← 関数を呼ぶだけ
+      subscribeTo(ws);
       resolve();
     } else {
       ws.addEventListener("open", () => {
@@ -127,11 +127,10 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
 });
 
 // ==== 購読処理 ====
-// ここに独立して定義しておく
 function subscribeTo(ws) {
   if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
   const filter = { kinds: [1], limit: 50 };
-  console.log("REQ送信:", ws._url, subId, filter); // ← ログ
+  console.log("REQ送信:", ws._url, subId, filter);
   try {
     ws.send(JSON.stringify(["REQ", subId, filter]));
   } catch (e) {
