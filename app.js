@@ -3,7 +3,7 @@ const MAX_LENGTH = 41;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ",
   "与党", "野党", "在日", "クルド",
-  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool"
+  "fuck", "shit", "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool"　"http://", "https://",
 ];
 
 // ==== 状態管理 ====
