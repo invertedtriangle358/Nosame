@@ -301,11 +301,14 @@ document.getElementById("scrollRight")?.addEventListener("click", () => {
 
 // リレー追加
 document.getElementById("btnAddRelay")?.addEventListener("click", () => {
-  const url = prompt("追加するリレーURLを入力してください (例: wss://relay.example.com)");
+  const input = document.getElementById("relayInput");
+  const url = input.value.trim();
   if (!url || relayListState.includes(url)) return;
   relayListState.push(url);
   populateRelayList();
+  input.value = ""; // 入力欄をクリア
 });
+
 
 // 接続ボタン
 document.getElementById("btnConnectModal")?.addEventListener("click", () => {
