@@ -149,6 +149,27 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   if (spinner) spinner.style.display = "none";
 });
 
+// ==== モダール制御 ==== //
+const relayModal = document.getElementById("relayModal");
+
+// 開く
+document.getElementById("btnRelayModal")?.addEventListener("click", () => {
+  relayModal.style.display = "block";
+  populateRelayList();
+});
+
+// 閉じる
+document.getElementById("btnCloseModal")?.addEventListener("click", () => {
+  relayModal.style.display = "none";
+});
+
+// モダール外クリックで閉じる
+window.addEventListener("click", (e) => {
+  if (e.target === relayModal) {
+    relayModal.style.display = "none";
+  }
+});
+
 // スクロールボタン
 document.getElementById("scrollLeft")?.addEventListener("click", () => {
   timeline.scrollBy({ left: -200, behavior: "smooth" });
