@@ -166,9 +166,16 @@ document.getElementById("btnCloseModal")?.addEventListener("click", () => {
 
 // リレー追加
 document.getElementById("btnAddRelay")?.addEventListener("click", () => {
-  relayListState.push(""); // 空のリレーを追加
-  populateRelayList();
+  const input = document.getElementById("relayInput");
+  const url = input.value.trim();
+  if (!url) return;
+  if (!relayListState.includes(url)) {
+    relayListState.push(url);
+    populateRelayList();
+    input.value = ""; // 入力欄クリア
+  }
 });
+
 
 // 💾 保存ボタン（接続はしない）
 document.getElementById("btnConnectModal")?.addEventListener("click", () => {
