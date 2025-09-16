@@ -84,7 +84,7 @@ header {
 main {
     display: flex;
     flex-direction: row-reverse;
-    height: 100vh;
+    height: 650px;
     overflow: hidden;
 }
 
