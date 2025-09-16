@@ -149,6 +149,68 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   if (spinner) spinner.style.display = "none";
 });
 
+// ==== リアクション送信 ==== //
+async function sendReaction(targetEvent) {
+  if (!window.nostr) {
+    alert("NIP-07 拡張機能が必要です (Alby, nos2x など)");
+    return;
+  }
+
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+
+    // content は "+" 固定（UIでは♡表示）
+    let reactionEvent = {
+      kind: 7,
+      content: "+",
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ["e", targetEvent.id],
+        ["p", targetEvent.pubkey]
+      ],
+      pubkey
+    };
+
+    // 署名
+    reactionEvent = await window.nostr.signEvent(reactionEvent);
+
+    // 各リレーに送信
+    sockets.forEach(ws => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(["EVENT", reactionEvent]));
+        console.log("リアクション送信:", ws._url, reactionEvent);
+      }
+    });
+  } catch (err) {
+    console.error("リアクション送信失敗:", err);
+  }
+}
+
+// ==== 投稿カード生成 ==== //
+function renderEvent(event) {
+  const noteEl = document.createElement("div");
+  noteEl.className = "note";
+
+  noteEl.innerHTML = `
+    <div class="content">${escapeHtml(event.content)}</div>
+    <div class="meta">${new Date(event.created_at * 1000).toLocaleString()}</div>
+    <div class="author">${event.pubkey.slice(0, 8)}...</div>
+    <button class="btn-reaction" data-id="${event.id}" data-pubkey="${event.pubkey}">♡</button>
+  `;
+
+  timeline.appendChild(noteEl);
+  timeline.scrollLeft = timeline.scrollWidth;
+}
+
+// ==== ボタン動作 ==== //
+document.addEventListener("click", e => {
+  if (e.target.classList.contains("btn-reaction")) {
+    const eventId = e.target.dataset.id;
+    const pubkey = e.target.dataset.pubkey;
+    sendReaction({ id: eventId, pubkey });
+  }
+});
+
 // ==== リレー管理 ==== //
 function updateRelayList() {
   relayListEl.innerHTML = "";
