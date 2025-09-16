@@ -149,50 +149,62 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   if (spinner) spinner.style.display = "none";
 });
 
-// ==== モダール制御 ==== //
+// ==== モダール関連 ==== //
 const relayModal = document.getElementById("relayModal");
+const relayListEl = document.getElementById("relayList");
 
-// 開く
+// モダールを開く
 document.getElementById("btnRelayModal")?.addEventListener("click", () => {
   relayModal.style.display = "block";
-  populateRelayList();
+  populateRelayList(); // 開いたときに現在のリレー一覧を表示
 });
 
-// 閉じる
+// モダールを閉じる
 document.getElementById("btnCloseModal")?.addEventListener("click", () => {
   relayModal.style.display = "none";
 });
 
-// モダール外クリックで閉じる
-window.addEventListener("click", (e) => {
-  if (e.target === relayModal) {
-    relayModal.style.display = "none";
-  }
+// リレー追加ボタン
+document.getElementById("btnAddRelay")?.addEventListener("click", () => {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "wss://example.com";
+  relayListEl.appendChild(input);
 });
 
-// ==== モダール内の接続ボタン ==== //
+// 接続ボタン
 document.getElementById("btnConnectModal")?.addEventListener("click", () => {
-  // relayList 内の input から値を集める
-  const inputs = relayList.querySelectorAll("input.relay-url");
-  const urls = Array.from(inputs)
-    .map(input => input.value.trim())
+  const inputs = relayListEl.querySelectorAll("input");
+  const newRelays = Array.from(inputs)
+    .map(el => el.value.trim())
     .filter(Boolean);
 
-  if (urls.length === 0) {
-    alert("リレーURLを入力してください");
+  if (newRelays.length === 0) {
+    console.log("⚠ リレーが空なので保存・接続しません");
     return;
   }
 
-  // ---- 保存処理 ----
-  localStorage.setItem("relays", JSON.stringify(urls));
-  console.log("保存したリレー:", urls);
+  // 状態と localStorage を更新
+  relayListState = newRelays;
+  localStorage.setItem("relays", JSON.stringify(relayListState));
 
-  // ---- 接続処理 ----
-  connectRelays(urls.join(","));
+  // 再接続
+  connectRelays(relayListState.join(","));
 
-  // ---- モダールを閉じる ----
+  // モダールを閉じる
   relayModal.style.display = "none";
 });
+
+// ==== リスト描画 ==== //
+function populateRelayList() {
+  relayListEl.innerHTML = "";
+  relayListState.forEach(url => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = url;
+    relayListEl.appendChild(input);
+  });
+}
 
 // スクロールボタン
 document.getElementById("scrollLeft")?.addEventListener("click", () => {
