@@ -170,6 +170,30 @@ window.addEventListener("click", (e) => {
   }
 });
 
+// ==== モダール内の接続ボタン ==== //
+document.getElementById("btnConnectModal")?.addEventListener("click", () => {
+  // relayList 内の input から値を集める
+  const inputs = relayList.querySelectorAll("input.relay-url");
+  const urls = Array.from(inputs)
+    .map(input => input.value.trim())
+    .filter(Boolean);
+
+  if (urls.length === 0) {
+    alert("リレーURLを入力してください");
+    return;
+  }
+
+  // ---- 保存処理 ----
+  localStorage.setItem("relays", JSON.stringify(urls));
+  console.log("保存したリレー:", urls);
+
+  // ---- 接続処理 ----
+  connectRelays(urls.join(","));
+
+  // ---- モダールを閉じる ----
+  relayModal.style.display = "none";
+});
+
 // スクロールボタン
 document.getElementById("scrollLeft")?.addEventListener("click", () => {
   timeline.scrollBy({ left: -300, behavior: "smooth" });
@@ -195,4 +219,14 @@ document.getElementById("btnConnectModal")?.addEventListener("click", () => {
 });
 
 // ==== 初期処理 ==== //
-connectRelays(relayListState.join(","));
+window.addEventListener("DOMContentLoaded", () => {
+  const saved = JSON.parse(localStorage.getItem("relays") || "null");
+
+  if (saved && saved.length > 0) {
+    console.log("保存済みリレーから接続:", saved);
+    connectRelays(saved.join(","));
+  } else {
+    console.log("デフォルトリレーから接続:", DEFAULT_RELAYS);
+    connectRelays(DEFAULT_RELAYS.join(","));
+  }
+});
