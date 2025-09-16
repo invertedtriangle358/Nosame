@@ -156,7 +156,7 @@ const relayListEl = document.getElementById("relayList");
 // モダールを開く
 document.getElementById("btnRelayModal")?.addEventListener("click", () => {
   relayModal.style.display = "block";
-  populateRelayList(); // 開いたときに現在のリレー一覧を表示
+  populateRelayList();
 });
 
 // モダールを閉じる
@@ -164,12 +164,10 @@ document.getElementById("btnCloseModal")?.addEventListener("click", () => {
   relayModal.style.display = "none";
 });
 
-// リレー追加ボタン
+// リレー追加
 document.getElementById("btnAddRelay")?.addEventListener("click", () => {
-  const input = document.createElement("input");
-  input.type = "text";
-  input.placeholder = "wss://example.com";
-  relayListEl.appendChild(input);
+  relayListState.push(""); // 空のリレーを追加
+  populateRelayList();
 });
 
 // 接続ボタン
@@ -184,16 +182,53 @@ document.getElementById("btnConnectModal")?.addEventListener("click", () => {
     return;
   }
 
-  // 状態と localStorage を更新
   relayListState = newRelays;
   localStorage.setItem("relays", JSON.stringify(relayListState));
-
-  // 再接続
   connectRelays(relayListState.join(","));
-
-  // モダールを閉じる
   relayModal.style.display = "none";
 });
+
+// ==== リスト描画 ==== //
+function populateRelayList() {
+  relayListEl.innerHTML = "";
+
+  relayListState.forEach((url, index) => {
+    const row = document.createElement("div");
+    row.className = "relay-row";
+
+    // 状態マーク
+    const status = document.createElement("span");
+    status.className = "relay-status";
+    status.textContent = getRelayStatus(url) ? "🟢" : "🔴";
+
+    // 入力欄
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = url;
+    input.addEventListener("input", e => {
+      relayListState[index] = e.target.value;
+    });
+
+    // 削除ボタン
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✖";
+    delBtn.addEventListener("click", () => {
+      relayListState.splice(index, 1);
+      populateRelayList();
+    });
+
+    row.appendChild(status);
+    row.appendChild(input);
+    row.appendChild(delBtn);
+    relayListEl.appendChild(row);
+  });
+}
+
+// ==== 接続状態を返す ==== //
+function getRelayStatus(url) {
+  const ws = sockets.find(s => s._url === url);
+  return ws && ws.readyState === WebSocket.OPEN;
+}
 
 // ==== リスト描画 ==== //
 function populateRelayList() {
