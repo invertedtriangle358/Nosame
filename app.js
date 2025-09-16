@@ -170,7 +170,7 @@ document.getElementById("btnAddRelay")?.addEventListener("click", () => {
   populateRelayList();
 });
 
-// 接続ボタン
+// 💾 保存ボタン（接続はしない）
 document.getElementById("btnConnectModal")?.addEventListener("click", () => {
   const inputs = relayListEl.querySelectorAll("input");
   const newRelays = Array.from(inputs)
@@ -178,15 +178,58 @@ document.getElementById("btnConnectModal")?.addEventListener("click", () => {
     .filter(Boolean);
 
   if (newRelays.length === 0) {
-    console.log("⚠ リレーが空なので保存・接続しません");
+    console.log("⚠ リレーが空なので保存しません");
     return;
   }
 
   relayListState = newRelays;
   localStorage.setItem("relays", JSON.stringify(relayListState));
-  connectRelays(relayListState.join(","));
+  console.log("✅ リレーを保存:", relayListState);
+
   relayModal.style.display = "none";
 });
+
+// ==== リスト描画 ==== //
+function populateRelayList() {
+  relayListEl.innerHTML = "";
+
+  relayListState.forEach((url, index) => {
+    const row = document.createElement("div");
+    row.className = "relay-row";
+
+    // 状態マーク
+    const status = document.createElement("span");
+    status.className = "relay-status";
+    status.textContent = getRelayStatus(url) ? "🟢" : "🔴";
+
+    // 入力欄
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = url;
+    input.addEventListener("input", e => {
+      relayListState[index] = e.target.value;
+    });
+
+    // 削除ボタン
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "✖";
+    delBtn.addEventListener("click", () => {
+      relayListState.splice(index, 1);
+      populateRelayList();
+    });
+
+    row.appendChild(status);
+    row.appendChild(input);
+    row.appendChild(delBtn);
+    relayListEl.appendChild(row);
+  });
+}
+
+// ==== 接続状態を返す ==== //
+function getRelayStatus(url) {
+  const ws = sockets.find(s => s._url === url);
+  return ws && ws.readyState === WebSocket.OPEN;
+}
 
 // ==== リスト描画 ==== //
 function populateRelayList() {
