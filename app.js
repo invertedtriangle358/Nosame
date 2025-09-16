@@ -1,5 +1,5 @@
 // ==== 定数設定 ==== //
-const MAX_LENGTH = 100;
+const MAX_LENGTH = 80;
 const NG_WORDS = [
   "キチガイ","ガイジ","ケンモ","嫌儲","右翼","左翼","ウヨ","サヨ","与党","野党","在日","クルド", "死ね", "殺す", "クソ",
   "fuck","shit","sex","porn","gay","ass","dick","pussy","CP","mempool","http://","https://"
