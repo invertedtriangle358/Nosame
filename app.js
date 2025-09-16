@@ -103,6 +103,52 @@ function subscribeTo(ws) {
   }
 }
 
+// ==== 自動購読処理 ==== //
+async function startSubscription() {
+  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  console.log("購読開始 subId:", subId);
+
+  await Promise.all(
+    sockets.map(ws => new Promise(resolve => {
+      if (ws.readyState === WebSocket.OPEN) {
+        subscribeTo(ws);
+        resolve();
+      } else {
+        ws.addEventListener("open", () => {
+          subscribeTo(ws);
+          resolve();
+        }, { once: true });
+      }
+    }))
+  );
+}
+
+// ==== 初期処理 ==== //
+window.addEventListener("DOMContentLoaded", async () => {
+  const saved = JSON.parse(localStorage.getItem("relays") || "null");
+
+  if (saved && saved.length > 0) {
+    console.log("保存済みリレーから接続:", saved);
+    connectRelays(saved.join(","));
+  } else {
+    console.log("デフォルトリレーから接続:", DEFAULT_RELAYS);
+    connectRelays(DEFAULT_RELAYS.join(","));
+  }
+
+  // 自動で購読開始
+  await startSubscription();
+});
+
+// ==== 購読ボタン ==== //
+document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
+  const spinner = document.getElementById("subscribeSpinner");
+  if (spinner) spinner.style.display = "inline-block";
+
+  await startSubscription();
+
+  if (spinner) spinner.style.display = "none";
+});
+
 // ==== リレー管理 ==== //
 function updateRelayList() {
   relayListEl.innerHTML = "";
