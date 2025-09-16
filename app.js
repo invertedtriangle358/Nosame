@@ -172,10 +172,10 @@ window.addEventListener("click", (e) => {
 
 // スクロールボタン
 document.getElementById("scrollLeft")?.addEventListener("click", () => {
-  timeline.scrollBy({ left: -200, behavior: "smooth" });
+  timeline.scrollBy({ left: -300, behavior: "smooth" });
 });
 document.getElementById("scrollRight")?.addEventListener("click", () => {
-  timeline.scrollBy({ left: 200, behavior: "smooth" });
+  timeline.scrollBy({ left: 300, behavior: "smooth" });
 });
 
 // リレー追加
