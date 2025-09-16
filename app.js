@@ -109,89 +109,73 @@ function subscribeTo(ws) {
 }
 
 // ==== リレー管理 (モダール関連) ==== //
+// ==== リレー一覧を描画 ==== //
 function populateRelayList() {
-  const listEl = document.getElementById("relayList");
-  listEl.innerHTML = "";
+  const list = document.getElementById("relayList");
+  list.innerHTML = "";
 
-  relayListState.forEach(url => {
-    const connected = sockets.some(ws => ws._url === url && ws.readyState === WebSocket.OPEN);
-    const item = document.createElement("div");
-    item.textContent = `${url} ${connected ? "✅ 接続中" : "❌ 未接続"}`;
-    listEl.appendChild(item);
+  relayListState.forEach((url, index) => {
+    const row = document.createElement("div");
+    row.className = "relay-row";
+
+    // ステータス表示（緑: 接続中, 赤: 切断/エラー）
+    const status = document.createElement("span");
+    status.className = "relay-status";
+    status.textContent = sockets.find(ws => ws._url === url && ws.readyState === WebSocket.OPEN)
+      ? "🟢"
+      : "🔴";
+
+    // URL表示
+    const label = document.createElement("span");
+    label.textContent = url;
+    label.className = "relay-label";
+
+    // 削除ボタン
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "削除";
+    delBtn.addEventListener("click", () => {
+      // 接続解除
+      const ws = sockets.find(s => s._url === url);
+      if (ws) ws.close();
+
+      // リストから削除
+      relayListState.splice(index, 1);
+      localStorage.setItem("relays", JSON.stringify(relayListState));
+
+      // UI更新
+      populateRelayList();
+    });
+
+    row.appendChild(status);
+    row.appendChild(label);
+    row.appendChild(delBtn);
+
+    list.appendChild(row);
   });
 }
 
-// ==== イベントリスナー ==== //
-// 購読ボタン
-document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
-  console.log("=== 購読ボタン押された ===");
-  if (spinner) spinner.style.display = "inline-block";
-
-  subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
-  console.log("新しい subId:", subId);
-
-  await Promise.all(
-    sockets.map(ws =>
-      new Promise(resolve => {
-        if (ws.readyState === WebSocket.OPEN) {
-          subscribeTo(ws);
-          resolve();
-        } else {
-          ws.addEventListener("open", () => {
-            subscribeTo(ws);
-            resolve();
-          }, { once: true });
-        }
-      })
-    )
-  );
-
-  if (spinner) spinner.style.display = "none";
-});
-
-// ==== モダール関連 ==== //
-const relayModal = document.getElementById("relayModal");
-const relayListEl = document.getElementById("relayList");
-
-// モダールを開く
-document.getElementById("btnRelayModal")?.addEventListener("click", () => {
-  relayModal.style.display = "block";
-  populateRelayList();
-});
-
-// モダールを閉じる
-document.getElementById("btnCloseModal")?.addEventListener("click", () => {
-  relayModal.style.display = "none";
-});
-
-// リレー追加
+// ==== リレー追加 ==== //
 document.getElementById("btnAddRelay")?.addEventListener("click", () => {
   const input = document.getElementById("relayInput");
   const url = input.value.trim();
-  if (!url) return;
-  if (!relayListState.includes(url)) {
-    relayListState.push(url);
-    populateRelayList();
-    input.value = ""; // 入力欄クリア
-  }
+
+  if (!url || relayListState.includes(url)) return;
+
+  relayListState.push(url);
+  localStorage.setItem("relays", JSON.stringify(relayListState));
+  populateRelayList();
+
+  input.value = ""; // 入力欄リセット
 });
 
-
-// 💾 保存ボタン（接続はしない）
-document.getElementById("btnConnectModal")?.addEventListener("click", () => {
-  const inputs = relayListEl.querySelectorAll("input");
-  const newRelays = Array.from(inputs)
-    .map(el => el.value.trim())
-    .filter(Boolean);
-
-  if (newRelays.length === 0) {
-    console.log("⚠ リレーが空なので保存しません");
-    return;
-  }
-
-  relayListState = newRelays;
+// ==== 保存ボタン ==== //
+document.getElementById("btnSaveRelays")?.addEventListener("click", () => {
   localStorage.setItem("relays", JSON.stringify(relayListState));
-  console.log("✅ リレーを保存:", relayListState);
+  connectRelays(relayListState.join(","));
+  populateRelayList();
+  alert("リレーを保存しました。");
+});
+
 
   relayModal.style.display = "none";
 });
