@@ -164,14 +164,35 @@ window.addEventListener("DOMContentLoaded", async () => {
 });
 
 // ==== 購読ボタン ==== //
-document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
-  const spinner = document.getElementById("subscribeSpinner");
-  if (spinner) spinner.style.display = "inline-block";
+async function startSubscription() {
+  subId = "sub-" + Math.random().toString(36).slice(2);
+  console.log("購読開始 subId:", subId);
 
-  await startSubscription();
+  const filter = { kinds: [1], limit: 100, since: Math.floor(Date.now() / 1000) - 3600 };
+  // 直近1時間・最大100件（必要に応じて調整）
 
-  if (spinner) spinner.style.display = "none";
-});
+  sockets.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      console.log("REQ送信:", ws._url, subId, filter);
+      subscribeTo(ws, filter);
+    } else {
+      ws.addEventListener("open", () => {
+        console.log("REQ送信(接続完了後):", ws._url, subId, filter);
+        subscribeTo(ws, filter);
+      }, { once: true });
+    }
+  });
+}
+
+function subscribeTo(ws, filter) {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
+  try {
+    ws.send(JSON.stringify(["REQ", subId, filter]));
+  } catch (e) {
+    console.error("send REQ failed:", e);
+  }
+}
+
 
 // ==== 投稿処理 ==== //
 document.getElementById("btnPublish")?.addEventListener("click", async () => {
