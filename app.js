@@ -94,15 +94,16 @@ function renderEvent(event) {
 
 // ==== 購読処理 ==== //
 function subscribeTo(ws) {
-  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
+  console.log("subscribeTo呼び出し:", ws?._url, "readyState:", ws?.readyState, "subId:", subId);
 
-  const filter = {
-    kinds: [1],
-    limit: 90,
-    since: Math.floor(Date.now() / 1000) - 86400 // 直近24時間分
-  };
+  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) {
+    console.warn("購読できない条件:", { ws, state: ws?.readyState, subId });
+    return;
+  }
 
+  const filter = { kinds: [1], limit: 100 };
   console.log("REQ送信:", ws._url, subId, filter);
+
   try {
     ws.send(JSON.stringify(["REQ", subId, filter]));
   } catch (e) {
