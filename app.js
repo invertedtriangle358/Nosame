@@ -149,6 +149,58 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
   if (spinner) spinner.style.display = "none";
 });
 
+// ==== 投稿処理 ==== //
+document.getElementById("btnPublish")?.addEventListener("click", async () => {
+  const textarea = document.getElementById("compose");
+  const content = textarea.value.trim();
+
+  if (!content) {
+    alert("本文を入力してください。");
+    return;
+  }
+  if (!window.nostr) {
+    alert("NIP-07 拡張機能 (Alby, nos2x 等) が必要です。");
+    return;
+  }
+  if (isBlocked(content)) {
+    alert("NGワードまたは長文のため投稿できません。");
+    return;
+  }
+
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+
+    let newEvent = {
+      kind: 1,
+      content,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      pubkey
+    };
+
+    newEvent = await window.nostr.signEvent(newEvent);
+
+    // 各リレーに送信
+    sockets.forEach(ws => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(["EVENT", newEvent]));
+        console.log("投稿送信:", ws._url, newEvent);
+      }
+    });
+
+    // 🔥 即時反映
+    renderEvent(newEvent);
+
+    // 入力欄クリア
+    textarea.value = "";
+    document.getElementById("charCount").textContent = "0 / 80";
+
+  } catch (err) {
+    console.error("投稿失敗:", err);
+    alert("投稿に失敗しました。");
+  }
+});
+
 // ==== リアクション送信 ==== //
 // ==== リアクション状態管理 ==== //
 const reactedEvents = new Set(); // 押した event.id を記録
