@@ -52,10 +52,20 @@ function connectRelays(relayStr) {
       const ws = new WebSocket(url);
       ws._url = url;
 
-      ws.onopen    = () => { console.log("接続成功:", url); updateRelayList(); if (subId) subscribeTo(ws); };
+      ws.onopen = () => {
+        console.log("接続成功:", url);
+        updateRelayListStatus();
+
+        // 接続が完了したら購読を再開
+        if (subId) {
+          console.log("onopenでsubscribeTo呼び出し:", ws._url);
+          subscribeTo(ws);
+        }
+      };
+
       ws.onmessage = onMessage;
-      ws.onclose   = () => { console.log("切断:", url); updateRelayList(); };
-      ws.onerror   = () => { console.log("エラー:", url); updateRelayList(); };
+      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
+      ws.onerror  = () => { console.log("エラー:", url); updateRelayListStatus(); };
 
       sockets.push(ws);
     } catch (e) {
@@ -63,8 +73,28 @@ function connectRelays(relayStr) {
     }
   });
 
-  updateRelayList();
+  updateRelayListStatus();
+  populateRelayList();
 }
+
+// ==== 購読処理 ==== //
+function subscribeTo(ws) {
+  if (!ws || !subId) return;
+
+  const filter = { kinds: [1], limit: 100 };
+
+  if (ws.readyState === WebSocket.OPEN) {
+    console.log("REQ送信:", ws._url, subId, filter);
+    ws.send(JSON.stringify(["REQ", subId, filter]));
+  } else {
+    console.log("接続待ち -> open後にREQ送信:", ws._url);
+    ws.addEventListener("open", () => {
+      console.log("openイベントでREQ送信:", ws._url, subId, filter);
+      ws.send(JSON.stringify(["REQ", subId, filter]));
+    }, { once: true });
+  }
+}
+
 
 // ==== イベント処理 ==== //
 function onMessage(ev) {
