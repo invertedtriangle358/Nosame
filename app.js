@@ -98,7 +98,7 @@ function subscribeTo(ws) {
 
   const filter = {
     kinds: [1],
-    limit: 50,
+    limit: 90,
     since: Math.floor(Date.now() / 1000) - 86400 // 直近24時間分
   };
 
