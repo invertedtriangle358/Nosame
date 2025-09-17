@@ -1,7 +1,7 @@
 // ==== 定数設定 ==== //
 const MAX_LENGTH = 80;
 const NG_WORDS = [
-  "キチガイ","ガイジ","ケンモ","嫌儲","右翼","左翼","ウヨ","サヨ","与党","野党","在日","クルド","死ね","殺す","クソ",
+  "キチガイ","ガイジ","ケンモ","嫌儲","右翼","左翼","ウヨ","サヨ","パヨク","与党","野党","在日","クルド","死ね","殺す","クソ",
   "fuck","shit","sex","porn","gay","ass","dick","pussy","CP","mempool","http://","https://"
 ];
 const DEFAULT_RELAYS = [
@@ -150,6 +150,10 @@ document.getElementById("btnSubscribe")?.addEventListener("click", async () => {
 });
 
 // ==== リアクション送信 ==== //
+// ==== リアクション状態管理 ==== //
+const reactedEvents = new Set(); // 押した event.id を記録
+
+// ==== リアクション送信 ==== //
 async function sendReaction(targetEvent) {
   if (!window.nostr) {
     alert("NIP-07 拡張機能が必要です (Alby, nos2x など)");
@@ -159,10 +163,9 @@ async function sendReaction(targetEvent) {
   try {
     const pubkey = await window.nostr.getPublicKey();
 
-    // content は "+" 固定（UIでは♡表示）
     let reactionEvent = {
       kind: 7,
-      content: "+",
+      content: "+", // UIは♡, 実際の送信は "+"
       created_at: Math.floor(Date.now() / 1000),
       tags: [
         ["e", targetEvent.id],
@@ -171,20 +174,63 @@ async function sendReaction(targetEvent) {
       pubkey
     };
 
-    // 署名
     reactionEvent = await window.nostr.signEvent(reactionEvent);
 
-    // 各リレーに送信
     sockets.forEach(ws => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(["EVENT", reactionEvent]));
         console.log("リアクション送信:", ws._url, reactionEvent);
       }
     });
+
+    // 押したイベントを記録
+    reactedEvents.add(targetEvent.id);
+    updateReactionButton(targetEvent.id);
+
   } catch (err) {
     console.error("リアクション送信失敗:", err);
   }
 }
+
+// ==== 投稿カード生成 ==== //
+function renderEvent(event) {
+  const noteEl = document.createElement("div");
+  noteEl.className = "note";
+
+  noteEl.innerHTML = `
+    <div class="content">${escapeHtml(event.content)}</div>
+    <div class="meta">${new Date(event.created_at * 1000).toLocaleString()}</div>
+    <div class="author">${event.pubkey.slice(0, 8)}...</div>
+    <button class="btn-reaction" 
+            data-id="${event.id}" 
+            data-pubkey="${event.pubkey}">
+      ♡
+    </button>
+  `;
+
+  timeline.appendChild(noteEl);
+  timeline.scrollLeft = timeline.scrollWidth;
+}
+
+// ==== リアクションボタン状態更新 ==== //
+function updateReactionButton(eventId) {
+  const btn = document.querySelector(`.btn-reaction[data-id="${eventId}"]`);
+  if (!btn) return;
+  if (reactedEvents.has(eventId)) {
+    btn.textContent = "❤️"; // 押した後は赤ハート固定
+    btn.disabled = true;     // 以後は押せない
+  }
+}
+
+// ==== ボタン動作 ==== //
+document.addEventListener("click", e => {
+  if (e.target.classList.contains("btn-reaction")) {
+    const eventId = e.target.dataset.id;
+    const pubkey = e.target.dataset.pubkey;
+    sendReaction({ id: eventId, pubkey });
+  }
+});
+
 
 // ==== 投稿カード生成 ==== //
 function renderEvent(event) {
