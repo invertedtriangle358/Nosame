@@ -43,10 +43,15 @@ function getRelayStatus(url) {
 
 // ==== リレー接続処理 ==== //
 function connectRelays(relayStr) {
+  // 既存接続を閉じる
   sockets.forEach(ws => ws.close?.());
   sockets = [];
 
-  const relays = relayStr.split(",").map(s => s.trim()).filter(Boolean);
+  const relays = relayStr
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+
   relays.forEach(url => {
     try {
       const ws = new WebSocket(url);
@@ -56,7 +61,6 @@ function connectRelays(relayStr) {
         console.log("接続成功:", url);
         updateRelayListStatus();
 
-        // 接続が完了したら購読を再開
         if (subId) {
           console.log("onopenでsubscribeTo呼び出し:", ws._url);
           subscribeTo(ws);
@@ -64,12 +68,12 @@ function connectRelays(relayStr) {
       };
 
       ws.onmessage = onMessage;
-      ws.onclose = () => { console.log("切断:", url); updateRelayListStatus(); };
+      ws.onclose  = () => { console.log("切断:", url); updateRelayListStatus(); };
       ws.onerror  = () => { console.log("エラー:", url); updateRelayListStatus(); };
 
       sockets.push(ws);
     } catch (e) {
-      console.error("WebSocket error:", e);
+      console.error("WebSocket生成失敗:", url, e);
     }
   });
 
@@ -79,13 +83,22 @@ function connectRelays(relayStr) {
 
 // ==== 購読処理 ==== //
 function subscribeTo(ws) {
-  if (!ws || !subId) return;
+  console.log("subscribeTo呼び出し:", ws?._url, "readyState:", ws?.readyState, "subId:", subId);
+
+  if (!ws || !subId) {
+    console.warn("購読できない: subId未設定 or WebSocket不明");
+    return;
+  }
 
   const filter = { kinds: [1], limit: 100 };
 
   if (ws.readyState === WebSocket.OPEN) {
     console.log("REQ送信:", ws._url, subId, filter);
-    ws.send(JSON.stringify(["REQ", subId, filter]));
+    try {
+      ws.send(JSON.stringify(["REQ", subId, filter]));
+    } catch (e) {
+      console.error("REQ送信失敗:", ws._url, e);
+    }
   } else {
     console.log("接続待ち -> open後にREQ送信:", ws._url);
     ws.addEventListener("open", () => {
@@ -95,67 +108,38 @@ function subscribeTo(ws) {
   }
 }
 
-
 // ==== イベント処理 ==== //
 function onMessage(ev) {
   try {
     const msg = JSON.parse(ev.data);
-    if (msg[0] === "EVENT") {
-      const event = msg[2];
-      if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
-      seenEvents.add(event.id);
-      renderEvent(event);
-    }
+
+    if (msg[0] !== "EVENT") return;
+
+    const event = msg[2];
+    if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
+
+    seenEvents.add(event.id);
+    renderEvent(event);
+
   } catch (e) {
     console.error("JSON parse error:", e, ev.data);
   }
 }
+
+// ==== 投稿描画 ==== //
 function renderEvent(event) {
   const noteEl = document.createElement("div");
   noteEl.className = "note";
+
   noteEl.innerHTML = `
     <div class="content">${escapeHtml(event.content)}</div>
     <div class="meta">${new Date(event.created_at * 1000).toLocaleString()}</div>
     <div class="author">${event.pubkey.slice(0, 8)}...</div>
   `;
+
   timeline.appendChild(noteEl);
-  timeline.scrollLeft = timeline.scrollWidth;
+  timeline.scrollLeft = timeline.scrollWidth; // 常に右端へ
 }
-
-// ==== 購読処理 ==== //
-function subscribeTo(ws) {
-  console.log("subscribeTo呼び出し:", ws?._url, "readyState:", ws?.readyState, "subId:", subId);
-
-  if (!ws || ws.readyState !== WebSocket.OPEN || !subId) {
-    console.warn("購読できない条件:", { ws, state: ws?.readyState, subId });
-    return;
-  }
-
-  const filter = { kinds: [1], limit: 100 };
-  console.log("REQ送信:", ws._url, subId, filter);
-
-  try {
-    ws.send(JSON.stringify(["REQ", subId, filter]));
-  } catch (e) {
-    console.error("send REQ failed:", e);
-  }
-}
-
-function onMessage(ev) {
-  try {
-    const msg = JSON.parse(ev.data);
-    console.log("受信:", msg); // デバッグ出力を必ず確認
-    if (msg[0] === "EVENT") {
-      const event = msg[2];
-      if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
-      seenEvents.add(event.id);
-      renderEvent(event);
-    }
-  } catch (e) {
-    console.error("JSON parse error:", e, ev.data);
-  }
-}
-
 
 // ==== 自動購読処理 ==== //
 async function startSubscription() {
