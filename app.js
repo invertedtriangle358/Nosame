@@ -95,13 +95,36 @@ function renderEvent(event) {
 // ==== 購読処理 ==== //
 function subscribeTo(ws) {
   if (!ws || ws.readyState !== WebSocket.OPEN || !subId) return;
-  const filter = { kinds: [1], limit: 50 };
+
+  const filter = {
+    kinds: [1],
+    limit: 50,
+    since: Math.floor(Date.now() / 1000) - 86400 // 直近24時間分
+  };
+
+  console.log("REQ送信:", ws._url, subId, filter);
   try {
     ws.send(JSON.stringify(["REQ", subId, filter]));
   } catch (e) {
     console.error("send REQ failed:", e);
   }
 }
+
+function onMessage(ev) {
+  try {
+    const msg = JSON.parse(ev.data);
+    console.log("受信:", msg); // デバッグ出力を必ず確認
+    if (msg[0] === "EVENT") {
+      const event = msg[2];
+      if (!event || seenEvents.has(event.id) || isBlocked(event.content)) return;
+      seenEvents.add(event.id);
+      renderEvent(event);
+    }
+  } catch (e) {
+    console.error("JSON parse error:", e, ev.data);
+  }
+}
+
 
 // ==== 自動購読処理 ==== //
 async function startSubscription() {
