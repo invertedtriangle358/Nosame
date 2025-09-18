@@ -1,3 +1,5 @@
+いまのCSSが、こう
+
 /* ==== フォント ==== */
 .sawarabi-mincho-regular {
     font-family: "Sawarabi Mincho", serif;
@@ -182,8 +184,6 @@ main {
     flex-direction: column;
     writing-mode: vertical-rl;
     text-orientation: mixed;
-    position: fixed;
-    z-index: 1000;
     border: 1px solid #242733;
     border-radius: 12px;
     padding: 14px;
@@ -231,47 +231,36 @@ main {
 
 /* ==== モダール ==== */
 .modal {
-display: none;
-position: fixed;
-z-index: 1000;
-left: 0;
-top: 0;
-width: 100%;
-height: 100%;
-overflow: auto;
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    overflow: auto;
 }
 
 .modal-content {
-background: #fff;
-margin: 5% auto;
-padding: 20px;
-width: 80%;
-max-width: 500px;
-border-radius: 12px;
-box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-display: flex; flex-direction: column; gap: 12px;
+    background: #fff;
+    margin: 5% auto;
+    padding: 20px;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .modal-actions {
-display: flex;
-gap: 8px;
-justify-content: center;
-margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 8px;
 }
-
-/* 開いたときの軽いアニメーション */
-@keyframes fadeInScale {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-
 
 /* ==== リレーリスト ==== */
 #relayList {
