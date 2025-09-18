@@ -206,22 +206,23 @@ main {
     font-size: 12px;
 }
 
-.note .react-btn {
-    writing-mode: horizontal-tb;
-    font-size: 14px;
-    padding: 4px 8px;
-    margin-bottom: 8px;
-    height: 50px;
-    border: none;
-    border-radius: 6px;
-    background: #b0c4de;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
+/* リアクションボタン */
+.note .btn-reaction {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-top: 4px;
+  transition: transform 0.2s ease;
 }
 
-.note .react-btn:hover {
-    background: #faf;
+.note .btn-reaction:hover:not(:disabled) {
+  transform: scale(1.2);
+}
+
+.note .btn-reaction:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ==== モダール ==== */
