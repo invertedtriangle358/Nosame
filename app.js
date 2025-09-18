@@ -214,7 +214,7 @@ function renderEvent(event) {
     .addEventListener("click", () => handleReactionClick(event));
 
   const children = Array.from(dom.timeline.children);
-  const insertPos = children.find(el => Number(el.dataset.createdAt) > event.created_at);
+  const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
 
   insertPos ? dom.timeline.insertBefore(noteEl, insertPos) : dom.timeline.appendChild(noteEl);
 
