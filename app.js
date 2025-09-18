@@ -1,5 +1,5 @@
 // 1. 設定 (Constants)
-const MAX_POST_LENGTH = 80;
+const MAX_POST_LENGTH = 108;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
   "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "fuck", "shit",
