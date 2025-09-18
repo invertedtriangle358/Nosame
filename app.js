@@ -69,7 +69,7 @@ function isContentInvalid(text) {
 
 function getRelayStatusByUrl(url) {
   const ws = state.sockets.find(s => s.url === url);
-  return ws?.readyState === WebSocket.OPEN;
+  return ws && ws.readyState === WebSocket.OPEN;
 }
 
 async function signEventWithNip07(event) {
