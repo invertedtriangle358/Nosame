@@ -241,7 +241,8 @@ main {
 }
 
 .modal-content {
-    background: #fff;
+    background: linear-gradient(180deg, #909dc5, #9779b8, #465b95);
+    color: #fff;
     margin: 5% auto;
     padding: 20px;
     width: 80%;
@@ -252,7 +253,6 @@ main {
     flex-direction: column;
     gap: 12px;
 }
-
 .modal-actions {
     display: flex;
     gap: 8px;
