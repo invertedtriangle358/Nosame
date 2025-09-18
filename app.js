@@ -250,7 +250,7 @@ function renderEvent(event) {
 
   // === created_at 順に挿入 ===
   const children = Array.from(dom.timeline.children);
-  const insertPos = children.find(el => Number(el.dataset.createdAt) > event.created_at);
+  const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
 
   if (insertPos) {
     dom.timeline.insertBefore(noteEl, insertPos);
