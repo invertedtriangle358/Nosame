@@ -1,17 +1,12 @@
 /* ==============================
    フォント
 ============================== */
-.sawarabi-mincho-regular {
-  font-family: "Sawarabi Mincho", serif;
-}
-
-/* ==============================
-   全体レイアウト
-============================== */
 body {
   background: #93bdd5;
   margin: 0;
+  font-family: "Sawarabi Mincho", serif;
 }
+
 
 h1 {
   font-size: 40px;
