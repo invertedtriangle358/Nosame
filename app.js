@@ -226,11 +226,12 @@ function startSubscription() {
 function renderEvent(event) {
   const noteEl = document.createElement("div");
   noteEl.className = "note";
-  
+  noteEl.dataset.createdAt = event.created_at; // ソート用に保持
+
   // リアクション済みかどうかに応じてボタンのスタイルを変更
   const isReacted = state.reactedEventIds.has(event.id);
-  const reactionButtonText = isReacted ? '❤️' : '♡';
-  const reactionButtonDisabled = isReacted ? 'disabled' : '';
+  const reactionButtonText = isReacted ? "❤️" : "♡";
+  const reactionButtonDisabled = isReacted ? "disabled" : "";
 
   noteEl.innerHTML = `
     <div class="content">${escapeHtml(event.content)}</div>
@@ -244,13 +245,22 @@ function renderEvent(event) {
   `;
 
   // リアクションボタンにイベントリスナーを追加
-  const reactionButton = noteEl.querySelector('.btn-reaction');
-  reactionButton.addEventListener('click', () => handleReactionClick(event));
+  const reactionButton = noteEl.querySelector(".btn-reaction");
+  reactionButton.addEventListener("click", () => handleReactionClick(event));
 
-  dom.timeline.appendChild(noteEl);
-  // 新しい投稿が追加されたら、タイムラインを右端までスクロール
+  // === created_at 順に挿入 ===
+  const children = Array.from(dom.timeline.children);
+  const insertPos = children.find(el => Number(el.dataset.createdAt) > event.created_at);
+
+  if (insertPos) {
+    dom.timeline.insertBefore(noteEl, insertPos);
+  } else {
+    dom.timeline.appendChild(noteEl);
+  }
+
+  // 常に右端へスクロール
   dom.timeline.scrollLeft = dom.timeline.scrollWidth;
-  dom.spinner.style.display = 'none'; // イベント受信でスピナー非表示
+  dom.spinner.style.display = "none"; // イベント受信でスピナー非表示
 }
 
 /**
