@@ -3,7 +3,7 @@ const MAX_POST_LENGTH = 108;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
   "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "ログボ", "チカラコブ", "スジャータ", "ｴﾄﾞｳｨﾝ", "かまどのお菓子", "fuck", "shit",
-  "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky",
+  "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky", "nostr:note",
   "http://", "https://"
 ];
 const DEFAULT_RELAYS = [
