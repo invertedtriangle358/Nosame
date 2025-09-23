@@ -218,7 +218,6 @@ function renderEvent(event) {
 
   insertPos ? dom.timeline.insertBefore(noteEl, insertPos) : dom.timeline.appendChild(noteEl);
 
-  dom.timeline.scrollLeft = dom.timeline.scrollWidth;
   dom.spinner.style.display = "none";
 }
 
