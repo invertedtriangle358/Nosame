@@ -199,7 +199,7 @@ main {
   flex-direction: column;
   writing-mode: vertical-rl;
   text-orientation: mixed;
-  min-height: 600px;
+  height: 600px;
   max-width: 200px;
   margin: 3px;
   padding: 14px;
@@ -215,7 +215,10 @@ main {
   line-height: 1.8;
   color: #fff;
   word-break: break-word;
+  flex: 1 1 auto;       /* 必要以上に伸びない */
   overflow-y: auto;
+}
+
 }
 
 .note .meta,
