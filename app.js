@@ -221,6 +221,13 @@ function renderEvent(event) {
   dom.spinner.style.display = "none";
 }
 
+// ===== リレーの接続状態を取得 =====
+function getRelayStatusByUrl(url) {
+  const ws = state.sockets.find(s => s._url === url); // _url を参照
+  return ws && ws.readyState === WebSocket.OPEN;
+}
+
+// ===== モーダル内リレーリストを更新 =====
 function updateRelayModalList() {
   if (!dom.relayListEl) return;
   dom.relayListEl.innerHTML = "";
