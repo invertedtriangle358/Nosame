@@ -197,7 +197,7 @@ function renderEvent(event) {
   const isReacted = state.reactedEventIds.has(event.id);
   const buttonHtml = `
     <button class="btn-reaction" data-id="${event.id}" ${isReacted ? "disabled" : ""}>
-      ${isReacted ? "❤️" : "♡"}
+      ${isReacted ? "♥" : "♡"}
     </button>
   `;
 
