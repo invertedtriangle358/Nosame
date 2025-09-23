@@ -172,7 +172,7 @@ main {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 1rem;
+  gap: 250px;
   z-index: 100; /* モダールやタイムラインより上に表示 */
 }
 
@@ -365,7 +365,7 @@ main {
    フッター
 ============================== */
 footer {
-  height: 100px;
+  height: 30px;
   padding: 16px;
   text-align: center;
   background: #b0c4de;
