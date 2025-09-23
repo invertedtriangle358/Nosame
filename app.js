@@ -139,7 +139,7 @@ function flushEventBuffer() {
 function sendReq(ws) {
   if (!ws || !state.subId) return;
 
-  const filter = { kinds: [1], limit: 50, since: Math.floor(Date.now() / 1000) - 3600 };
+  const filter = { kinds: [1], limit: 30, since: Math.floor(Date.now() / 1000) - 3600 };
   const req = ["REQ", state.subId, filter];
 
   if (ws.readyState === WebSocket.OPEN) {
