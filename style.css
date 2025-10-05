@@ -29,10 +29,17 @@ header {
 }
 
 .header-actions {
+/* 親要素（ボタンとスピナーの入っているコンテナ）に指定 */
   display: flex;
-  flex-direction: column; /* デフォルトは縦並び */
-  gap: 6px;
+  align-items: center; /* 縦位置を中央揃え */
+  gap: 8px; /* ボタンとスピナーの間の余白 */
 }
+
+/* スピナーをちょっとだけ下げて見やすくしたい場合 */
+#subscribeSpinner {
+  font-size: 18px;
+}
+
 
 .header-actions button {
   width: 100px;
