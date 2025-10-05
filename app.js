@@ -1,4 +1,6 @@
+// =======================
 // 1. 設定 (Constants)
+// =======================
 const MAX_POST_LENGTH = 108;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
@@ -81,7 +83,15 @@ async function signEventWithNip07(event) {
 // 5. Nostrコアロジック
 // ===========================
 
+// リレーステータス更新をまとめる用
+let relayListUpdateTimer = null;
+function scheduleRelayListUpdate() {
+  clearTimeout(relayListUpdateTimer);
+  relayListUpdateTimer = setTimeout(updateRelayModalList, 200);
+}
+
 function connectToRelays() {
+  // 既存接続を閉じる
   state.sockets.forEach(ws => ws.close());
   state.sockets = [];
 
@@ -92,13 +102,19 @@ function connectToRelays() {
 
       ws.onopen = () => {
         console.log("✅ 接続:", url);
-        updateRelayModalList();
+        scheduleRelayListUpdate();
         if (state.subId) sendReq(ws);
       };
 
       ws.onmessage = handleMessage;
-      ws.onclose = () => { console.log("🔌 切断:", url); updateRelayModalList(); };
-      ws.onerror = err => { console.error("❌ エラー:", url, err); updateRelayModalList(); };
+      ws.onclose = () => {
+        console.log("🔌 切断:", url);
+        scheduleRelayListUpdate();
+      };
+      ws.onerror = err => {
+        console.error("❌ エラー:", url, err);
+        scheduleRelayListUpdate();
+      };
 
       state.sockets.push(ws);
     } catch (e) {
@@ -106,7 +122,7 @@ function connectToRelays() {
     }
   });
 
-  updateRelayModalList();
+  scheduleRelayListUpdate();
 }
 
 function handleMessage(ev) {
@@ -221,12 +237,6 @@ function renderEvent(event) {
   dom.spinner.style.display = "none";
 }
 
-// ===== リレーの接続状態を取得 =====
-function getRelayStatusByUrl(url) {
-  const ws = state.sockets.find(s => s.url === url);
-  return ws && ws.readyState === WebSocket.OPEN;
-}
-
 // ===== モーダル内リレーリストを更新 =====
 function updateRelayModalList() {
   if (!dom.relayListEl) return;
@@ -263,6 +273,11 @@ async function handlePublishClick() {
   const content = dom.composeArea.value.trim();
   if (!content) return alert("本文を入力してください。");
   if (isContentInvalid(content)) return alert("NGワードまたは文字数制限を超えています。");
+
+  if (!window.nostr) {
+    alert("NIP-07対応拡張機能が必要です。");
+    return;
+  }
 
   try {
     const pubkey = await window.nostr.getPublicKey();
@@ -343,6 +358,7 @@ function setupEventListeners() {
     alert("リレー設定を保存しました。再接続します。");
     dom.relayModal.style.display = "none";
     connectToRelays();
+    startSubscription();
   });
 
   // スクロール
