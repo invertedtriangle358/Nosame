@@ -214,14 +214,14 @@ function renderEvent(event) {
     </button>
   `;
 
-  noteEl.innerHTML = `
-    <div class="content">${escapeHtml(event.content)}</div>
-    <div class="meta">
-      <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
-      <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
-    </div>
-    ${buttonHtml}
-  `;
+ noteEl.innerHTML = `
+  <div class="content">${escapeHtml(event.content)}</div>
+  <div class="meta">
+    <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
+    <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
+  </div>
+  ${buttonHtml}
+`;
 
   noteEl.querySelector(".btn-reaction")
     .addEventListener("click", () => handleReactionClick(event));
