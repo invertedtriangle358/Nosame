@@ -241,7 +241,7 @@ main {
   font-size: 1.2rem;
   background: #909dc5;
   border: none;
-  border-radius: 6px;
+  border-radius: 90px;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
