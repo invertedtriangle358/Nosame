@@ -4,7 +4,8 @@
 const MAX_POST_LENGTH = 108;
 const NG_WORDS = [
   "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
-  "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "ログボ", "チカラコブ", "スジャータ", "ｴﾄﾞｳｨﾝ", "かまどのお菓子", "fuck", "shit",
+  "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "ログボ", "チカラコブ", "スジャータ",
+  "ｴﾄﾞｳｨﾝ", "かまどのお菓子", "fuck", "shit",
   "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky", "nostr:note",
   "http://", "https://"
 ];
@@ -26,9 +27,9 @@ const state = {
   relayList: JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS],
 };
 
-// イベントバッファ
 let eventBuffer = [];
 let bufferTimer = null;
+let relayListUpdateTimer = null;
 
 // ==================
 // 3. DOMキャッシュ
@@ -53,7 +54,6 @@ const dom = {
 // =======================
 // 4. ユーティリティ関数
 // =======================
-
 function escapeHtml(str) {
   if (typeof str !== "string") return "";
   return str.replace(/[&<>"']/g, s =>
@@ -68,8 +68,13 @@ function isContentInvalid(text) {
   return NG_WORDS.some(ng => lower.includes(ng.toLowerCase()));
 }
 
+function normalizeUrl(url) {
+  return url.replace(/\/+$/, "");
+}
+
 function getRelayStatusByUrl(url) {
-  const ws = state.sockets.find(s => s.url === url);
+  const normalized = normalizeUrl(url);
+  const ws = state.sockets.find(s => normalizeUrl(s.url) === normalized);
   return ws && ws.readyState === WebSocket.OPEN;
 }
 
@@ -81,12 +86,9 @@ async function signEventWithNip07(event) {
 // ===========================
 // 5. Nostrコアロジック
 // ===========================
-
-// リレーステータス更新をまとめる用
-let relayListUpdateTimer = null;
-function scheduleRelayListUpdate() {
+function delayedUpdateRelayList() {
   clearTimeout(relayListUpdateTimer);
-  relayListUpdateTimer = setTimeout(updateRelayModalList, 200);
+  relayListUpdateTimer = setTimeout(updateRelayModalList, 150);
 }
 
 function connectToRelays() {
@@ -98,30 +100,28 @@ function connectToRelays() {
     if (!url) return;
     try {
       const ws = new WebSocket(url);
+      state.sockets.push(ws);
 
       ws.onopen = () => {
         console.log("✅ 接続:", url);
-        scheduleRelayListUpdate();
+        delayedUpdateRelayList();
         if (state.subId) sendReq(ws);
       };
-
-      ws.onmessage = handleMessage;
       ws.onclose = () => {
         console.log("🔌 切断:", url);
-        scheduleRelayListUpdate();
+        delayedUpdateRelayList();
       };
       ws.onerror = err => {
         console.error("❌ エラー:", url, err);
-        scheduleRelayListUpdate();
+        delayedUpdateRelayList();
       };
-
-      state.sockets.push(ws);
+      ws.onmessage = handleMessage;
     } catch (e) {
       console.error("接続失敗:", url, e);
     }
   });
 
-  scheduleRelayListUpdate();
+  delayedUpdateRelayList();
 }
 
 function handleMessage(ev) {
@@ -146,7 +146,6 @@ function flushEventBuffer() {
   eventBuffer
     .sort((a, b) => a.created_at - b.created_at)
     .forEach(event => renderEvent(event));
-
   eventBuffer = [];
   bufferTimer = null;
 }
@@ -203,7 +202,6 @@ function startSubscription() {
 // ============================
 // 6. UIロジック
 // ============================
-
 function renderEvent(event) {
   const noteEl = document.createElement("div");
   noteEl.className = "note";
@@ -230,13 +228,11 @@ function renderEvent(event) {
 
   const children = Array.from(dom.timeline.children);
   const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
-
   insertPos ? dom.timeline.insertBefore(noteEl, insertPos) : dom.timeline.appendChild(noteEl);
 
   dom.spinner.style.display = "none";
 }
 
-// ===== モーダル内リレーリストを更新 =====
 function updateRelayModalList() {
   if (!dom.relayListEl) return;
   dom.relayListEl.innerHTML = "";
@@ -260,6 +256,9 @@ function updateRelayModalList() {
   });
 }
 
+// ============================
+// 7. 投稿・リアクション
+// ============================
 function updateReactionButton(eventId) {
   const btn = document.querySelector(`.btn-reaction[data-id="${eventId}"]`);
   if (btn) {
@@ -272,11 +271,7 @@ async function handlePublishClick() {
   const content = dom.composeArea.value.trim();
   if (!content) return alert("本文を入力してください。");
   if (isContentInvalid(content)) return alert("NGワードまたは文字数制限を超えています。");
-
-  if (!window.nostr) {
-    alert("NIP-07対応拡張機能が必要です。");
-    return;
-  }
+  if (!window.nostr) return alert("NIP-07対応拡張機能が必要です。");
 
   try {
     const pubkey = await window.nostr.getPublicKey();
@@ -287,7 +282,6 @@ async function handlePublishClick() {
       tags: [],
       pubkey,
     };
-
     const signedEvent = await signEventWithNip07(newEvent);
     publishEvent(signedEvent);
 
@@ -328,15 +322,18 @@ async function handleReactionClick(targetEvent) {
   }
 }
 
+// ============================
+// 8. イベントリスナー・初期化
+// ============================
 function setupEventListeners() {
   dom.btnPublish?.addEventListener("click", handlePublishClick);
 
-  // リレーモーダル関連
   dom.btnRelayModal?.addEventListener("click", () => {
     dom.relayModal.style.display = "block";
     updateRelayModalList();
   });
-  dom.btnCloseModal?.addEventListener("click", () => dom.relayModal.style.display = "none");
+  dom.btnCloseModal?.addEventListener("click", () => (dom.relayModal.style.display = "none"));
+
   dom.btnAddRelay?.addEventListener("click", () => {
     const url = dom.relayInput.value.trim();
     if (url && !state.relayList.includes(url)) {
@@ -345,12 +342,14 @@ function setupEventListeners() {
       dom.relayInput.value = "";
     }
   });
+
   dom.relayListEl?.addEventListener("click", e => {
     if (e.target.classList.contains("btn-delete-relay")) {
       state.relayList.splice(Number(e.target.dataset.index), 1);
       updateRelayModalList();
     }
   });
+
   dom.btnSaveRelays?.addEventListener("click", () => {
     state.relayList = state.relayList.filter(url => url);
     localStorage.setItem("relays", JSON.stringify(state.relayList));
@@ -360,7 +359,6 @@ function setupEventListeners() {
     startSubscription();
   });
 
-  // スクロール
   dom.btnScrollLeft?.addEventListener("click", () =>
     dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
   );
@@ -368,16 +366,11 @@ function setupEventListeners() {
     dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
   );
 
-  // 文字数カウンター
   dom.composeArea?.addEventListener("input", () => {
     const len = dom.composeArea.value.length;
     dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
   });
 }
-
-// ============================
-// 7. 初期化処理
-// ============================
 
 function main() {
   setupEventListeners();
