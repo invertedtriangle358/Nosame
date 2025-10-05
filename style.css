@@ -106,7 +106,7 @@ main {
   width: 90px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
-  background: #83b0d7;
+  background: #81b7d6;
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -368,5 +368,5 @@ footer {
   height: 30px;
   padding: 16px;
   text-align: center;
-  background: #83b0d7;
+  background: #81b7d6;
 }
