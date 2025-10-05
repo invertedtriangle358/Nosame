@@ -223,7 +223,7 @@ function renderEvent(event) {
 
 // ===== リレーの接続状態を取得 =====
 function getRelayStatusByUrl(url) {
-  const ws = state.sockets.find(s => s._url === url); // _url を参照
+  const ws = state.sockets.find(s => s.url === url);
   return ws && ws.readyState === WebSocket.OPEN;
 }
 
