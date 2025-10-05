@@ -9,7 +9,6 @@ const NG_WORDS = [
   "http://", "https://"
 ];
 const DEFAULT_RELAYS = [
-  "wss://relay.damus.io",
   "wss://relay-jp.nostr.wirednet.jp",
   "wss://yabu.me",
   "wss://r.kojira.io",
