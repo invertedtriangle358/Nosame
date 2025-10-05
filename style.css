@@ -239,6 +239,7 @@ main {
   height: 30px;
   margin-top: 4px;
   font-size: 1.2rem;
+  background: #909dc5;
   border: none;
   border-radius: 6px;
   cursor: pointer;
