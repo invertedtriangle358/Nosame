@@ -233,6 +233,24 @@ main {
   font-size: 12px;
 }
 
+.note .meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.9em;
+  align-items: center;
+}
+
+/* タイムスタンプの色 */
+.note .meta .time {
+  color: #222; /* グレー系 */
+}
+
+/* hex/npubの色 */
+.note .meta .author {
+  color:  #465b95;
+  font-weight: bold;
+}
+
 /* リアクションボタン */
 .note .btn-reaction {
   width: 30px;
