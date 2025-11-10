@@ -25,11 +25,8 @@ const state = {
   seenEventIds: new Set(),
   reactedEventIds: new Set(),
   relayList: JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS],
+  userNgWords: JSON.parse(localStorage.getItem("userNgWords")) || [...NG_WORDS], // ←追加
 };
-
-let eventBuffer = [];
-let bufferTimer = null;
-let relayListUpdateTimer = null;
 
 // ==================
 // 3. DOMキャッシュ
@@ -49,6 +46,13 @@ const dom = {
   btnScrollLeft: document.getElementById("scrollLeft"),
   btnScrollRight: document.getElementById("scrollRight"),
   relayInput: document.getElementById("relayInput"),
+  btnNgModal: document.getElementById("btnNgModal"),
+  ngModal: document.getElementById("ngModal"),
+  btnAddNgWord: document.getElementById("btnAddNgWord"),
+  btnSaveNgWords: document.getElementById("btnSaveNgWords"),
+  btnCloseNgModal: document.getElementById("btnCloseNgModal"),
+  ngWordInput: document.getElementById("ngWordInput"),
+  ngWordListEl: document.getElementById("ngWordList"),
 };
 
 // =======================
@@ -65,7 +69,8 @@ function isContentInvalid(text) {
   if (!text) return false;
   if (text.length > MAX_POST_LENGTH) return true;
   const lower = text.toLowerCase();
-  return NG_WORDS.some(ng => lower.includes(ng.toLowerCase()));
+  const allNg = [...new Set([...NG_WORDS, ...state.userNgWords])];
+  return allNg.some(ng => lower.includes(ng.toLowerCase()));
 }
 
 function normalizeUrl(url) {
@@ -81,6 +86,24 @@ function getRelayStatusByUrl(url) {
 async function signEventWithNip07(event) {
   if (!window.nostr) throw new Error("NIP-07拡張機能が必要です。");
   return await window.nostr.signEvent(event);
+}
+
+function updateNgWordList() {
+  if (!dom.ngWordListEl) return;
+  dom.ngWordListEl.innerHTML = "";
+
+  state.userNgWords.forEach((word, index) => {
+    const row = document.createElement("div");
+    row.className = "relay-row";
+    row.innerHTML = `
+      <input type="text" value="${escapeHtml(word)}">
+      <button class="btn-delete-ng" data-index="${index}">✖</button>
+    `;
+    row.querySelector("input").addEventListener("input", e => {
+      state.userNgWords[index] = e.target.value.trim();
+    });
+    dom.ngWordListEl.appendChild(row);
+  });
 }
 
 // ===========================
@@ -340,6 +363,38 @@ function setupEventListeners() {
       state.relayList.push(url);
       updateRelayModalList();
       dom.relayInput.value = "";
+      // --- NGワードモーダル関連 ---
+dom.btnNgModal?.addEventListener("click", () => {
+  dom.ngModal.style.display = "block";
+  updateNgWordList();
+});
+
+dom.btnCloseNgModal?.addEventListener("click", () => {
+  dom.ngModal.style.display = "none";
+});
+
+dom.btnAddNgWord?.addEventListener("click", () => {
+  const word = dom.ngWordInput.value.trim();
+  if (word && !state.userNgWords.includes(word)) {
+    state.userNgWords.push(word);
+    updateNgWordList();
+    dom.ngWordInput.value = "";
+  }
+});
+
+dom.ngWordListEl?.addEventListener("click", e => {
+  if (e.target.classList.contains("btn-delete-ng")) {
+    state.userNgWords.splice(Number(e.target.dataset.index), 1);
+    updateNgWordList();
+  }
+});
+
+dom.btnSaveNgWords?.addEventListener("click", () => {
+  state.userNgWords = state.userNgWords.filter(w => w);
+  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+  alert("NGワードを保存しました。");
+});
+
     }
   });
 
