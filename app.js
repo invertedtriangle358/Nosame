@@ -349,8 +349,10 @@ async function handleReactionClick(targetEvent) {
 // 8. イベントリスナー・初期化
 // ============================
 function setupEventListeners() {
+  // --- 投稿ボタン ---
   dom.btnPublish?.addEventListener("click", handlePublishClick);
 
+  // --- リレー設定モーダル ---
   dom.btnRelayModal?.addEventListener("click", () => {
     dom.relayModal.style.display = "block";
     updateRelayModalList();
@@ -363,24 +365,72 @@ function setupEventListeners() {
       state.relayList.push(url);
       updateRelayModalList();
       dom.relayInput.value = "";
-      // --- NGワードモーダル関連 ---
-dom.btnNgModal?.addEventListener("click", () => {
-  dom.ngModal.style.display = "block";
-  updateNgWordList();
-});
+    }
+  });
 
-dom.btnCloseNgModal?.addEventListener("click", () => {
-  dom.ngModal.style.display = "none";
-});
+  dom.relayListEl?.addEventListener("click", e => {
+    if (e.target.classList.contains("btn-delete-relay")) {
+      state.relayList.splice(Number(e.target.dataset.index), 1);
+      updateRelayModalList();
+    }
+  });
 
-dom.btnAddNgWord?.addEventListener("click", () => {
-  const word = dom.ngWordInput.value.trim();
-  if (word && !state.userNgWords.includes(word)) {
-    state.userNgWords.push(word);
+  dom.btnSaveRelays?.addEventListener("click", () => {
+    state.relayList = state.relayList.filter(url => url);
+    localStorage.setItem("relays", JSON.stringify(state.relayList));
+    alert("リレー設定を保存しました。再接続します。");
+    dom.relayModal.style.display = "none";
+    connectToRelays();
+    startSubscription();
+  });
+
+  // --- NGワードモーダル ---
+  dom.btnNgModal?.addEventListener("click", () => {
+    dom.ngModal.style.display = "block";
     updateNgWordList();
-    dom.ngWordInput.value = "";
-  }
-});
+  });
+
+  dom.btnCloseNgModal?.addEventListener("click", () => {
+    dom.ngModal.style.display = "none";
+  });
+
+  dom.btnAddNgWord?.addEventListener("click", () => {
+    const word = dom.ngWordInput.value.trim();
+    if (word && !state.userNgWords.includes(word)) {
+      state.userNgWords.push(word);
+      updateNgWordList();
+      dom.ngWordInput.value = "";
+    }
+  });
+
+  dom.ngWordListEl?.addEventListener("click", e => {
+    if (e.target.classList.contains("btn-delete-ng")) {
+      state.userNgWords.splice(Number(e.target.dataset.index), 1);
+      updateNgWordList();
+    }
+  });
+
+  dom.btnSaveNgWords?.addEventListener("click", () => {
+    state.userNgWords = state.userNgWords.filter(w => w);
+    localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+    alert("NGワードを保存しました。");
+  });
+
+  // --- タイムライン操作 ---
+  dom.btnScrollLeft?.addEventListener("click", () =>
+    dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
+  );
+  dom.btnScrollRight?.addEventListener("click", () =>
+    dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
+  );
+
+  // --- 文字数カウント ---
+  dom.composeArea?.addEventListener("input", () => {
+    const len = dom.composeArea.value.length;
+    dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
+  });
+}
+
 
 dom.ngWordListEl?.addEventListener("click", e => {
   if (e.target.classList.contains("btn-delete-ng")) {
