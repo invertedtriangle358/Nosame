@@ -431,52 +431,9 @@ function setupEventListeners() {
   });
 }
 
-
-dom.ngWordListEl?.addEventListener("click", e => {
-  if (e.target.classList.contains("btn-delete-ng")) {
-    state.userNgWords.splice(Number(e.target.dataset.index), 1);
-    updateNgWordList();
-  }
-});
-
-dom.btnSaveNgWords?.addEventListener("click", () => {
-  state.userNgWords = state.userNgWords.filter(w => w);
-  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-  alert("NGワードを保存しました。");
-});
-
-    }
-  });
-
-  dom.relayListEl?.addEventListener("click", e => {
-    if (e.target.classList.contains("btn-delete-relay")) {
-      state.relayList.splice(Number(e.target.dataset.index), 1);
-      updateRelayModalList();
-    }
-  });
-
-  dom.btnSaveRelays?.addEventListener("click", () => {
-    state.relayList = state.relayList.filter(url => url);
-    localStorage.setItem("relays", JSON.stringify(state.relayList));
-    alert("リレー設定を保存しました。再接続します。");
-    dom.relayModal.style.display = "none";
-    connectToRelays();
-    startSubscription();
-  });
-
-  dom.btnScrollLeft?.addEventListener("click", () =>
-    dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
-  );
-  dom.btnScrollRight?.addEventListener("click", () =>
-    dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
-  );
-
-  dom.composeArea?.addEventListener("input", () => {
-    const len = dom.composeArea.value.length;
-    dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
-  });
-}
-
+// ============================
+// 初期化
+// ============================
 function main() {
   setupEventListeners();
   connectToRelays();
