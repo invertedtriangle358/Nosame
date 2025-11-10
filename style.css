@@ -1,12 +1,15 @@
 /* ==============================
-   フォント
+   共通設定・フォント
 ============================== */
+* {
+  box-sizing: border-box;
+}
+
 body {
   background: #81b7d6;
   margin: 0;
   font-family: "Sawarabi Mincho", serif;
 }
-
 
 h1 {
   font-size: 40px;
@@ -15,31 +18,30 @@ h1 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  color: transparent;
 }
 
+/* ==============================
+   ヘッダー
+============================== */
 header {
   padding: 8px 12px;
 }
 
 .header-inner {
   display: flex;
-  align-items: flex-start; /* PC時はh1とボタンを上端で揃える */
+  align-items: flex-start;
   gap: 12px;
 }
 
 .header-actions {
-/* 親要素（ボタンとスピナーの入っているコンテナ）に指定 */
   display: flex;
-  align-items: center; /* 縦位置を中央揃え */
-  gap: 8px; /* ボタンとスピナーの間の余白 */
+  align-items: center;
+  gap: 8px;
 }
 
-/* スピナーをちょっとだけ下げて見やすくしたい場合 */
 #subscribeSpinner {
   font-size: 18px;
 }
-
 
 .header-actions button {
   width: 100px;
@@ -50,6 +52,7 @@ header {
   cursor: pointer;
   background: #b0c4de;
   color: #fff;
+  transition: background 0.2s;
 }
 
 .header-actions button:hover {
@@ -59,12 +62,12 @@ header {
 /* ==== スマホ時のレイアウト ==== */
 @media (max-width: 768px) {
   .header-inner {
-    flex-direction: column;  /* タイトルの下に配置 */
-    align-items: flex-start; /* 左寄せ */
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .header-actions {
-    flex-direction: row;     /* ボタン横並び */
+    flex-direction: row;
     margin-top: 8px;
   }
 }
@@ -85,15 +88,7 @@ header {
 }
 
 @keyframes spin {
-  0%   { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ボタン＋スピナー横並び */
-.subscribe-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  to { transform: rotate(360deg); }
 }
 
 /* ==============================
@@ -117,7 +112,6 @@ main {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  box-sizing: border-box;
 }
 
 .sidebar-header button {
@@ -141,7 +135,6 @@ main {
   font-size: 16px;
   line-height: 1.8;
   padding: 8px;
-  box-sizing: border-box;
 }
 
 #charCount {
@@ -161,16 +154,16 @@ main {
   display: flex;
   flex-direction: column;
   background: #fff;
-  overflow: hidden; /* 横スクロールは内部の .vertical-timeline で制御 */
+  overflow: hidden;
 }
 
 .vertical-timeline {
-  flex: 1; /* タイムラインが残り高さを占める */
+  flex: 1;
   display: flex;
   flex-direction: row-reverse;
   gap: 7px;
   overflow-x: auto;
-  padding: 7px 7px 0 7px;
+  padding: 7px;
 }
 
 .timeline-controls {
@@ -180,7 +173,7 @@ main {
   transform: translateX(-50%);
   display: flex;
   gap: 250px;
-  z-index: 100; /* モダールやタイムラインより上に表示 */
+  z-index: 100;
 }
 
 .timeline-controls button {
@@ -222,15 +215,7 @@ main {
   line-height: 1.8;
   color: #fff;
   word-break: break-word;
-  flex: 1 1 auto;       /* 必要以上に伸びない */
   overflow-y: auto;
-}
-
-}
-
-.note .meta,
-.note .author {
-  font-size: 12px;
 }
 
 .note .meta {
@@ -240,18 +225,15 @@ main {
   align-items: center;
 }
 
-/* タイムスタンプの色 */
 .note .meta .time {
-  color: #222; /* グレー系 */
+  color: #222;
 }
 
-/* hex/npubの色 */
 .note .meta .author {
-  color:  #465b95;
+  color: #465b95;
   font-weight: bold;
 }
 
-/* リアクションボタン */
 .note .btn-reaction {
   width: 30px;
   height: 30px;
@@ -259,7 +241,7 @@ main {
   font-size: 1.2rem;
   background: #909dc5;
   border: none;
-  border-radius: 90px;
+  border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s ease;
 }
@@ -279,7 +261,7 @@ main {
 .modal {
   display: none;
   position: fixed;
-  inset: 0; /* top, right, bottom, left をまとめる */
+  inset: 0;
   z-index: 1000;
   background: rgba(0, 0, 0, 0.5);
   overflow: auto;
@@ -297,16 +279,6 @@ main {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.modal-actions button {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.2s;
 }
 
 .scrollable-list {
@@ -329,27 +301,26 @@ main {
   border-radius: 8px;
 }
 
-.relay-item {
+.relay-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.relay-item span {
+.relay-status {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: red;
 }
 
-.relay-item input {
+.relay-row input {
   flex: 1;
   padding: 4px 6px;
   font-size: 0.9rem;
 }
 
-.relay-item button {
+.relay-row button {
   padding: 2px 6px;
   font-size: 0.8rem;
   border: none;
@@ -359,45 +330,44 @@ main {
   color: #fff;
 }
 
-.relay-item button:hover {
+.relay-row button:hover {
   background: #c9182a;
 }
 
 /* ==============================
-   モダール内ボタン
+   モダールボタン共通
 ============================== */
-#btnAddRelay {
+.modal-actions button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s, transform 0.2s;
+}
+
+#btnAddRelay,
+#btnAddNgWord {
   background: #1d3557;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
 }
 
-#btnConnectModal {
+#btnSaveRelays,
+#btnSaveNgWords {
   background: #2a9d8f;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
 }
 
-#btnCloseModal {
+#btnCloseModal,
+#btnCloseNgModal {
   background: #e63946;
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
 }
 
-/* NGワード一覧の2列レイアウト */
+/* ==============================
+   NGワード一覧（2列レイアウト）
+============================== */
 #ngWordList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 8px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 14px;
   align-items: start;
   padding: 8px 0;
 }
@@ -406,17 +376,18 @@ main {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #f7f7f7;
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 6px 8px;
 }
 
 .ng-word-item input {
   flex: 1;
-  border: 1px solid #ccc;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 4px;
   padding: 4px 6px;
   font-size: 0.9rem;
+  color: #333;
 }
 
 .ng-word-item button {
@@ -432,7 +403,6 @@ main {
 .ng-word-item button:hover {
   background: #e24b4b;
 }
-
 
 /* ==============================
    フッター
