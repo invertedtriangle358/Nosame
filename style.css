@@ -309,6 +309,12 @@ main {
   transition: background 0.2s, transform 0.2s;
 }
 
+.scrollable-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
 /* ==============================
    リレーリスト
 ============================== */
