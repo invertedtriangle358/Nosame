@@ -93,18 +93,19 @@ function updateNgWordList() {
   dom.ngWordListEl.innerHTML = "";
 
   state.userNgWords.forEach((word, index) => {
-    const row = document.createElement("div");
-    row.className = "relay-row";
-    row.innerHTML = `
+    const item = document.createElement("div");
+    item.className = "ng-word-item";
+    item.innerHTML = `
       <input type="text" value="${escapeHtml(word)}">
       <button class="btn-delete-ng" data-index="${index}">✖</button>
     `;
-    row.querySelector("input").addEventListener("input", e => {
+    item.querySelector("input").addEventListener("input", e => {
       state.userNgWords[index] = e.target.value.trim();
     });
-    dom.ngWordListEl.appendChild(row);
+    dom.ngWordListEl.appendChild(item);
   });
 }
+
 
 // ===========================
 // 5. Nostrコアロジック
