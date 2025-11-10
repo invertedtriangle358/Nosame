@@ -25,7 +25,7 @@ const state = {
   seenEventIds: new Set(),
   reactedEventIds: new Set(),
   relayList: JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS],
-  userNgWords: JSON.parse(localStorage.getItem("userNgWords")) || [...NG_WORDS], // ←追加
+  userNgWords: JSON.parse(localStorage.getItem("userNgWords")) || [...NG_WORDS],
 };
 
 // ==================
@@ -109,13 +109,16 @@ function updateNgWordList() {
 // ===========================
 // 5. Nostrコアロジック
 // ===========================
+let relayListUpdateTimer = null;
+let eventBuffer = [];
+let bufferTimer = null;
+
 function delayedUpdateRelayList() {
   clearTimeout(relayListUpdateTimer);
   relayListUpdateTimer = setTimeout(updateRelayModalList, 150);
 }
 
 function connectToRelays() {
-  // 既存接続を閉じる
   state.sockets.forEach(ws => ws.close());
   state.sockets = [];
 
@@ -237,14 +240,14 @@ function renderEvent(event) {
     </button>
   `;
 
- noteEl.innerHTML = `
-  <div class="content">${escapeHtml(event.content)}</div>
-  <div class="meta">
-    <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
-    <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
-  </div>
-  ${buttonHtml}
-`;
+  noteEl.innerHTML = `
+    <div class="content">${escapeHtml(event.content)}</div>
+    <div class="meta">
+      <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
+      <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
+    </div>
+    ${buttonHtml}
+  `;
 
   noteEl.querySelector(".btn-reaction")
     .addEventListener("click", () => handleReactionClick(event));
@@ -349,10 +352,10 @@ async function handleReactionClick(targetEvent) {
 // 8. イベントリスナー・初期化
 // ============================
 function setupEventListeners() {
-  // --- 投稿ボタン ---
+  // 投稿ボタン
   dom.btnPublish?.addEventListener("click", handlePublishClick);
 
-  // --- リレー設定モーダル ---
+  // リレー設定モーダル
   dom.btnRelayModal?.addEventListener("click", () => {
     dom.relayModal.style.display = "block";
     updateRelayModalList();
@@ -384,13 +387,14 @@ function setupEventListeners() {
     startSubscription();
   });
 
-  // --- NGワードモーダル ---
+  // NGワードモーダル
   dom.btnNgModal?.addEventListener("click", () => {
     dom.ngModal.style.display = "block";
     updateNgWordList();
   });
 
   dom.btnCloseNgModal?.addEventListener("click", () => {
+    dom.ngWordInput.value = "";
     dom.ngModal.style.display = "none";
   });
 
@@ -411,12 +415,12 @@ function setupEventListeners() {
   });
 
   dom.btnSaveNgWords?.addEventListener("click", () => {
-    state.userNgWords = state.userNgWords.filter(w => w);
+    state.userNgWords = [...new Set(state.userNgWords.filter(w => w))];
     localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
     alert("NGワードを保存しました。");
   });
 
-  // --- タイムライン操作 ---
+  // タイムライン操作
   dom.btnScrollLeft?.addEventListener("click", () =>
     dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
   );
@@ -424,7 +428,7 @@ function setupEventListeners() {
     dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
   );
 
-  // --- 文字数カウント ---
+  // 文字数カウント
   dom.composeArea?.addEventListener("input", () => {
     const len = dom.composeArea.value.length;
     dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
