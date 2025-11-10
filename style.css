@@ -212,7 +212,7 @@ main {
 .note .content {
   flex: 1;
   font-size: 16px;
-  line-height: 1.8;
+  line-height: 1.5;
   color: #fff;
   word-break: break-word;
   overflow-y: auto;
