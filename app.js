@@ -2,12 +2,17 @@
 // 1. 設定 (Constants)
 // =======================
 const MAX_POST_LENGTH = 108;
-const NG_WORDS = [
-  "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
-  "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "ログボ", "チカラコブ", "スジャータ",
-  "ｴﾄﾞｳｨﾝ", "かまどのお菓子", "fuck", "shit",
-  "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky", "nostr:note", "nostr:nevent", "nostr:nprofile",
-  "http://", "https://"
+let defaultNgWords = [];
+let userNgWords = JSON.parse(localStorage.getItem("userNgWords")) || [];
+
+// 初期化時に外部JSONをロード
+fetch("./ngwords.json")
+  .then(res => res.json())
+  .then(json => {
+    defaultNgWords = json;
+    updateNgWordList();
+  });
+
 ];
 const DEFAULT_RELAYS = [
   "wss://relay-jp.nostr.wirednet.jp",
