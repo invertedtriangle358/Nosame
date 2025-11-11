@@ -366,11 +366,29 @@ main {
    NGワード一覧（2列レイアウト）
 ============================== */
 #ngWordList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px 14px;
-  align-items: start;
-  padding: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.ng-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+}
+
+.ng-add-area input {
+  flex: 1;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
 }
 
 .ng-word-item {
