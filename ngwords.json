@@ -1,5 +1,17 @@
 [
-    "nostr:note", "nostr:nevent", "nostr:nprofile", "http://", "https://" 
-    "mempool", "Bottlesky", 
-    "ログボ", "チカラコブ", "スジャータ", "ｴﾄﾞｳｨﾝ", "かまどのお菓子" "mogmog", "うにゅう"
+  "nostr:note",
+  "nostr:nevent",
+  "nostr:nprofile",
+  "http://",
+  "https://",
+  "mempool",
+  "Bottlesky",
+  "ログボ",
+  "チカラコブ",
+  "スジャータ",
+  "ｴﾄﾞｳｨﾝ",
+  "かまどのお菓子",
+  "mogmog",
+  "あんこ",
+  "うにゅう"
 ]
