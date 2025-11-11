@@ -3,9 +3,8 @@
 // =======================
 const MAX_POST_LENGTH = 108;
 const NG_WORDS = [
-  "アカ", "アホ", "イキリ", "ウザ", "ウヨ", "右翼", "穢多", "汚物", "ガイジ", "ガキ", "キチガイ", "クソ", "クルド", "ケンモ", "嫌儲", "殺す",
-  "サヨ", "左翼", "死ね", "パヨク",
-  "与党", "野党", "在日", "ログボ", "チカラコブ", "スジャータ",
+  "キチガイ", "ガイジ", "ケンモ", "嫌儲", "右翼", "左翼", "ウヨ", "サヨ", "パヨク",
+  "与党", "野党", "在日", "クルド", "死ね", "殺す", "クソ", "ログボ", "チカラコブ", "スジャータ",
   "ｴﾄﾞｳｨﾝ", "かまどのお菓子", "fuck", "shit",
   "sex", "porn", "gay", "ass", "dick", "pussy", "CP", "mempool", "Bottlesky", "nostr:note", "nostr:nevent", "nostr:nprofile",
   "http://", "https://"
@@ -89,31 +88,37 @@ async function signEventWithNip07(event) {
   return await window.nostr.signEvent(event);
 }
 
+// 共通モダール開閉関数
+function toggleModal(modalEl, open = true) {
+  if (!modalEl) return;
+  modalEl.style.display = open ? "block" : "none";
+  modalEl.setAttribute("aria-hidden", String(!open));
+  document.body.style.overflow = open ? "hidden" : ""; // 背景スクロール防止
+}
+
+// NGワードリスト更新
 function updateNgWordList() {
   if (!dom.ngWordListEl) return;
   dom.ngWordListEl.innerHTML = "";
 
   state.userNgWords.forEach((word, index) => {
-    const item = document.createElement("div");
-    item.className = "ng-word-item";
-    item.innerHTML = `
+    const row = document.createElement("div");
+    row.className = "ng-word-item";
+    row.innerHTML = `
       <input type="text" value="${escapeHtml(word)}">
       <button class="btn-delete-ng" data-index="${index}">✖</button>
     `;
-    item.querySelector("input").addEventListener("input", e => {
+    row.querySelector("input").addEventListener("input", e => {
       state.userNgWords[index] = e.target.value.trim();
     });
-    dom.ngWordListEl.appendChild(item);
+    dom.ngWordListEl.appendChild(row);
   });
 }
-
 
 // ===========================
 // 5. Nostrコアロジック
 // ===========================
-let relayListUpdateTimer = null;
-let eventBuffer = [];
-let bufferTimer = null;
+let relayListUpdateTimer, eventBuffer = [], bufferTimer = null;
 
 function delayedUpdateRelayList() {
   clearTimeout(relayListUpdateTimer);
@@ -354,16 +359,36 @@ async function handleReactionClick(targetEvent) {
 // 8. イベントリスナー・初期化
 // ============================
 function setupEventListeners() {
-  // 投稿ボタン
   dom.btnPublish?.addEventListener("click", handlePublishClick);
 
-  // リレー設定モーダル
+  // --- モダール共通 ---
   dom.btnRelayModal?.addEventListener("click", () => {
-    dom.relayModal.style.display = "block";
+    toggleModal(dom.relayModal, true);
     updateRelayModalList();
   });
-  dom.btnCloseModal?.addEventListener("click", () => (dom.relayModal.style.display = "none"));
+  dom.btnCloseModal?.addEventListener("click", () => toggleModal(dom.relayModal, false));
 
+  dom.btnNgModal?.addEventListener("click", () => {
+    toggleModal(dom.ngModal, true);
+    updateNgWordList();
+  });
+  dom.btnCloseNgModal?.addEventListener("click", () => toggleModal(dom.ngModal, false));
+
+  // ESCで全モダールを閉じる
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      [dom.relayModal, dom.ngModal].forEach(m => toggleModal(m, false));
+    }
+  });
+
+  // 背景クリックで閉じる
+  document.querySelectorAll(".modal").forEach(modal => {
+    modal.addEventListener("click", e => {
+      if (e.target === modal) toggleModal(modal, false);
+    });
+  });
+
+  // --- リレー操作 ---
   dom.btnAddRelay?.addEventListener("click", () => {
     const url = dom.relayInput.value.trim();
     if (url && !state.relayList.includes(url)) {
@@ -384,22 +409,12 @@ function setupEventListeners() {
     state.relayList = state.relayList.filter(url => url);
     localStorage.setItem("relays", JSON.stringify(state.relayList));
     alert("リレー設定を保存しました。再接続します。");
-    dom.relayModal.style.display = "none";
+    toggleModal(dom.relayModal, false);
     connectToRelays();
     startSubscription();
   });
 
-  // NGワードモーダル
-  dom.btnNgModal?.addEventListener("click", () => {
-    dom.ngModal.style.display = "block";
-    updateNgWordList();
-  });
-
-  dom.btnCloseNgModal?.addEventListener("click", () => {
-    dom.ngWordInput.value = "";
-    dom.ngModal.style.display = "none";
-  });
-
+  // --- NGワード操作 ---
   dom.btnAddNgWord?.addEventListener("click", () => {
     const word = dom.ngWordInput.value.trim();
     if (word && !state.userNgWords.includes(word)) {
@@ -417,12 +432,12 @@ function setupEventListeners() {
   });
 
   dom.btnSaveNgWords?.addEventListener("click", () => {
-    state.userNgWords = [...new Set(state.userNgWords.filter(w => w))];
+    state.userNgWords = state.userNgWords.filter(w => w);
     localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
     alert("NGワードを保存しました。");
   });
 
-  // タイムライン操作
+  // --- タイムライン操作 ---
   dom.btnScrollLeft?.addEventListener("click", () =>
     dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
   );
@@ -430,7 +445,7 @@ function setupEventListeners() {
     dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
   );
 
-  // 文字数カウント
+  // --- 文字数カウント ---
   dom.composeArea?.addEventListener("input", () => {
     const len = dom.composeArea.value.length;
     dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
