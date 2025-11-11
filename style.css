@@ -20,19 +20,11 @@ h1 {
   background-clip: text;
 }
 
-.title-ruby ruby {
-  ruby-position: over; /* 標準仕様: 上に表示（対応ブラウザのみ） */
-}
-
-/* 互換性を考慮してフォールバックも追加 */
 .title-ruby rt {
-  font-size: 0.5em;
+  font-size: 0.6em;
   color: #ccc;
-  position: relative;
-  top: -0.8em; /* ブラウザによっては手動で上にずらす */
   letter-spacing: 0.05em;
 }
-
 
 /* ==============================
    ヘッダー
