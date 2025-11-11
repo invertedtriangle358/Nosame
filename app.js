@@ -1,272 +1,489 @@
-/* ============================================================
-   設定・初期化
-============================================================ */
+// =======================
+// 1. 設定 (Constants)
+// =======================
+const MAX_POST_LENGTH = 108;
+const DEFAULT_RELAYS = [
+  "wss://relay-jp.nostr.wirednet.jp",
+  "wss://yabu.me",
+  "wss://r.kojira.io",
+  "wss://relay.barine.co"
+];
+
+let defaultNgWords = [];
+let userNgWords = JSON.parse(localStorage.getItem("userNgWords")) || [];
+
+// 外部JSONからNGワードをロード
+fetch("./ngwords.json")
+  .then(res => res.json())
+  .then(json => {
+    defaultNgWords = json;
+    updateNgWordList();
+  })
+  .catch(() => console.warn("⚠ NGワードJSONの読み込みに失敗しました。"));
+
+// =======================
+// 2. アプリケーション状態
+// =======================
 const state = {
-  relays: [],
-  userNgWords: [],
-  defaultNgWords: [],
-  socket: null,
+  sockets: [],
   subId: null,
-  connected: false,
+  seenEventIds: new Set(),
+  reactedEventIds: new Set(),
+  relayList: JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS],
+  userNgWords: [...userNgWords],
 };
 
-/* ============================================================
-   NGワード読み込み（JSON）
-============================================================ */
-async function loadNgWords() {
-  try {
-    const res = await fetch("./ngwords.json");
-    if (!res.ok) throw new Error("NGワードリストの取得に失敗");
-    const data = await res.json();
-    state.defaultNgWords = Array.isArray(data) ? data : [];
-  } catch (e) {
-    console.error(e);
-    state.defaultNgWords = [];
-  }
-
-  const saved = JSON.parse(localStorage.getItem("userNgWords")) || [];
-  state.userNgWords = [...new Set([...state.defaultNgWords, ...saved])];
-  updateNgWordList();
-}
-
-/* ============================================================
-   共通DOM取得
-============================================================ */
+// ==================
+// 3. DOMキャッシュ
+// ==================
 const dom = {
-  btnRelayModal: document.getElementById("btnRelayModal"),
-  btnNgModal: document.getElementById("btnNgModal"),
-  btnConnectModal: document.getElementById("btnConnectModal"),
-  btnCloseModal: document.getElementById("btnCloseModal"),
-  btnCloseNgModal: document.getElementById("btnCloseNgModal"),
+  timeline: document.getElementById("timeline"),
+  spinner: document.getElementById("subscribeSpinner"),
+  relayListEl: document.getElementById("relayList"),
   relayModal: document.getElementById("relayModal"),
-  ngModal: document.getElementById("ngModal"),
+  composeArea: document.getElementById("compose"),
+  charCount: document.getElementById("charCount"),
+  btnPublish: document.getElementById("btnPublish"),
+  btnRelayModal: document.getElementById("btnRelayModal"),
+  btnCloseModal: document.getElementById("btnCloseModal"),
   btnAddRelay: document.getElementById("btnAddRelay"),
-  btnAddNgWord: document.getElementById("btnAddNgWord"),
+  btnSaveRelays: document.getElementById("btnSaveRelays"),
+  btnScrollLeft: document.getElementById("scrollLeft"),
+  btnScrollRight: document.getElementById("scrollRight"),
   relayInput: document.getElementById("relayInput"),
+  btnNgModal: document.getElementById("btnNgModal"),
+  ngModal: document.getElementById("ngModal"),
+  btnAddNgWord: document.getElementById("btnAddNgWord"),
+  btnSaveNgWords: document.getElementById("btnSaveNgWords"),
+  btnCloseNgModal: document.getElementById("btnCloseNgModal"),
   ngWordInput: document.getElementById("ngWordInput"),
-  relayList: document.getElementById("relayList"),
-  ngWordList: document.getElementById("ngWordList"),
+  ngWordListEl: document.getElementById("ngWordList"),
 };
 
-/* ============================================================
-   モダール共通開閉処理
-============================================================ */
-function openModal(modal, updater) {
-  modal.style.display = "block";
-  if (updater) updater();
-}
-function closeModal(modal) {
-  modal.style.display = "none";
-}
-[{ btn: dom.btnRelayModal, modal: dom.relayModal, updater: updateRelayList },
- { btn: dom.btnNgModal, modal: dom.ngModal, updater: updateNgWordList }]
-.forEach(({ btn, modal, updater }) => {
-  btn?.addEventListener("click", () => openModal(modal, updater));
-});
-[{ btn: dom.btnCloseModal, modal: dom.relayModal },
- { btn: dom.btnCloseNgModal, modal: dom.ngModal }]
-.forEach(({ btn, modal }) => {
-  btn?.addEventListener("click", () => closeModal(modal));
-});
-window.addEventListener("click", (e) => {
-  [dom.relayModal, dom.ngModal].forEach((modal) => {
-    if (e.target === modal) closeModal(modal);
-  });
-});
-
-/* ============================================================
-   NGワード管理
-============================================================ */
-function updateNgWordList() {
-  const list = dom.ngWordList;
-  list.innerHTML = "";
-  state.userNgWords.forEach((word, index) => {
-    const div = document.createElement("div");
-    div.className = "ng-word-item";
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = word;
-
-    const btnDel = document.createElement("button");
-    btnDel.textContent = "削除";
-
-    btnDel.addEventListener("click", () => {
-      state.userNgWords.splice(index, 1);
-      saveNgWords();
-      updateNgWordList();
-    });
-
-    input.addEventListener("change", () => {
-      const newWord = input.value.trim();
-      if (!validateNgWord(newWord, index)) {
-        input.value = word;
-        return;
-      }
-      state.userNgWords[index] = newWord;
-      saveNgWords();
-    });
-
-    div.appendChild(input);
-    div.appendChild(btnDel);
-    list.appendChild(div);
-  });
+// =======================
+// 4. ユーティリティ関数
+// =======================
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str.replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
 }
 
-function validateNgWord(word, currentIndex = -1) {
-  if (!word) {
-    alert("空白のNGワードは追加できません。");
-    return false;
-  }
-  if (/\s/.test(word)) {
-    alert("NGワードに空白は含められません。");
-    return false;
-  }
-  const lower = word.toLowerCase();
-  if (
-    state.userNgWords.some((w, i) => i !== currentIndex && w.toLowerCase() === lower)
-  ) {
-    alert("同じNGワードがすでに存在します。");
-    return false;
-  }
-  if (word.length > 30) {
-    alert("NGワードは30文字以内にしてください。");
-    return false;
-  }
-  return true;
+function normalizeUrl(url) {
+  return url.replace(/\/+$/, "");
 }
 
-dom.btnAddNgWord.addEventListener("click", () => {
-  const word = dom.ngWordInput.value.trim();
-  if (!validateNgWord(word)) return;
-  state.userNgWords.push(word);
-  saveNgWords();
-  updateNgWordList();
-  dom.ngWordInput.value = "";
-});
-
-function saveNgWords() {
-  const userWords = state.userNgWords.filter(
-    (w) => !state.defaultNgWords.includes(w)
-  );
-  localStorage.setItem("userNgWords", JSON.stringify(userWords));
-}
-
-/* ============================================================
-   リレー管理
-============================================================ */
-dom.btnAddRelay.addEventListener("click", () => {
-  const url = dom.relayInput.value.trim();
-  if (!validateRelayUrl(url)) return;
-  if (!state.relays.includes(url)) {
-    state.relays.push(url);
-    updateRelayList();
-  }
-  dom.relayInput.value = "";
-});
-
-function updateRelayList() {
-  const list = dom.relayList;
-  list.innerHTML = "";
-  state.relays.forEach((url, index) => {
-    const div = document.createElement("div");
-    div.className = "relay-item";
-
-    const span = document.createElement("span");
-    span.style.background = "green";
-
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = url;
-
-    const btnDel = document.createElement("button");
-    btnDel.textContent = "削除";
-    btnDel.addEventListener("click", () => {
-      state.relays.splice(index, 1);
-      updateRelayList();
-    });
-
-    input.addEventListener("change", () => {
-      const newUrl = input.value.trim();
-      if (!validateRelayUrl(newUrl)) {
-        input.value = url;
-        return;
-      }
-      if (state.relays.includes(newUrl)) {
-        alert("同じリレーURLがすでに存在します。");
-        input.value = url;
-        return;
-      }
-      state.relays[index] = newUrl;
-    });
-
-    div.appendChild(span);
-    div.appendChild(input);
-    div.appendChild(btnDel);
-    list.appendChild(div);
-  });
-}
-
-function validateRelayUrl(url) {
-  if (!url) {
-    alert("URLを入力してください。");
-    return false;
-  }
+function isValidRelayUrl(url) {
   try {
     const u = new URL(url);
-    if (!["ws:", "wss:"].includes(u.protocol)) {
-      alert("リレーURLは ws:// または wss:// で始まる必要があります。");
-      return false;
-    }
+    return (u.protocol === "wss:" || u.protocol === "ws:") && !!u.hostname;
   } catch {
-    alert("有効なURLを入力してください。");
     return false;
   }
-  return true;
 }
 
-/* ============================================================
-   コンテンツ投稿バリデーション
-============================================================ */
-function isContentInvalid(content) {
-  const trimmed = content.trim();
-  if (!trimmed) return "投稿内容が空です。";
-  const matched = state.userNgWords.find((w) =>
-    trimmed.toLowerCase().includes(w.toLowerCase())
+function getRelayStatusByUrl(url) {
+  const normalized = normalizeUrl(url);
+  const ws = state.sockets.find(s => normalizeUrl(s.url) === normalized);
+  return ws && ws.readyState === WebSocket.OPEN;
+}
+
+function getAllNgWords() {
+  return [...new Set([...defaultNgWords, ...state.userNgWords])];
+}
+
+function isContentInvalid(text) {
+  if (!text) return false;
+  if (text.length > MAX_POST_LENGTH) return true;
+  const allNg = getAllNgWords();
+  const lower = text.toLowerCase();
+  return allNg.some(ng => lower.includes(ng.toLowerCase()));
+}
+
+async function signEventWithNip07(event) {
+  if (!window.nostr) throw new Error("NIP-07拡張機能が必要です。");
+  return await window.nostr.signEvent(event);
+}
+
+function toggleModal(modalEl, open = true) {
+  if (!modalEl) return;
+  modalEl.style.display = open ? "block" : "none";
+  modalEl.setAttribute("aria-hidden", String(!open));
+  document.body.style.overflow = open ? "hidden" : "";
+}
+
+// =======================
+// 5. NGワード関連
+// =======================
+function updateNgWordList() {
+  if (!dom.ngWordListEl) return;
+  dom.ngWordListEl.innerHTML = "";
+
+  state.userNgWords.forEach((word, index) => {
+    const row = document.createElement("div");
+    row.className = "ng-word-item";
+    row.innerHTML = `
+      <input type="text" value="${escapeHtml(word)}">
+      <button class="btn-delete-ng" data-index="${index}">✖</button>
+    `;
+    row.querySelector("input").addEventListener("input", e => {
+      state.userNgWords[index] = e.target.value.trim();
+    });
+    dom.ngWordListEl.appendChild(row);
+  });
+}
+
+function addNgWord(word) {
+  const trimmed = word.trim().toLowerCase();
+  if (!trimmed) return alert("空のNGワードは登録できません。");
+  if (state.userNgWords.includes(trimmed)) return alert("すでに登録済みのNGワードです。");
+
+  state.userNgWords.push(trimmed);
+  updateNgWordList();
+  dom.ngWordInput.value = "";
+}
+
+// =======================
+// 6. リレー関連
+// =======================
+function updateRelayModalList() {
+  if (!dom.relayListEl) return;
+  dom.relayListEl.innerHTML = "";
+
+  state.relayList.forEach((url, index) => {
+    const row = document.createElement("div");
+    row.className = "relay-row";
+    const status = getRelayStatusByUrl(url) ? "🟢" : "🔴";
+    row.innerHTML = `
+      <span class="relay-status">${status}</span>
+      <input type="text" value="${escapeHtml(url)}">
+      <button class="btn-delete-relay" data-index="${index}">✖</button>
+    `;
+    row.querySelector("input").addEventListener("input", e => {
+      state.relayList[index] = e.target.value.trim();
+    });
+    dom.relayListEl.appendChild(row);
+  });
+}
+
+function addRelayUrl(url) {
+  const trimmed = url.trim();
+  if (!trimmed) return alert("URLを入力してください。");
+  if (state.relayList.some(u => u.toLowerCase() === trimmed.toLowerCase())) {
+    return alert("すでに登録済みのURLです。");
+  }
+  if (!isValidRelayUrl(trimmed)) {
+    return alert("無効なリレーURLです。wss:// または ws:// で始まる必要があります。");
+  }
+  state.relayList.push(trimmed);
+  updateRelayModalList();
+  dom.relayInput.value = "";
+}
+
+// ===========================
+// 7. Nostrコアロジック
+// ===========================
+let relayListUpdateTimer, eventBuffer = [], bufferTimer = null;
+
+function delayedUpdateRelayList() {
+  clearTimeout(relayListUpdateTimer);
+  relayListUpdateTimer = setTimeout(updateRelayModalList, 150);
+}
+
+function connectToRelays() {
+  state.sockets.forEach(ws => ws.close());
+  state.sockets = [];
+
+  state.relayList.forEach(url => {
+    if (!url) return;
+    try {
+      const ws = new WebSocket(url);
+      state.sockets.push(ws);
+
+      ws.onopen = () => {
+        console.log("✅ 接続:", url);
+        delayedUpdateRelayList();
+        if (state.subId) sendReq(ws);
+      };
+      ws.onclose = () => {
+        console.log("🔌 切断:", url);
+        delayedUpdateRelayList();
+      };
+      ws.onerror = err => {
+        console.error("❌ エラー:", url, err);
+        delayedUpdateRelayList();
+      };
+      ws.onmessage = handleMessage;
+    } catch (e) {
+      console.error("接続失敗:", url, e);
+    }
+  });
+
+  delayedUpdateRelayList();
+}
+
+function handleMessage(ev) {
+  try {
+    const [type, subId, event] = JSON.parse(ev.data);
+    if (type !== "EVENT" || !event) return;
+    if (state.seenEventIds.has(event.id) || isContentInvalid(event.content)) return;
+
+    state.seenEventIds.add(event.id);
+    bufferEvent(event);
+  } catch (e) {
+    console.error("メッセージ処理失敗:", e, ev.data);
+  }
+}
+
+function bufferEvent(event) {
+  eventBuffer.push(event);
+  if (!bufferTimer) bufferTimer = setTimeout(flushEventBuffer, 200);
+}
+
+function flushEventBuffer() {
+  eventBuffer
+    .sort((a, b) => a.created_at - b.created_at)
+    .forEach(event => renderEvent(event));
+  eventBuffer = [];
+  bufferTimer = null;
+}
+
+function sendReq(ws) {
+  if (!ws || !state.subId) return;
+
+  const filter = { kinds: [1], limit: 30, since: Math.floor(Date.now() / 1000) - 3600 };
+  const req = ["REQ", state.subId, filter];
+
+  if (ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(JSON.stringify(req));
+      console.log("📤 REQ送信:", ws.url, req);
+    } catch (e) {
+      console.error("REQ送信失敗:", ws.url, e);
+    }
+  } else {
+    ws.addEventListener("open", () => sendReq(ws), { once: true });
+  }
+}
+
+function publishEvent(event) {
+  const payload = JSON.stringify(["EVENT", event]);
+  let count = 0;
+
+  state.sockets.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(payload);
+        console.log(`📤 EVENT送信: ${event.id.slice(0, 5)}... -> ${ws.url}`);
+        count++;
+      } catch (e) {
+        console.error("EVENT送信失敗:", ws.url, e);
+      }
+    }
+  });
+
+  if (count === 0) alert("接続中のリレーがありません。");
+}
+
+function startSubscription() {
+  state.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+  console.log(`🚀 購読開始: ${state.subId}`);
+  dom.spinner.style.display = "block";
+
+  dom.timeline.innerHTML = "";
+  state.seenEventIds.clear();
+
+  state.sockets.forEach(sendReq);
+  setTimeout(() => (dom.spinner.style.display = "none"), 2000);
+}
+
+// ============================
+// 8. UIロジック
+// ============================
+function renderEvent(event) {
+  const noteEl = document.createElement("div");
+  noteEl.className = "note";
+  noteEl.dataset.createdAt = event.created_at;
+
+  const isReacted = state.reactedEventIds.has(event.id);
+  noteEl.innerHTML = `
+    <div class="content">${escapeHtml(event.content)}</div>
+    <div class="meta">
+      <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
+      <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
+    </div>
+    <button class="btn-reaction" data-id="${event.id}" ${isReacted ? "disabled" : ""}>
+      ${isReacted ? "♥" : "♡"}
+    </button>
+  `;
+
+  noteEl.querySelector(".btn-reaction")
+    .addEventListener("click", () => handleReactionClick(event));
+
+  const children = Array.from(dom.timeline.children);
+  const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
+  insertPos ? dom.timeline.insertBefore(noteEl, insertPos) : dom.timeline.appendChild(noteEl);
+
+  dom.spinner.style.display = "none";
+}
+
+// ============================
+// 9. 投稿・リアクション
+// ============================
+function updateReactionButton(eventId) {
+  const btn = document.querySelector(`.btn-reaction[data-id="${eventId}"]`);
+  if (btn) {
+    btn.textContent = "❤️";
+    btn.disabled = true;
+  }
+}
+
+async function handlePublishClick() {
+  const content = dom.composeArea.value.trim();
+  if (!content) return alert("本文を入力してください。");
+  if (isContentInvalid(content)) return alert("NGワードまたは文字数制限を超えています。");
+  if (!window.nostr) return alert("NIP-07対応拡張機能が必要です。");
+
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+    const newEvent = {
+      kind: 1,
+      content,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      pubkey,
+    };
+    const signedEvent = await signEventWithNip07(newEvent);
+    publishEvent(signedEvent);
+
+    if (!state.seenEventIds.has(signedEvent.id)) {
+      state.seenEventIds.add(signedEvent.id);
+      renderEvent(signedEvent);
+    }
+
+    dom.composeArea.value = "";
+    dom.charCount.textContent = `0 / ${MAX_POST_LENGTH}`;
+  } catch (err) {
+    console.error("投稿失敗:", err);
+    alert(`投稿失敗: ${err.message}`);
+  }
+}
+
+async function handleReactionClick(targetEvent) {
+  if (state.reactedEventIds.has(targetEvent.id)) return;
+
+  try {
+    const pubkey = await window.nostr.getPublicKey();
+    const reactionEvent = {
+      kind: 7,
+      content: "+",
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [["e", targetEvent.id], ["p", targetEvent.pubkey]],
+      pubkey,
+    };
+
+    const signedEvent = await signEventWithNip07(reactionEvent);
+    publishEvent(signedEvent);
+
+    state.reactedEventIds.add(targetEvent.id);
+    updateReactionButton(targetEvent.id);
+  } catch (err) {
+    console.error("リアクション失敗:", err);
+    alert(`リアクション失敗: ${err.message}`);
+  }
+}
+
+// ============================
+// 10. イベントリスナー・初期化
+// ============================
+function setupEventListeners() {
+  dom.btnPublish?.addEventListener("click", handlePublishClick);
+
+  // --- モダール共通 ---
+  dom.btnRelayModal?.addEventListener("click", () => {
+    toggleModal(dom.relayModal, true);
+    updateRelayModalList();
+  });
+  dom.btnCloseModal?.addEventListener("click", () => toggleModal(dom.relayModal, false));
+
+  dom.btnNgModal?.addEventListener("click", () => {
+    toggleModal(dom.ngModal, true);
+    updateNgWordList();
+  });
+  dom.btnCloseNgModal?.addEventListener("click", () => toggleModal(dom.ngModal, false));
+
+  // ESCで全モダールを閉じる
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      [dom.relayModal, dom.ngModal].forEach(m => toggleModal(m, false));
+    }
+  });
+
+  // 背景クリックで閉じる
+  document.querySelectorAll(".modal").forEach(modal => {
+    modal.addEventListener("click", e => {
+      if (e.target === modal) toggleModal(modal, false);
+    });
+  });
+
+  // --- リレー操作 ---
+  dom.btnAddRelay?.addEventListener("click", () => addRelayUrl(dom.relayInput.value));
+  dom.relayListEl?.addEventListener("click", e => {
+    if (e.target.classList.contains("btn-delete-relay")) {
+      state.relayList.splice(Number(e.target.dataset.index), 1);
+      updateRelayModalList();
+    }
+  });
+  dom.btnSaveRelays?.addEventListener("click", () => {
+    state.relayList = state.relayList.filter(url => url);
+    localStorage.setItem("relays", JSON.stringify(state.relayList));
+    alert("リレー設定を保存しました。再接続します。");
+    toggleModal(dom.relayModal, false);
+    connectToRelays();
+    startSubscription();
+  });
+
+  // --- NGワード操作 ---
+  dom.btnAddNgWord?.addEventListener("click", () => addNgWord(dom.ngWordInput.value));
+  dom.ngWordListEl?.addEventListener("click", e => {
+    if (e.target.classList.contains("btn-delete-ng")) {
+      state.userNgWords.splice(Number(e.target.dataset.index), 1);
+      updateNgWordList();
+    }
+  });
+  dom.btnSaveNgWords?.addEventListener("click", () => {
+    state.userNgWords = state.userNgWords.filter(w => w);
+    localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+    alert("NGワードを保存しました。");
+  });
+
+  // --- タイムライン操作 ---
+  dom.btnScrollLeft?.addEventListener("click", () =>
+    dom.timeline.scrollBy({ left: -300, behavior: "smooth" })
   );
-  if (matched) return `NGワード「${matched}」が含まれています。`;
-  return null;
+  dom.btnScrollRight?.addEventListener("click", () =>
+    dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
+  );
+
+  // --- 文字数カウント ---
+  dom.composeArea?.addEventListener("input", () => {
+    const len = dom.composeArea.value.length;
+    dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
+  });
 }
 
-/* ============================================================
-   投稿イベント
-============================================================ */
-document.getElementById("btnPublish").addEventListener("click", () => {
-  const text = document.getElementById("composer").value;
-  const err = isContentInvalid(text);
-  if (err) {
-    alert(err);
-    return;
-  }
-  handlePublishClick(text); // 既存関数を呼び出し
-});
+// ============================
+// 初期化
+// ============================
+function main() {
+  setupEventListeners();
+  connectToRelays();
+  setTimeout(startSubscription, 500);
+}
 
-/* ============================================================
-   リレー接続
-============================================================ */
-dom.btnConnectModal.addEventListener("click", () => {
-  if (state.relays.length === 0) {
-    alert("リレーURLを追加してください。");
-    return;
-  }
-  connectToRelays(state.relays); // 既存関数を呼び出し
-  closeModal(dom.relayModal);
-});
-
-/* ============================================================
-   起動時
-============================================================ */
-document.addEventListener("DOMContentLoaded", () => {
-  loadNgWords();
-  updateRelayList();
-});
+window.addEventListener("DOMContentLoaded", main);
