@@ -35,19 +35,21 @@
     </div>
 
     <!-- モダール: NGワード -->
-    <div id="ngModal" class="modal" aria-hidden="true">
-      <div class="modal-content">
-        <h2 tabindex="-1">NGワード設定</h2>
-        <div class="modal-actions">
-          <input id="ngWordInput" type="text" placeholder="NGワードを追加">
-          <button id="btnAddNgWord">追加</button>
-        </div>
-        <div id="ngWordList" class="scrollable-list"></div>
-        <div class="modal-actions">
-          <button id="btnSaveNgWords">保存</button>
-          <button id="btnCloseNgModal">閉じる</button>
-        </div>
-      </div>
+    <div id="ngModal" class="modal">
+  <div class="modal-content">
+    <h2>NGワード設定</h2>
+    <div id="ngWordList" class="ng-list"></div>
+
+    <div class="ng-add-area">
+      <input id="ngWordInput" type="text" placeholder="NGワードを追加">
+      <button id="btnAddNgWord">追加</button>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btnSaveNgWords">保存</button>
+      <button id="btnCloseNgModal">閉じる</button>
+    </div>
+  </div>
     </div>
 
     <!-- 投稿欄 -->
