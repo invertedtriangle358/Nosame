@@ -30,7 +30,7 @@ const state = {
   seenEventIds: new Set(),
   reactedEventIds: new Set(),
   relayList: JSON.parse(localStorage.getItem("relays")) || [...DEFAULT_RELAYS],
-  userNgWords: [...userNgWords],
+  userNgWords: JSON.parse(localStorage.getItem("userNgWords")) || [],
 };
 
 // ==================
