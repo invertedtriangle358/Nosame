@@ -430,6 +430,57 @@ main {
 }
 
 /* ==============================
+   NGワードモダール固定レイアウト
+============================== */
+#ngModal .modal-content {
+  width: 80%;
+  max-width: 500px;
+  max-height: 480px; /* モダールの最大高さ固定 */
+  overflow: hidden;  /* 内容のスクロールは中の要素に任せる */
+  display: flex;
+  flex-direction: column;
+}
+
+/* NGワード一覧のみスクロール */
+#ngWordList {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-right: 6px;
+  overflow-y: auto;
+}
+
+/* スクロールバーの見た目を整える（任意） */
+#ngWordList::-webkit-scrollbar {
+  width: 6px;
+}
+#ngWordList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+/* 下部エリアは固定表示 */
+.ng-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+  flex-shrink: 0;
+}
+
+/* ==============================
    フッター
 ============================== */
 footer {
