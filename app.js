@@ -13,13 +13,20 @@ let defaultNgWords = [];
 let userNgWords = JSON.parse(localStorage.getItem("userNgWords")) || [];
 
 // 外部JSONからNGワードをロード
-fetch("./ngwords.json")
-  .then(res => res.json())
+fetch(`./ngwords.json?${Date.now()}`)
+  .then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
   .then(json => {
+    console.log("✅ NGワードJSONを読み込みました:", json);
     defaultNgWords = json;
     updateNgWordList();
   })
-  .catch(() => console.warn("⚠ NGワードJSONの読み込みに失敗しました。"));
+  .catch(err => {
+    console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
+  });
+
 
 // =======================
 // 2. アプリケーション状態
