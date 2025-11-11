@@ -407,6 +407,16 @@ main {
   min-width: 220px;
 }
 
+#btnAddNgWord {
+  background: #1d3557;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
 .ng-add-area {
   display: flex;
   gap: 8px;
