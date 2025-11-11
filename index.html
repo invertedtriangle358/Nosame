@@ -18,51 +18,50 @@
       <button id="btnNgModal">禁句</button>
     </div>
   </header>
-<!-- モダール -->
-<div id="relayModal" class="modal" aria-hidden="true">
-  <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
-    <h2 id="relayModalTitle">接続先一覧</h2>
-    <div id="relayList"></div>
-    <div class="modal-actions">
-      <input id="relayInput" type="text" placeholder="wss://example.com" />
-      <button id="btnAddRelay">追加</button>
-      <button id="btnSaveRelays">保存</button>
-      <button id="btnCloseModal">閉</button>
-    </div>
-  </div>
-</div>
-<!-- NGワード設定モーダル -->
-<div id="ngModal" class="modal" aria-hidden="true">
-  <div class="modal-content">
-    <h2>NGワード設定</h2>
 
-    <!-- NGワード入力 -->
-    <div class="modal-actions">
-      <input id="ngWordInput" type="text" placeholder="NGワードを追加">
-      <button id="btnAddNgWord">追加</button>
+  <main>
+    <!-- モダール: リレー接続 -->
+    <div id="relayModal" class="modal" aria-hidden="true">
+      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
+        <h2 id="relayModalTitle" tabindex="-1">接続先一覧</h2>
+        <div id="relayList"></div>
+        <div class="modal-actions">
+          <input id="relayInput" type="text" placeholder="wss://example.com" />
+          <button id="btnAddRelay">追加</button>
+          <button id="btnSaveRelays">保存</button>
+          <button id="btnCloseModal">閉</button>
+        </div>
+      </div>
     </div>
 
-    <!-- NGワード一覧（2列表示対応） -->
-    <div id="ngWordList" class="scrollable-list"></div>
-
-    <div class="modal-actions">
-      <button id="btnSaveNgWords">保存</button>
-      <button id="btnCloseNgModal">閉じる</button>
+    <!-- モダール: NGワード -->
+    <div id="ngModal" class="modal" aria-hidden="true">
+      <div class="modal-content">
+        <h2 tabindex="-1">NGワード設定</h2>
+        <div class="modal-actions">
+          <input id="ngWordInput" type="text" placeholder="NGワードを追加">
+          <button id="btnAddNgWord">追加</button>
+        </div>
+        <div id="ngWordList" class="scrollable-list"></div>
+        <div class="modal-actions">
+          <button id="btnSaveNgWords">保存</button>
+          <button id="btnCloseNgModal">閉じる</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
     <!-- 投稿欄 -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <button id="btnPublish">投稿する</button>
+        <button id="btnPublish" aria-label="投稿を送信">投稿する</button>
       </div>
       <div class="composer">
         <textarea id="compose" placeholder="本文を入力......"></textarea>
         <small id="charCount">0 / 108</small>
       </div>
     </aside>
-    <!-- タイムラインとスクロール -->
+
+    <!-- タイムライン -->
     <section class="timeline-wrap">
       <div class="timeline-controls">
         <button id="scrollLeft">◀</button>
@@ -71,9 +70,11 @@
       <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
     </section>
   </main>
+
   <footer>
     <div class="copylight">inverted.triangle358 © 2025</div>
   </footer>
+
   <script src="app.js"></script>
 </body>
 </html>
