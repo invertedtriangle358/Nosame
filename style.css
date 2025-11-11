@@ -337,6 +337,35 @@ main {
 }
 
 /* ==============================
+   リレー追加欄（NGワードと同等レイアウト）
+============================== */
+.relay-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+}
+
+.relay-add-area input {
+  flex: 1;
+}
+
+.relay-add-area button {
+  background: #1d3557;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.relay-add-area button:hover {
+  background: #2a9d8f;
+}
+
+/* ==============================
    モダールボタン共通
 ============================== */
 .modal-actions button {
