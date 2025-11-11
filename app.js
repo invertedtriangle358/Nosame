@@ -120,6 +120,16 @@ function updateNgWordList() {
   });
 }
 
+function getAllNgWords() {
+  return [...new Set([...defaultNgWords, ...userNgWords])];
+}
+
+function isContentInvalid(text) {
+  if (!text) return false;
+  const allNg = getAllNgWords();
+  return allNg.some(ng => text.toLowerCase().includes(ng.toLowerCase()));
+}
+
 // ===========================
 // 5. Nostrコアロジック
 // ===========================
