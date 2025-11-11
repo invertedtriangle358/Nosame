@@ -130,6 +130,42 @@ function isContentInvalid(text) {
   return allNg.some(ng => text.toLowerCase().includes(ng.toLowerCase()));
 }
 
+function addNgWord(word) {
+  const trimmed = word.trim().toLowerCase();
+  if (!trimmed) return alert("空のNGワードは登録できません。");
+  if (state.userNgWords.includes(trimmed)) return alert("すでに登録済みのNGワードです。");
+
+  state.userNgWords.push(trimmed);
+  updateNgWordList();
+  dom.ngWordInput.value = "";
+}
+
+function addRelayUrl(url) {
+  const trimmed = url.trim();
+  if (!trimmed) return alert("URLを入力してください。");
+
+  if (state.relayList.some(u => u.toLowerCase() === trimmed.toLowerCase())) {
+    return alert("すでに登録済みのURLです。");
+  }
+
+  if (!isValidRelayUrl(trimmed)) {
+    return alert("無効なリレーURLです。wss:// または ws:// で始まる必要があります。");
+  }
+
+  state.relayList.push(trimmed);
+  updateRelayModalList();
+  dom.relayInput.value = "";
+}
+
+function isValidRelayUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.protocol === "wss:" || u.protocol === "ws:") && !!u.hostname;
+  } catch {
+    return false;
+  }
+}
+
 // ===========================
 // 5. Nostrコアロジック
 // ===========================
