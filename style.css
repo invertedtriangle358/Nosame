@@ -373,6 +373,11 @@ main {
   margin-bottom: 10px;
 }
 
+#ngWordList .ng-word-item {
+  flex: 1 1 calc(50% - 6px);
+  min-width: 220px;
+}
+
 .ng-add-area {
   display: flex;
   gap: 8px;
