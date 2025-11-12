@@ -169,11 +169,6 @@ function formatContent(text) {
   return html;
 }
 
-noteEl.innerHTML = `
-  <div class="content">${formatContent(event.content)}</div>
-  ...
-`;
-
 // =======================
 // 6. リレー関連
 // =======================
@@ -338,7 +333,7 @@ function renderEvent(event) {
 
   const isReacted = state.reactedEventIds.has(event.id);
   noteEl.innerHTML = `
-    <div class="content">${escapeHtml(event.content)}</div>
+    <div class="content">${formatContent(event.content)}</div>
     <div class="meta">
       <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
       <span class="author">${escapeHtml(event.pubkey.slice(0, 8))}...</span>
@@ -347,6 +342,7 @@ function renderEvent(event) {
       ${isReacted ? "♥" : "♡"}
     </button>
   `;
+
 
   noteEl.querySelector(".btn-reaction")
     .addEventListener("click", () => handleReactionClick(event));
