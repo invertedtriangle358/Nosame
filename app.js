@@ -161,8 +161,7 @@ function addNgWord(word) {
 }
 
 const specialWords = [
-  { word: "緊急", color: "#ff4d4d" },
-  { word: "速報", color: "#ff4d4d" },
+  { word: "【緊急地震速報】", color: "#ff4d4d" },
 ];
 
 function formatContent(text) {
