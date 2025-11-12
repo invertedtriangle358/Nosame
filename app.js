@@ -158,7 +158,7 @@ fetch(`./ngwords.json?${Date.now()}`)
   });
 
 const specialWords = [
-  { word: "【緊急地震速報】", color: "#ff4d4d" },
+  { word: "【緊急地震速報】", color: "#e63946" },
 ];
 
 function formatContent(text) {
