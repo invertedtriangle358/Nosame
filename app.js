@@ -9,28 +9,7 @@ const DEFAULT_RELAYS = [
   "wss://relay.barine.co"
 ];
 
-let defaultNgWords = [];
-let userNgWords = JSON.parse(localStorage.getItem("userNgWords")) || [];
-
-// 外部JSONからNGワードをロード
-fetch(`./ngwords.json?${Date.now()}`)
-  .then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then(json => {
-    console.log("✅ NGワードJSONを読み込みました:", json);
-    // すでにユーザー保存分がある場合はそちらを優先
-    if (!localStorage.getItem("userNgWords")) {
-      state.userNgWords = json;
-      localStorage.setItem("userNgWords", JSON.stringify(json));
-    }
-    updateNgWordList();
-  })
-  .catch(err => {
-    console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
-  });
-
+let defaultNgWords = []; // ✅ defaultNgWordsのみ残す（userNgWords変数削除）
 
 // =======================
 // 2. アプリケーション状態
@@ -129,7 +108,7 @@ function toggleModal(modalEl, open = true) {
 }
 
 // =======================
-// 5. ワード関連
+// 5. NGワード関連
 // =======================
 function updateNgWordList() {
   if (!dom.ngWordListEl) return;
@@ -149,7 +128,6 @@ function updateNgWordList() {
   });
 }
 
-
 function addNgWord(word) {
   const trimmed = word.trim().toLowerCase();
   if (!trimmed) return alert("空のNGワードは登録できません。");
@@ -159,6 +137,25 @@ function addNgWord(word) {
   updateNgWordList();
   dom.ngWordInput.value = "";
 }
+
+// ✅ 外部JSONからNGワードをロード
+fetch(`./ngwords.json?${Date.now()}`)
+  .then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
+  .then(json => {
+    console.log("✅ NGワードJSONを読み込みました:", json);
+    defaultNgWords = json; // ← 修正：defaultNgWordsに格納
+    if (!localStorage.getItem("userNgWords")) {
+      state.userNgWords = [...json];
+      localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+    }
+    updateNgWordList();
+  })
+  .catch(err => {
+    console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
+  });
 
 const specialWords = [
   { word: "【緊急地震速報】", color: "#ff4d4d" },
@@ -347,7 +344,6 @@ function renderEvent(event) {
     </button>
   `;
 
-
   noteEl.querySelector(".btn-reaction")
     .addEventListener("click", () => handleReactionClick(event));
 
@@ -482,12 +478,13 @@ function setupEventListeners() {
       updateNgWordList();
     }
   });
-dom.btnSaveNgWords?.addEventListener("click", () => {
-  state.userNgWords = state.userNgWords.filter(w => w.trim());
-  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-  alert("NGワードを保存しました。");
-});
 
+  dom.btnSaveNgWords?.addEventListener("click", () => {
+    state.userNgWords = state.userNgWords.filter(w => w.trim());
+    localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+    alert("NGワードを保存しました。");
+    updateNgWordList(); // ✅ 追加：即時反映
+  });
 
   // --- タイムライン操作 ---
   dom.btnScrollLeft?.addEventListener("click", () =>
@@ -497,20 +494,18 @@ dom.btnSaveNgWords?.addEventListener("click", () => {
     dom.timeline.scrollBy({ left: 300, behavior: "smooth" })
   );
 
-  // --- 文字数カウント ---
-  dom.composeArea?.addEventListener("input", () => {
-    const len = dom.composeArea.value.length;
+  dom.composeArea?.addEventListener("input", e => {
+    const len = e.target.value.length;
     dom.charCount.textContent = `${len} / ${MAX_POST_LENGTH}`;
+    dom.charCount.style.color = len > MAX_POST_LENGTH ? "red" : "";
   });
 }
 
 // ============================
-// 初期化
+// 11. アプリ起動
 // ============================
-function main() {
+window.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   connectToRelays();
-  setTimeout(startSubscription, 500);
-}
-
-window.addEventListener("DOMContentLoaded", main);
+  startSubscription();
+});
