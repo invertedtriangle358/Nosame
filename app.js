@@ -169,7 +169,10 @@ function formatContent(text) {
   return html;
 }
 
-noteContent.innerHTML = formatContent(event.content);
+noteEl.innerHTML = `
+  <div class="content">${formatContent(event.content)}</div>
+  ...
+`;
 
 // =======================
 // 6. リレー関連
