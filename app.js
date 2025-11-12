@@ -169,6 +169,8 @@ function formatContent(text) {
   return html;
 }
 
+noteContent.innerHTML = formatContent(event.content);
+
 // =======================
 // 6. リレー関連
 // =======================
