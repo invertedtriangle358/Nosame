@@ -20,7 +20,11 @@ fetch(`./ngwords.json?${Date.now()}`)
   })
   .then(json => {
     console.log("✅ NGワードJSONを読み込みました:", json);
-    defaultNgWords = json;
+    // すでにユーザー保存分がある場合はそちらを優先
+    if (!localStorage.getItem("userNgWords")) {
+      state.userNgWords = json;
+      localStorage.setItem("userNgWords", JSON.stringify(json));
+    }
     updateNgWordList();
   })
   .catch(err => {
@@ -144,6 +148,7 @@ function updateNgWordList() {
     dom.ngWordListEl.appendChild(row);
   });
 }
+
 
 function addNgWord(word) {
   const trimmed = word.trim().toLowerCase();
@@ -478,11 +483,12 @@ function setupEventListeners() {
       updateNgWordList();
     }
   });
-  dom.btnSaveNgWords?.addEventListener("click", () => {
-    state.userNgWords = state.userNgWords.filter(w => w);
-    localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-    alert("NGワードを保存しました。");
-  });
+dom.btnSaveNgWords?.addEventListener("click", () => {
+  state.userNgWords = state.userNgWords.filter(w => w.trim());
+  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+  alert("NGワードを保存しました。");
+});
+
 
   // --- タイムライン操作 ---
   dom.btnScrollLeft?.addEventListener("click", () =>
