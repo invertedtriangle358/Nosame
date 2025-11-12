@@ -125,7 +125,7 @@ function toggleModal(modalEl, open = true) {
 }
 
 // =======================
-// 5. NGワード関連
+// 5. ワード関連
 // =======================
 function updateNgWordList() {
   if (!dom.ngWordListEl) return;
@@ -153,6 +153,20 @@ function addNgWord(word) {
   state.userNgWords.push(trimmed);
   updateNgWordList();
   dom.ngWordInput.value = "";
+}
+
+const specialWords = [
+  { word: "緊急", color: "#ff4d4d" },
+  { word: "速報", color: "#ff4d4d" },
+];
+
+function formatContent(text) {
+  let html = text;
+  for (const { word, color } of specialWords) {
+    const regex = new RegExp(`(${word})`, "g");
+    html = html.replace(regex, `<span style="color:${color}">$1</span>`);
+  }
+  return html;
 }
 
 // =======================
