@@ -6,7 +6,7 @@
 }
 
 body {
-  background: #81b7d6;
+  background: #5d98ba;
   margin: 0;
   font-family: "Sawarabi Mincho", serif;
 }
@@ -94,7 +94,7 @@ main {
   width: 120px;
   flex-shrink: 0;
   border-right: 1px solid #ccc;
-  background: #81b7d6;
+  background: #5d98ba;
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -194,7 +194,7 @@ main {
   padding: 14px;
   border: 1px solid #242733;
   border-radius: 12px;
-  background: #81b7d6;
+  background: #5d98ba;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
@@ -515,5 +515,5 @@ footer {
   height: 30px;
   padding: 16px;
   text-align: center;
-  background: #81b7d6;
+  background: #5d98ba;
 }
