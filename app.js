@@ -349,7 +349,6 @@ function publishEvent(event) {
 function startSubscription() {
   state.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
   console.log(`🚀 購読開始: ${state.subId}`);
-  dom.spinner.style.display = "block";
 
   dom.timeline.innerHTML = "";
   state.seenEventIds.clear();
