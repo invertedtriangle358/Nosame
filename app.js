@@ -2,6 +2,9 @@
 // 1. 設定 (Constants)
 // =======================
 const MAX_POST_LENGTH = 108;
+const EVENT_BUFFER_FLUSH_TIME_MS = 200;
+const NOSTR_REQ_LIMIT = 30;
+const NOSTR_REQ_SINCE_SECONDS_AGO = 3600;
 const DEFAULT_RELAYS = [
   "wss://relay-jp.nostr.wirednet.jp",
   "wss://yabu.me",
@@ -290,7 +293,8 @@ function handleMessage(ev) {
 
 function bufferEvent(event) {
   eventBuffer.push(event);
-  if (!bufferTimer) bufferTimer = setTimeout(flushEventBuffer, 200);
+  // 200 を定数に置き換え
+  if (!bufferTimer) bufferTimer = setTimeout(flushEventBuffer, EVENT_BUFFER_FLUSH_TIME_MS);
 }
 
 function flushEventBuffer() {
@@ -301,10 +305,15 @@ function flushEventBuffer() {
   bufferTimer = null;
 }
 
-function sendReq(ws) {
+  function sendReq(ws) {
   if (!ws || !state.subId) return;
 
-  const filter = { kinds: [1], limit: 30, since: Math.floor(Date.now() / 1000) - 3600 };
+  const filter = { 
+    kinds: [1], 
+    // 30 と 3600 を定数に置き換え
+    limit: NOSTR_REQ_LIMIT, 
+    since: Math.floor(Date.now() / 1000) - NOSTR_REQ_SINCE_SECONDS_AGO 
+  };
   const req = ["REQ", state.subId, filter];
 
   if (ws.readyState === WebSocket.OPEN) {
