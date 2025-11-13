@@ -107,13 +107,27 @@ function toggleModal(modalEl, open = true) {
   document.body.style.overflow = open ? "hidden" : "";
 }
 
+let defaultNgWords = [];
 // =======================
 // 5. NGワード関連
 // =======================
+
 function updateNgWordList() {
   if (!dom.ngWordListEl) return;
   dom.ngWordListEl.innerHTML = "";
 
+  // --- デフォルトNGワード（削除不可） ---
+  defaultNgWords.forEach(word => {
+    const row = document.createElement("div");
+    row.className = "ng-word-item ng-default";
+    row.innerHTML = `
+      <input type="text" value="${escapeHtml(word)}" disabled>
+      <button disabled style="opacity:0.4;">✖</button>
+    `;
+    dom.ngWordListEl.appendChild(row);
+  });
+
+  // --- ユーザー追加分（編集・削除可） ---
   state.userNgWords.forEach((word, index) => {
     const row = document.createElement("div");
     row.className = "ng-word-item";
@@ -128,6 +142,7 @@ function updateNgWordList() {
   });
 }
 
+
 function addNgWord(word) {
   const trimmed = word.trim().toLowerCase();
   if (!trimmed) return alert("空のNGワードは登録できません。");
@@ -138,7 +153,7 @@ function addNgWord(word) {
   dom.ngWordInput.value = "";
 }
 
-// ✅ 外部JSONからNGワードをロード
+// 外部JSONからNGワードをロード
 fetch(`./ngwords.json?${Date.now()}`)
   .then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -146,16 +161,23 @@ fetch(`./ngwords.json?${Date.now()}`)
   })
   .then(json => {
     console.log("✅ NGワードJSONを読み込みました:", json);
-    defaultNgWords = json; // ← 修正：defaultNgWordsに格納
-    if (!localStorage.getItem("userNgWords")) {
-      state.userNgWords = [...json];
-      localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-    }
+    defaultNgWords = json; // ← ここが重要
+
+    // 初回のみ userNgWords を初期化
+const saved = JSON.parse(localStorage.getItem("userNgWords") || "null");
+if (!saved || saved.length === 0) {
+  state.userNgWords = [...json];
+  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+} else {
+  state.userNgWords = saved;
+}
+
     updateNgWordList();
   })
   .catch(err => {
     console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
   });
+
 
 const specialWords = [
   { word: "【緊急地震速報】", color: "#e63946" },
