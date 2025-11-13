@@ -32,7 +32,6 @@ const state = {
 // ==================
 const dom = {
   timeline: document.getElementById("timeline"),
-  spinner: document.getElementById("subscribeSpinner"),
   relayListEl: document.getElementById("relayList"),
   relayModal: document.getElementById("relayModal"),
   composeArea: document.getElementById("compose"),
@@ -386,7 +385,6 @@ function renderEvent(event) {
   const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
   insertPos ? dom.timeline.insertBefore(noteEl, insertPos) : dom.timeline.appendChild(noteEl);
 
-  dom.spinner.style.display = "none";
 }
 
 // ============================
