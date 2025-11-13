@@ -78,25 +78,6 @@ header {
 }
 
 /* ==============================
-   スピナー
-============================== */
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid #ccc;
-  border-top: 3px solid #2a9d8f;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ==============================
    メインレイアウト
 ============================== */
 main {
