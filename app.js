@@ -9,7 +9,8 @@ const DEFAULT_RELAYS = [
   "wss://relay.barine.co"
 ];
 
-let defaultNgWords = []; // ✅ defaultNgWordsのみ残す（userNgWords変数削除）
+// ✅ defaultNgWordsのみ残す（userNgWords変数削除）
+let defaultNgWords = []; 
 
 // =======================
 // 2. アプリケーション状態
