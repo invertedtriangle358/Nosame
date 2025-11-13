@@ -153,31 +153,31 @@ function addNgWord(word) {
   dom.ngWordInput.value = "";
 }
 
-// 外部JSONからNGワードをロード
-fetch(`./ngwords.json?${Date.now()}`)
-  .then(res => {
+// fetch処理を専用のasync関数に切り出す
+async function loadNgWords() {
+  try {
+    const res = await fetch(`./ngwords.json?${Date.now()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
-  })
-  .then(json => {
+
+    const json = await res.json();
+
     console.log("✅ NGワードJSONを読み込みました:", json);
-    defaultNgWords = json; // ← ここが重要
+    defaultNgWords = json; // グローバル変数を更新
 
     // 初回のみ userNgWords を初期化
-const saved = JSON.parse(localStorage.getItem("userNgWords") || "null");
-if (!saved || saved.length === 0) {
-  state.userNgWords = [...json];
-  localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-} else {
-  state.userNgWords = saved;
-}
+    const saved = JSON.parse(localStorage.getItem("userNgWords") || "null");
+    if (!saved || saved.length === 0) {
+      state.userNgWords = [...json];
+      localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
+    } else {
+      state.userNgWords = saved;
+    }
 
-    updateNgWordList();
-  })
-  .catch(err => {
+  } catch (err) {
     console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
-  });
-
+    // エラーが発生しても、デフォルトNGワードが空の状態でアプリの実行を継続する
+  }
+}
 
 const specialWords = [
   { word: "【緊急地震速報】", color: "#e63946" },
@@ -530,8 +530,13 @@ function setupEventListeners() {
 // ============================
 // 11. アプリ起動
 // ============================
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
+
+  // ⚠ NGワードの読み込みが完了するまで待つ
+  await loadNgWords(); 
+
+  // 読み込み完了後に接続と購読を開始する
   connectToRelays();
   startSubscription();
 });
