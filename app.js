@@ -162,12 +162,16 @@ const specialWords = [
 ];
 
 function formatContent(text) {
-  let html = text;
+  // ① HTMLタグをすべてエスケープ
+  let safeText = escapeHtml(text);
+
+  // ② 特定ワードの色変更（安全な状態で行う）
   for (const { word, color } of specialWords) {
-    const regex = new RegExp(`(${word})`, "g");
-    html = html.replace(regex, `<span style="color:${color}">$1</span>`);
+    const regex = new RegExp(`(${escapeHtml(word)})`, "g");
+    safeText = safeText.replace(regex, `<span style="color:${color}">$1</span>`);
   }
-  return html;
+
+  return safeText;
 }
 
 // =======================
