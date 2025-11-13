@@ -123,6 +123,7 @@ main {
   padding: 12px 8px 8px 8px;
   box-sizing: border-box;
   vertical-align: top;
+  border-radius: 10px;
 }
 
 #charCount {
