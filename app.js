@@ -354,7 +354,6 @@ function startSubscription() {
   state.seenEventIds.clear();
 
   state.sockets.forEach(sendReq);
-  setTimeout(() => (dom.spinner.style.display = "none"), 2000);
 }
 
 // ============================
