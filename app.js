@@ -1,7 +1,3 @@
-[インデント整形済みコード全文ここから]
-
-… ※長文になるため、そのまま貼ります …
-
 // =======================
 // 1. 設定 (Constants)
 // =======================
@@ -545,5 +541,3 @@ window.addEventListener("DOMContentLoaded", async () => {
   connectToRelays();
   startSubscription();
 });
-
-[インデント整形済みコード全文ここまで]
