@@ -1,3 +1,27 @@
+/* ==============================
+   共通設定・フォント
+============================== */
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background: red;
+  background: #5d98ba;
+  margin: 0;
+  font-family: "Sawarabi Mincho", serif;
+}
+
+h1 {
+  font-size: 40px;
+  margin: 14px;
+  background: linear-gradient(180deg, #9779b8, #465b95);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.title-ruby rt {
+  font-size: 0.6em;
+  color: #ccc;
+  letter-spacing: 0.05em;
 }
