@@ -161,7 +161,7 @@ main {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 250px;
+    gap: 200px;
     z-index: 100;
 }
 
