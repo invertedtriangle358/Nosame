@@ -178,7 +178,7 @@ async function loadNgWords() {
 }
 
 const specialWords = [
-  { word: "【緊急地震速報】", color: "#e63946" },
+  { word: "【緊急地震速報】", color: "#dd0000" },
 ];
 
 function formatContent(text) {
