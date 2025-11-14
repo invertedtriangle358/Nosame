@@ -224,6 +224,9 @@ main {
 }
 
 .note .btn-reaction {
+    width: 30px;
+    height: 30px;
+    border-radius: 50px;
     margin-top: 4px;
     font-size: 1.2rem;
     background: #909dc5;
