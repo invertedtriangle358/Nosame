@@ -1,103 +1,92 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>野雨 - Nosame -</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>野雨 - Nosame -</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header>
-    <h1 class="sawarabi-mincho-regular">野雨 <small class="ru">Nosame</small></h1>
-    <div class="header-actions">
-      <button id="btnPanelToggle" aria-label="設定パネルを開く">☰</button>
-      <span id="subscribeSpinner" class="spinner" style="display:none" aria-hidden="true"></span>
-    </div>
-  </header>
+  <header>
+      <h1 class="sawarabi-mincho-regular title-ruby">
+  <ruby>
+    野雨<rt>-Nosame-</rt>
+  </ruby>
+</h1>
+    <div class="header-actions">
+      <button id="btnRelayModal">接続</button>
+      <button id="btnNgModal">禁句</button>
+    </div>
+  </header>
 
-  <main>
-    <!-- サイド（簡易投稿） -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="mini-compose">
-          <input id="composeSimple" placeholder="投稿..." aria-label="簡易投稿">
-          <button id="btnPublishSimple" title="投稿">投稿</button>
-        </div>
-      </div>
+  <main>
+    <!-- モダール: リレー接続 -->
+    <div id="relayModal" class="modal" aria-hidden="true">
+      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
+        <h2 id="relayModalTitle" tabindex="-1">接続先一覧</h2>
+        <div id="relayList"></div>
 
-      <!-- 縦書きフル投稿は残すが小さく配置（従来レイアウト） -->
-      <div class="composer">
-        <textarea id="composeSidebar" placeholder="本文を入力......" aria-label="投稿エリア（縦書き）"></textarea>
-        <small id="charCountSidebar">0 / 108</small>
-      </div>
-    </aside>
+        <!-- 入力欄＋追加ボタン -->
+        <div class="relay-add-area">
+          <input id="relayInput" type="text" placeholder="wss://example.com" />
+          <button id="btnAddRelay">追加</button>
+        </div>
 
-    <!-- タイムライン -->
-    <section class="timeline-wrap">
-      <div class="timeline-controls">
-        <button id="scrollLeft">◀</button>
-        <button id="scrollRight">▶</button>
-      </div>
-      <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
-    </section>
-  </main>
+        <!-- 保存・閉じる -->
+        <div class="modal-actions">
+          <button id="btnSaveRelays">保存</button>
+          <button id="btnCloseModal">閉じる</button>
+        </div>
+      </div>
+    </div>
 
-  <!-- スライドパネル（右） -->
-  <div id="panelOverlay" class="panel-overlay" hidden></div>
-  <aside id="sidePanel" class="side-panel" aria-hidden="true">
-    <div class="panel-header">
-      <h2>設定</h2>
-      <button id="btnPanelClose" aria-label="閉じる">✖</button>
-    </div>
+    <!-- モダール: NGワード -->
+    <div id="ngModal" class="modal">
+      <div class="modal-content">
+        <h2>NGワード設定</h2>
 
-    <div class="panel-body">
-      <!-- フル投稿欄 -->
-      <section class="panel-section">
-        <h3>投稿</h3>
-        <textarea id="composeFull" rows="4" placeholder="ここで本文（フル投稿）を入力..."></textarea>
-        <div class="panel-row">
-          <small id="charCount">0 / 108</small>
-          <button id="btnPublish">投稿する</button>
-        </div>
-      </section>
+        <div id="ngWordList" class="ng-list"></div>
 
-      <!-- リレー設定 -->
-      <section class="panel-section">
-        <h3>リレー設定</h3>
-        <div id="relayList" class="scrollable-list" aria-live="polite"></div>
-        <div class="panel-row ng-add-area">
-          <input id="relayInput" type="text" placeholder="wss://example.com" aria-label="リレーURL">
-          <button id="btnAddRelay">追加</button>
-        </div>
-        <div class="panel-row modal-actions">
-          <button id="btnSaveRelays">保存</button>
-        </div>
-      </section>
+        <div class="ng-add-area">
+          <input id="ngWordInput" type="text" placeholder="NGワードを追加">
+          <button id="btnAddNgWord">追加</button>
+        </div>
 
-      <!-- NGワード設定 -->
-      <section class="panel-section">
-        <h3>禁句 (NGワード)</h3>
-        <div id="ngWordList" class="scrollable-list"></div>
+        <div class="modal-actions">
+          <button id="btnSaveNgWords">保存</button>
+          <button id="btnCloseNgModal">閉じる</button>
+        </div>
+      </div>
+    </div>
 
-        <div class="ng-add-area">
-          <input id="ngWordInput" type="text" placeholder="NGワードを追加" aria-label="NGワード追加">
-          <button id="btnAddNgWord">追加</button>
-        </div>
+    <!-- 投稿欄 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button id="btnPublish" aria-label="投稿を送信">投稿する</button>
+      </div>
+      <div class="composer">
+        <textarea id="compose" placeholder="本文を入力......"></textarea>
+        <small id="charCount">0 / 108</small>
+      </div>
+    </aside>
 
-        <div class="panel-row modal-actions">
-          <button id="btnSaveNgWords">保存</button>
-        </div>
-      </section>
-    </div>
-  </aside>
+    <!-- タイムライン -->
+    <section class="timeline-wrap">
+      <div class="timeline-controls">
+        <button id="scrollLeft">◀</button>
+        <button id="scrollRight">▶</button>
+      </div>
+      <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
+    </section>
+  </main>
 
-  <footer>
-    <div class="copylight">inverted.triangle358 © 2025</div>
-  </footer>
+  <footer>
+    <div class="copylight">inverted.triangle358 © 2025</div>
+  </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
