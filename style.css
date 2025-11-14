@@ -39,10 +39,6 @@ header {
   gap: 8px;
 }
 
-#subscribeSpinner {
-  font-size: 18px;
-}
-
 .header-actions button {
   width: 100px;
   height: 30px;
@@ -59,13 +55,16 @@ header {
   background: #666;
 }
 
-/* ==== スマホ時のレイアウト ==== */
+#subscribeSpinner {
+  font-size: 18px;
+}
+
+/* ---- スマホ時レイアウト ---- */
 @media (max-width: 768px) {
   .header-inner {
     flex-direction: column;
     align-items: flex-start;
   }
-
   .header-actions {
     flex-direction: row;
     margin-top: 8px;
@@ -227,13 +226,13 @@ main {
   align-items: center;
 }
 
-.note .meta .time {
-  color: #222;
-}
-
 .note .meta .author {
   color: #465b95;
   font-weight: bold;
+}
+
+.note .meta .time {
+  color: #222;
 }
 
 .note .btn-reaction {
