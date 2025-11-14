@@ -1,92 +1,91 @@
-<!doctype html>
+ <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>野雨 - Nosame -</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>野雨 - Nosame -</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
 </head>
+
 <body>
-  <header>
-      <h1 class="sawarabi-mincho-regular title-ruby">
-  <ruby>
-    野雨<rt>-Nosame-</rt>
-  </ruby>
+  <header>
+      <h1 class="sawarabi-mincho-regular title-ruby">
+  <ruby>
+    野雨<rt>-Nosame-</rt>
+  </ruby>
 </h1>
-    <div class="header-actions">
-      <button id="btnRelayModal">接続</button>
-      <button id="btnNgModal">禁句</button>
-    </div>
-  </header>
+    <div class="header-actions">
+      <button id="btnRelayModal">接続</button>
+      <button id="btnNgModal">禁句</button>
+    </div>
+  </header>
+  <main>
+    <!-- モダール: リレー接続 -->
+    <div id="relayModal" class="modal" aria-hidden="true">
+      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
+        <h2 id="relayModalTitle" tabindex="-1">接続先一覧</h2>
+        <div id="relayList"></div>
 
-  <main>
-    <!-- モダール: リレー接続 -->
-    <div id="relayModal" class="modal" aria-hidden="true">
-      <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
-        <h2 id="relayModalTitle" tabindex="-1">接続先一覧</h2>
-        <div id="relayList"></div>
+        <!-- 入力欄＋追加ボタン -->
+        <div class="relay-add-area">
+          <input id="relayInput" type="text" placeholder="wss://example.com" />
+          <button id="btnAddRelay">追加</button>
+        </div>
 
-        <!-- 入力欄＋追加ボタン -->
-        <div class="relay-add-area">
-          <input id="relayInput" type="text" placeholder="wss://example.com" />
-          <button id="btnAddRelay">追加</button>
-        </div>
+        <!-- 保存・閉じる -->
+        <div class="modal-actions">
+          <button id="btnSaveRelays">保存</button>
+          <button id="btnCloseModal">閉じる</button>
+        </div>
+      </div>
+    </div>
 
-        <!-- 保存・閉じる -->
-        <div class="modal-actions">
-          <button id="btnSaveRelays">保存</button>
-          <button id="btnCloseModal">閉じる</button>
-        </div>
-      </div>
-    </div>
+    <!-- モダール: NGワード -->
+    <div id="ngModal" class="modal">
+      <div class="modal-content">
+        <h2>NGワード設定</h2>
 
-    <!-- モダール: NGワード -->
-    <div id="ngModal" class="modal">
-      <div class="modal-content">
-        <h2>NGワード設定</h2>
+        <div id="ngWordList" class="ng-list"></div>
+        <div class="ng-add-area">
+          <input id="ngWordInput" type="text" placeholder="NGワードを追加">
+          <button id="btnAddNgWord">追加</button>
+        </div>
 
-        <div id="ngWordList" class="ng-list"></div>
+        <div class="modal-actions">
+          <button id="btnSaveNgWords">保存</button>
+          <button id="btnCloseNgModal">閉じる</button>
+        </div>
+      </div>
+    </div>
 
-        <div class="ng-add-area">
-          <input id="ngWordInput" type="text" placeholder="NGワードを追加">
-          <button id="btnAddNgWord">追加</button>
-        </div>
+    <!-- 投稿欄 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <button id="btnPublish" aria-label="投稿を送信">投稿する</button>
+      </div>
+      <div class="composer">
+        <textarea id="compose" placeholder="本文を入力......"></textarea>
+        <small id="charCount">0 / 108</small>
+      </div>
+    </aside>
 
-        <div class="modal-actions">
-          <button id="btnSaveNgWords">保存</button>
-          <button id="btnCloseNgModal">閉じる</button>
-        </div>
-      </div>
-    </div>
+    <!-- タイムライン -->
+    <section class="timeline-wrap">
+      <div class="timeline-controls">
+        <button id="scrollLeft">◀</button>
+        <button id="scrollRight">▶</button>
+      </div>
+      <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
+    </section>
+  </main>
 
-    <!-- 投稿欄 -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <button id="btnPublish" aria-label="投稿を送信">投稿する</button>
-      </div>
-      <div class="composer">
-        <textarea id="compose" placeholder="本文を入力......"></textarea>
-        <small id="charCount">0 / 108</small>
-      </div>
-    </aside>
-
-    <!-- タイムライン -->
-    <section class="timeline-wrap">
-      <div class="timeline-controls">
-        <button id="scrollLeft">◀</button>
-        <button id="scrollRight">▶</button>
-      </div>
-      <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="copylight">inverted.triangle358 © 2025</div>
-  </footer>
-
-  <script src="app.js"></script>
+  <footer>
+    <div class="copylight">inverted.triangle358 © 2025</div>
+  </footer>
+  <script src="app.js"></script>
 </body>
-</html>
+
+</html> 
