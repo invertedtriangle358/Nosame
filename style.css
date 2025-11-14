@@ -75,6 +75,9 @@ header {
     flex-direction: row;
     margin-top: 8px;
 }
+    .timeline-controls {
+        display: none;
+    }
 }
 
 /* ==============================
