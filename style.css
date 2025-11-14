@@ -1,416 +1,519 @@
 /* ==============================
-   共通設定・フォント
+   共通設定・フォント
 ============================== */
 * {
-  box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
-  background: #81b7d6;
-  margin: 0;
-  font-family: "Sawarabi Mincho", serif;
+  background: #5d98ba;
+  margin: 0;
+  font-family: "Sawarabi Mincho", serif;
 }
 
 h1 {
-  font-size: 40px;
-  margin: 14px;
-  background: linear-gradient(180deg, #909dc5, #9779b8, #465b95);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 40px;
+  margin: 14px;
+  background: linear-gradient(180deg, #9779b8, #465b95);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.title-ruby rt {
+  font-size: 0.6em;
+  color: #ccc;
+  letter-spacing: 0.05em;
 }
 
 /* ==============================
-   ヘッダー
+   ヘッダー
 ============================== */
 header {
-  padding: 8px 12px;
+  padding: 8px 12px;
 }
 
 .header-inner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .header-actions button {
-  width: 100px;
-  height: 30px;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: #b0c4de;
-  color: #fff;
-  transition: background 0.2s;
+  width: 70px;
+  height: 30px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #b0c4de;
+  color: #fff;
+  transition: background 0.2s;
 }
 
 .header-actions button:hover {
-  background: #666;
+  background: #666;
 }
 
 #subscribeSpinner {
-  font-size: 18px;
+  font-size: 18px;
 }
 
 /* ---- スマホ時レイアウト ---- */
 @media (max-width: 768px) {
-  .header-inner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .header-actions {
-    flex-direction: row;
-    margin-top: 8px;
-  }
+  .header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .header-actions {
+    flex-direction: row;
+    margin-top: 8px;
+  }
 }
 
 /* ==============================
-   スピナー
-============================== */
-.spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid #ccc;
-  border-top: 3px solid #2a9d8f;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ==============================
-   メインレイアウト
+   メインレイアウト
 ============================== */
 main {
-  display: flex;
-  flex-direction: row-reverse;
-  height: 650px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: row-reverse;
+  height: 650px;
+  overflow: hidden;
 }
 
 /* ==============================
-   サイドバー・投稿欄
+   サイドバー・投稿欄
 ============================== */
 .sidebar {
-  width: 120px;
-  flex-shrink: 0;
-  border-right: 1px solid #ccc;
-  background: #81b7d6;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
+  width: 120px;
+  flex-shrink: 0;
+  border-right: 1px solid #ccc;
+  background: #5d98ba;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
 }
 
 .sidebar-header button {
-  padding: 12px 13px;
-  border-radius: 6px;
-  cursor: pointer;
+  padding: 12px 13px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .composer {
-  position: relative;
-  flex: 1;
-  margin-top: 12px;
+  position: relative;
+  flex: 1;
+  margin-top: 12px;
 }
 
 .composer textarea {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  height: 550px;
-  width: 100%;
-  resize: none;
-  font-size: 16px;
-  line-height: 1.6;
-  padding: 12px 8px 8px 8px;
-  box-sizing: border-box;
-  vertical-align: top;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: 550px;
+  width: 100%;
+  resize: none;
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 12px 8px 8px 8px;
+  box-sizing: border-box;
+  vertical-align: top;
+  border-radius: 10px;
 }
 
 #charCount {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  font-size: 12px;
-  color: #666;
-  pointer-events: none;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  font-size: 12px;
+  color: #666;
+  pointer-events: none;
 }
 
 /* ==============================
-   タイムライン
+   タイムライン
 ============================== */
 .timeline-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  overflow: hidden;
 }
 
 .vertical-timeline {
-  flex: 1;
-  display: flex;
-  flex-direction: row-reverse;
-  gap: 7px;
-  overflow-x: auto;
-  padding: 7px;
+  flex: 1;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 7px;
 }
 
 .timeline-controls {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 250px;
-  z-index: 100;
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 250px;
+  z-index: 100;
 }
 
 .timeline-controls button {
-  padding: 0.5rem 1rem;
-  font-size: 1.2rem;
-  border: none;
-  border-radius: 8px;
-  background: #9779b8;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s;
+  padding: 0.5rem 1rem;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 8px;
+  background: #9779b8;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 .timeline-controls button:hover {
-  background: #666;
+  background: #666;
 }
 
 /* ==============================
-   ノートカード
+   ノートカード
 ============================== */
 .note {
-  display: inline-flex;
-  flex-direction: column;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  height: 630px;
-  max-width: 200px;
-  margin: 3px;
-  padding: 14px;
-  border: 1px solid #242733;
-  border-radius: 12px;
-  background: #81b7d6;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  display: inline-flex;
+  flex-direction: column;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  height: 630px;
+  max-width: 200px;
+  margin: 3px;
+  padding: 14px;
+  border: 1px solid #242733;
+  border-radius: 12px;
+  background: #5d98ba;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .note .content {
-  flex: 1;
-  font-size: 16px;
-  line-height: 1.5;
-  color: #fff;
-  word-break: break-word;
-  overflow-y: auto;
+  flex: 1;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #fff;
+  word-break: break-word;
+  overflow-y: auto;
 }
 
 .note .meta {
-  display: flex;
-  gap: 8px;
-  font-size: 0.9em;
-  align-items: center;
+  display: flex;
+  gap: 8px;
+  font-size: 0.9em;
+  align-items: center;
 }
 
 .note .meta .author {
-  color: #465b95;
-  font-weight: bold;
+  color: #465b95;
+  font-weight: bold;
 }
 
 .note .meta .time {
-  color: #222;
+  color: #222;
 }
 
 .note .btn-reaction {
-  width: 30px;
-  height: 30px;
-  margin-top: 4px;
-  font-size: 1.2rem;
-  background: #909dc5;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.2s ease;
+  width: 30px;
+  height: 30px;
+  margin-top: 4px;
+  font-size: 1.2rem;
+  background: #909dc5;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
 .note .btn-reaction:hover:not(:disabled) {
-  transform: scale(1.2);
+  transform: scale(1.2);
 }
 
 .note .btn-reaction:disabled {
-  opacity: 0.5;
-  cursor: default;
+  opacity: 0.5;
+  cursor: default;
 }
 
 /* ==============================
-   モダール
+   モダール
 ============================== */
 .modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.5);
-  overflow: auto;
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: auto;
 }
 
 .modal-content {
-  margin: 5% auto;
-  width: 80%;
-  max-width: 500px;
-  padding: 20px;
-  border-radius: 12px;
-  color: #fff;
-  background: linear-gradient(180deg, #909dc5, #9779b8, #465b95);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  margin: 5% auto;
+  width: 80%;
+  max-width: 500px;
+  padding: 20px;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(180deg, #909dc5, #9779b8, #465b95);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .scrollable-list {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 8px;
 }
 
 /* ==============================
-   リレーリスト
+   リレーリスト
 ============================== */
 #relayList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
 }
 
 .relay-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .relay-status {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  border-radius: 50%;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
 }
 
 .relay-row input {
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 0.9rem;
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+  border-radius: 8px;
 }
 
 .relay-row button {
-  padding: 2px 6px;
-  font-size: 0.8rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: #e63946;
-  color: #fff;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #e63946;
+  color: #fff;
 }
 
 .relay-row button:hover {
-  background: #c9182a;
+  background: #c9182a;
 }
 
 /* ==============================
-   モダールボタン共通
+   リレー追加欄（NGワードと同等レイアウト）
+============================== */
+.relay-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+}
+
+.relay-add-area input {
+  flex: 1;
+}
+
+.relay-add-area button {
+  background: #1d3557;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.relay-add-area button:hover {
+  background: #2a9d8f;
+}
+
+/* ==============================
+   モダールボタン共通
 ============================== */
 .modal-actions button {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  color: #fff;
-  transition: background 0.2s, transform 0.2s;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s, transform 0.2s;
 }
 
 #btnAddRelay,
 #btnAddNgWord {
-  background: #1d3557;
+  background: #1d3557;
 }
 
 #btnSaveRelays,
 #btnSaveNgWords {
-  background: #2a9d8f;
+  background: #2a9d8f;
 }
 
 #btnCloseModal,
 #btnCloseNgModal {
-  background: #e63946;
+  background: #e63946;
 }
 
 /* ==============================
-   NGワード一覧（2列レイアウト）
+   NGワード一覧（2列レイアウト）
 ============================== */
 #ngWordList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px 14px;
-  align-items: start;
-  padding: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#ngWordList .ng-word-item {
+  flex: 1 1 calc(50% - 6px);
+  min-width: 220px;
+}
+
+#btnAddNgWord {
+  background: #1d3557;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ng-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+}
+
+.ng-add-area input {
+  flex: 1;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
 }
 
 .ng-word-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
 .ng-word-item input {
-  flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 0.9rem;
-  color: #333;
+  flex: 1;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.9rem;
+  color: #333;
 }
 
 .ng-word-item button {
-  background: #ff7070;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  cursor: pointer;
-  padding: 2px 6px;
-  font-size: 0.8rem;
+  background: #ff7070;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.8rem;
 }
 
 .ng-word-item button:hover {
-  background: #e24b4b;
+  background: #e24b4b;
 }
 
 /* ==============================
-   フッター
+   NGワードモダール固定レイアウト
+============================== */
+#ngModal .modal-content {
+  width: 80%;
+  max-width: 500px;
+  max-height: 480px; /* モダールの最大高さ固定 */
+  overflow: hidden;  /* 内容のスクロールは中の要素に任せる */
+  display: flex;
+  flex-direction: column;
+}
+
+/* NGワード一覧のみスクロール */
+#ngWordList {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-right: 6px;
+  overflow-y: auto;
+}
+
+/* スクロールバーの見た目を整える（任意） */
+#ngWordList::-webkit-scrollbar {
+  width: 6px;
+}
+#ngWordList::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+/* 下部エリアは固定表示 */
+.ng-add-area {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  border-top: 1px solid #ddd;
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+  flex-shrink: 0;
+}
+
+/* ==============================
+   フッター
 ============================== */
 footer {
-  height: 30px;
-  padding: 16px;
-  text-align: center;
-  background: #81b7d6;
+  height: 30px;
+  padding: 16px;
+  text-align: center;
+  background: #5d98ba;
 }
