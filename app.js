@@ -1,4 +1,9 @@
 /* =========================
+   app.js — 統合版
+   元コード + リファクタ箇所を組み合わせたもの
+   ========================= */
+
+/* =========================
    0. 定数
    ========================= */
 const MAX_POST_LENGTH = 108;
@@ -66,7 +71,7 @@ const validator = {
     }
   },
   normalizeUrl(url) {
-    return url.replace(/\/+$/, "");
+    return String(url || "").replace(/\/+$/, "");
   },
   isContentTooLong(text) {
     return typeof text === "string" && text.length > MAX_POST_LENGTH;
@@ -87,10 +92,10 @@ function createNgWordManager({ jsonPath = NGWORDS_JSON_PATH } = {}) {
       const json = await res.json();
       if (Array.isArray(json)) defaultNg = json.map(String);
       else console.warn("ngwords.json は配列を期待");
+      // DO NOT copy default -> user to avoid duplication
       eventBus.emit("ngwords.loaded", { defaultNg, userNg });
     } catch (e) {
       console.warn("NGワード読み込み失敗:", e);
-      // フォールバック: 空配列（UI は読み込み失敗を表示する）
       defaultNg = [];
       eventBus.emit("ngwords.loadFailed", e);
     }
@@ -141,8 +146,6 @@ function createNgWordManager({ jsonPath = NGWORDS_JSON_PATH } = {}) {
 
 /* =========================
    5. RelayClient / RelayManager
-   - RelayClient: 単一 WebSocket のラッパー。イベントを eventBus に流す。
-   - RelayManager: リスト管理、再接続、全体送信
    ========================= */
 
 function createRelayClient(url) {
@@ -172,7 +175,6 @@ function createRelayClient(url) {
     ws.onmessage = (ev) => {
       try {
         const parsed = JSON.parse(ev.data);
-        // Nostr standard message pattern: ["EVENT", subId, eventObj] etc.
         eventBus.emit("relay.message", { url, data: parsed });
       } catch (e) {
         console.error("relay message parse error", e, ev.data);
@@ -190,7 +192,6 @@ function createRelayClient(url) {
 
   function send(data) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      // Not open, set up send-once-open
       if (ws) {
         ws.addEventListener("open", () => {
           try { ws.send(JSON.stringify(data)); } catch (e) { eventBus.emit("relay.error", { url, error: e }); }
@@ -211,7 +212,6 @@ function createRelayClient(url) {
 
   function isOpen() { return ready && ws && ws.readyState === WebSocket.OPEN; }
 
-  // expose
   return { url, connect, close, send, isOpen: isOpen, raw: () => ws };
 }
 
@@ -221,10 +221,10 @@ function createRelayManager({ initialRelays = DEFAULT_RELAYS } = {}) {
 
   function syncClients() {
     // remove missing
-    for (const [url, client] of clients.entries()) {
-      if (!relayList.find(u => validator.normalizeUrl(u).toLowerCase() === validator.normalizeUrl(url).toLowerCase())) {
+    for (const [keyUrl, client] of clients.entries()) {
+      if (!relayList.find(u => validator.normalizeUrl(u).toLowerCase() === validator.normalizeUrl(keyUrl).toLowerCase())) {
         client.close();
-        clients.delete(url);
+        clients.delete(keyUrl);
       }
     }
     // add new
@@ -278,7 +278,6 @@ function createRelayManager({ initialRelays = DEFAULT_RELAYS } = {}) {
         if (client.isOpen()) {
           if (client.send(data)) sentCount++;
         } else {
-          // ensure send when opens
           client.send(data);
         }
       } catch (e) {
@@ -290,7 +289,6 @@ function createRelayManager({ initialRelays = DEFAULT_RELAYS } = {}) {
 
   function connectAll() {
     for (const client of clients.values()) client.connect();
-    // if none exist, create from relayList
     if (clients.size === 0) syncClients();
   }
 
@@ -308,14 +306,12 @@ function createRelayManager({ initialRelays = DEFAULT_RELAYS } = {}) {
 
 /* =========================
    6. Nostr 高レベルクライアント
-   - NIP-07 が無い場合はエラーを返す（UI に委譲）
    ========================= */
 
 function createNostrClient({ relayManager, ngWordManager } = {}) {
   let subId = null;
   let seenEventIds = new Set();
   let reactedEventIds = new Set();
-  // buffering
   let eventBuffer = [];
   let bufferTimer = null;
 
@@ -327,14 +323,12 @@ function createNostrClient({ relayManager, ngWordManager } = {}) {
     subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
     seenEventIds.clear();
     eventBus.emit("nostr.subscriptionStarted", { subId });
-    // send REQ to all relays
     const filter = {
       kinds: [1],
       limit: NOSTR_REQ_LIMIT,
       since: Math.floor(Date.now() / 1000) - NOSTR_REQ_SINCE_SECONDS_AGO
     };
     const req = ["REQ", subId, filter];
-    // attach to all relays
     relayManager.broadcast(req);
   }
 
@@ -343,7 +337,6 @@ function createNostrClient({ relayManager, ngWordManager } = {}) {
     const [type, rSubId, event] = data;
     if (type !== "EVENT" || !event || rSubId !== subId) return;
 
-    // dedupe & ngword filter
     if (seenEventIds.has(event.id)) return;
     if (ngWordManager && ngWordManager.isInvalid(event.content)) return;
 
@@ -359,7 +352,6 @@ function createNostrClient({ relayManager, ngWordManager } = {}) {
   }
 
   function flushEventBuffer() {
-    // ordered by created_at ascending
     eventBuffer.sort((a, b) => a.created_at - b.created_at);
     for (const e of eventBuffer) eventBus.emit("nostr.event", e);
     eventBuffer = [];
@@ -376,7 +368,6 @@ function createNostrClient({ relayManager, ngWordManager } = {}) {
     const payload = ["EVENT", signedEvent];
     const sent = relayManager.broadcast(payload);
     if (sent === 0) throw new Error("接続中のリレーがありません。");
-    // reflect locally
     if (!seenEventIds.has(signedEvent.id)) {
       seenEventIds.add(signedEvent.id);
       eventBus.emit("nostr.event", signedEvent);
@@ -421,19 +412,16 @@ function createNostrClient({ relayManager, ngWordManager } = {}) {
     return signed;
   }
 
-  // subscribe to relay events
   eventBus.on("relay.message", handleRelayMessage);
 
   return { startSubscription, publishEvent, createAndPublishPost, reactToEvent, seenEventIds, reactedEventIds };
 }
 
 /* =========================
-   7. UI レンダラー（唯一 DOM を操作する責務）
-   - pure DOM 操作はここだけに限定
+   7. UI レンダラー（唯一 DOM を操作）
    ========================= */
 
 function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
-  // cache DOM
   const dom = {
     timeline: document.getElementById("timeline"),
     relayListEl: document.getElementById("relayList"),
@@ -455,11 +443,9 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     btnCloseNgModal: document.getElementById("btnCloseNgModal"),
     ngWordInput: document.getElementById("ngWordInput"),
     ngWordListEl: document.getElementById("ngWordList"),
-    btnCloseModalGeneric: null // placeholder
   };
 
   function showAlert(msg) {
-    // 単純化のため alert を使うが、ここを拡張して非同期通知に差し替え可能
     alert(msg);
   }
 
@@ -470,7 +456,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     document.body.style.overflow = open ? "hidden" : "";
   }
 
-  // escape を UI 側で扱う（表示時のみ）
   function escapeHtml(str) {
     if (typeof str !== "string") return "";
     return str.replace(/[&<>"']/g, s => ({
@@ -479,7 +464,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
   }
 
   function formatContent(text) {
-    // 特別ワードのハイライトは UI レイヤーで制御
     const specialWords = [{ word: "【緊急地震速報】", color: "#dd0000" }];
     let safe = escapeHtml(text);
     for (const { word, color } of specialWords) {
@@ -511,7 +495,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     if (!dom.ngWordListEl) return;
     dom.ngWordListEl.innerHTML = "";
 
-    // default
     const defaults = ngWordManager.getDefaultWords();
     defaults.forEach(word => {
       const row = document.createElement("div");
@@ -523,7 +506,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
       dom.ngWordListEl.appendChild(row);
     });
 
-    // user
     const users = ngWordManager.getUserWords();
     users.forEach((word, idx) => {
       const row = document.createElement("div");
@@ -536,7 +518,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     });
   }
 
-  // timeline 操作
   function renderEvent(event) {
     if (!dom.timeline) return;
     const noteEl = document.createElement("div");
@@ -565,44 +546,35 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
       }
     });
 
-    // insert chronologically (newer at the end). 保持は created_at numeric
     const children = Array.from(dom.timeline.children);
     const insertPos = children.find(el => Number(el.dataset.createdAt) > event.created_at);
     if (insertPos) dom.timeline.insertBefore(noteEl, insertPos);
     else dom.timeline.appendChild(noteEl);
   }
 
-  // clear timeline
   function clearTimeline() {
     if (dom.timeline) dom.timeline.innerHTML = "";
   }
 
-  /* ======================
-     event listeners for UI
-     ====================== */
   function bindEventListeners() {
-    // Publish
     dom.btnPublish?.addEventListener("click", async () => {
       try {
         const content = (dom.composeArea.value || "").trim();
         const signed = await nostrClient.createAndPublishPost(content);
-        // UI feedback: clear compose
         dom.composeArea.value = "";
         dom.charCount.textContent = `0 / ${MAX_POST_LENGTH}`;
         showAlert("投稿しました。");
-        // signed event will be emitted by nostrClient => eventBus will cause rendering
       } catch (err) {
         showAlert(`投稿失敗: ${err.message || err}`);
       }
     });
 
-    // Relay modal open/close
     dom.btnRelayModal?.addEventListener("click", () => {
       toggleModal(dom.relayModal, true);
       renderRelayList();
     });
     dom.btnCloseModal?.addEventListener("click", () => toggleModal(dom.relayModal, false));
-    // Relay add
+
     dom.btnAddRelay?.addEventListener("click", () => {
       try {
         const url = dom.relayInput.value || "";
@@ -613,7 +585,7 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
         showAlert(err.message || err);
       }
     });
-    // Delegate clicks in relay list
+
     dom.relayListEl?.addEventListener("click", (e) => {
       const t = e.target;
       if (t.classList.contains("btn-delete-relay")) {
@@ -623,21 +595,19 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
         } catch (err) { showAlert(err.message || err); }
       }
     });
-    // inline editing of relay URLs
+
     dom.relayListEl?.addEventListener("input", (e) => {
       const t = e.target;
       if (t.classList.contains("relay-input")) {
         const idx = Number(t.dataset.index);
         try {
           relayManager.replaceRelayAt(idx, t.value);
-        } catch (err) {
-          // replaceRelayAt will save and sync; if invalid, leave value but inform user later on save
-        }
+        } catch (err) {}
       }
     });
+
     dom.btnSaveRelays?.addEventListener("click", () => {
       try {
-        // relayManager already persisted on mutate; ensure reconnect
         relayManager.syncClients();
         toggleModal(dom.relayModal, false);
         relayManager.connectAll();
@@ -648,12 +618,12 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
       }
     });
 
-    // NG modal
     dom.btnNgModal?.addEventListener("click", () => {
       toggleModal(dom.ngModal, true);
       renderNgWordList();
     });
     dom.btnCloseNgModal?.addEventListener("click", () => toggleModal(dom.ngModal, false));
+
     dom.btnAddNgWord?.addEventListener("click", () => {
       try {
         ngWordManager.addUserWord(dom.ngWordInput.value || "");
@@ -663,6 +633,7 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
         showAlert(err.message || err);
       }
     });
+
     dom.ngWordListEl?.addEventListener("click", (e) => {
       if (e.target.classList.contains("btn-delete-ng")) {
         try {
@@ -671,28 +642,27 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
         } catch (err) { showAlert(err.message || err); }
       }
     });
+
     dom.ngWordListEl?.addEventListener("input", (e) => {
       if (e.target.classList.contains("ng-input")) {
-        const idx = Number(e.target.dataset.index);
         const inputs = dom.ngWordListEl.querySelectorAll(".ng-input");
         const newWords = Array.from(inputs).map(i => i.value.trim()).filter(v => v);
         ngWordManager.setUserWords(newWords);
         renderNgWordList();
       }
     });
+
     dom.btnSaveNgWords?.addEventListener("click", () => {
       try {
-        ngWordManager.setUserWords(ngWordManager.getUserWords()); // already saved by setUserWords
+        ngWordManager.setUserWords(ngWordManager.getUserWords());
         showAlert("NGワードを保存しました。");
         renderNgWordList();
       } catch (err) { showAlert(err.message || err); }
     });
 
-    // timeline scrolls
     dom.btnScrollLeft?.addEventListener("click", () => dom.timeline?.scrollBy({ left: -300, behavior: "smooth" }));
     dom.btnScrollRight?.addEventListener("click", () => dom.timeline?.scrollBy({ left: 300, behavior: "smooth" }));
 
-    // compose area char count
     dom.composeArea?.addEventListener("input", (e) => {
       const len = (e.target.value || "").length;
       if (dom.charCount) {
@@ -701,7 +671,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
       }
     });
 
-    // ESC close modals
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         toggleModal(dom.relayModal, false);
@@ -709,7 +678,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
       }
     });
 
-    // background click to close
     document.querySelectorAll(".modal").forEach(modal => {
       modal.addEventListener("click", (e) => {
         if (e.target === modal) toggleModal(modal, false);
@@ -717,9 +685,8 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     });
   }
 
-  // eventBus subscriptions to reflect external state changes
   function bindEventBus() {
-    eventBus.on("relayList.updated", ({ relayList }) => renderRelayList());
+    eventBus.on("relayList.updated", ({ relayList } = {}) => renderRelayList());
     eventBus.on("relay.open", () => renderRelayList());
     eventBus.on("relay.close", () => renderRelayList());
     eventBus.on("ngwords.loaded", () => renderNgWordList());
@@ -735,7 +702,6 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     });
   }
 
-  // init
   bindEventListeners();
   bindEventBus();
 
@@ -747,27 +713,19 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
    ========================= */
 
 window.addEventListener("DOMContentLoaded", async () => {
-  // モジュール作成
   const ngWordManager = createNgWordManager({ jsonPath: NGWORDS_JSON_PATH });
   const relayManager = createRelayManager({ initialRelays: DEFAULT_RELAYS });
   const nostrClient = createNostrClient({ relayManager, ngWordManager });
   const ui = createUI({ relayManager, ngWordManager, nostrClient });
 
-  // load NG words (async)
   await ngWordManager.loadDefault();
 
-  // connect relays & start subscription
   relayManager.connectAll();
   nostrClient.startSubscription();
 
-  // when nostr events arrive via eventBus they will be rendered by UI
-  // relay messages are handled by nostrClient internally
-
-  // listen for relay-level events and re-emit for UI
   eventBus.on("relay.open", ({ url } = {}) => eventBus.emit("status.info", { text: `接続: ${url}` }));
   eventBus.on("relay.close", ({ url } = {}) => eventBus.emit("status.info", { text: `切断: ${url}` }));
   eventBus.on("relay.error", ({ url, error } = {}) => console.warn("relay error", url, error));
 
-  // safety: expose debug methods on window for dev use (optionally)
   window.__app_debug = { ngWordManager, relayManager, nostrClient, eventBus, ui };
 });
