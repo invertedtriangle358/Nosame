@@ -160,17 +160,14 @@ async function loadNgWords() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const json = await res.json();
-
     console.log("✅ NGワードJSONを読み込みました:", json);
+
+    // default（編集不可）
     defaultNgWords = json;
 
-    const saved = JSON.parse(localStorage.getItem("userNgWords") || "null");
-    if (!saved || saved.length === 0) {
-      state.userNgWords = [...json];
-      localStorage.setItem("userNgWords", JSON.stringify(state.userNgWords));
-    } else {
-      state.userNgWords = saved;
-    }
+    // user（編集可）はローカルストレージのみ
+    const saved = JSON.parse(localStorage.getItem("userNgWords"));
+    state.userNgWords = Array.isArray(saved) ? saved : [];
 
   } catch (err) {
     console.warn("⚠ NGワードJSONの読み込みに失敗しました:", err);
