@@ -704,6 +704,26 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
   return { renderRelayList, renderNgWordList, renderEvent, clearTimeline, showAlert };
 }
 
+document.addEventListener("keydown", e => {
+    // フォーカスが textarea 以外のときは無視
+    if (document.activeElement !== dom.compose) return;
+
+    // --- Shift + Enter → 改行（デフォルト動作維持） ---
+    if (e.key === "Enter" && e.shiftKey) {
+        return; // 何もしない（ブラウザが改行を入れる）
+    }
+
+    // --- Ctrl + Enter → 投稿 ---
+    if (e.key === "Enter" && e.ctrlKey) {
+        e.preventDefault();
+
+        const text = dom.compose.value.trim();
+        if (!text) return; // 空投稿は禁止
+
+        dom.btnPublish.click(); // ← 既存の投稿処理を呼ぶ
+    }
+});
+
 /* =========================
    8. 初期化・起動
    ========================= */
