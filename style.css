@@ -173,7 +173,7 @@ main {
 .vertical-timeline {
     flex: 1;
     display: flex;
-    flex-direction: row-reverse;
+    flex-direction: row;
     gap: 7px;
     overflow-x: auto;
     padding: 7px;
