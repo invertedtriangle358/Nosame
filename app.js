@@ -552,18 +552,32 @@ function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
     if (dom.timeline) dom.timeline.innerHTML = "";
   }
 
-  function bindEventListeners() {
-    dom.btnPublish?.addEventListener("click", async () => {
-      try {
-        const content = (dom.composeArea.value || "").trim();
-        const signed = await nostrClient.createAndPublishPost(content);
-        dom.composeArea.value = "";
-        dom.charCount.textContent = `0 / ${MAX_POST_LENGTH}`;
-        showAlert("投稿しました。");
-      } catch (err) {
-        showAlert(`投稿失敗: ${err.message || err}`);
-      }
-    });
+function bindEventListeners() {
+  // 投稿ボタン
+  dom.btnPublish?.addEventListener("click", async () => {
+    try {
+      const content = (dom.composeArea.value || "").trim();
+      const signed = await nostrClient.createAndPublishPost(content);
+      dom.composeArea.value = "";
+      dom.charCount.textContent = `0 / ${MAX_POST_LENGTH}`;
+      showAlert("投稿しました。");
+    } catch (err) {
+      showAlert(`投稿失敗: ${err.message || err}`);
+    }
+  });
+
+  // Ctrl + Enter で投稿（← ここが "外"）
+  dom.composeArea?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.shiftKey) return;
+
+    if (e.key === "Enter" && e.ctrlKey) {
+      e.preventDefault();
+      const text = dom.composeArea.value.trim();
+      if (!text) return;
+      dom.btnPublish.click();
+    }
+  });
+}
 
     dom.btnRelayModal?.addEventListener("click", () => {
       toggleModal(dom.relayModal, true);
