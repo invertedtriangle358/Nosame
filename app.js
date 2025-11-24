@@ -1,4 +1,6 @@
-
+/* =========================
+   0. 定数 & ユーティリティ
+   ========================= */
 const CONFIG = {
   MAX_POST_LENGTH: 108,
   EVENT_BUFFER_FLUSH_TIME_MS: 200,
@@ -14,16 +16,15 @@ const CONFIG = {
   NIP07_WAIT_LIMIT: 10, // 200ms * 10 = 2秒待機
 };
 
-/* =========================
-   0. utils & validator
-   ========================= */
 const utils = {
+  // HTMLエスケープ
   escapeHtml(str) {
     if (typeof str !== "string") return "";
     return str.replace(/[&<>"']/g, s => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[s]));
   },
+  // 関数呼び出しの間引き
   debounce(func, wait) {
     let timeout;
     return function(...args) {
@@ -31,62 +32,45 @@ const utils = {
       timeout = setTimeout(() => func.apply(this, args), wait);
     };
   },
+  // スリープ
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   },
+  // NIP-07拡張機能の注入待ち
   async waitForNostr() {
     if (window.nostr) return window.nostr;
     for (let i = 0; i < CONFIG.NIP07_WAIT_LIMIT; i++) {
       await utils.sleep(200);
       if (window.nostr) return window.nostr;
     }
-    throw new Error("NIP-07 対応の拡張機能が見つかりません。");
-  }
-};
-
-const validator = {
-  isValidRelayUrl(url) {
-    try {
-      const u = new URL(url);
-      return (u.protocol === "wss:" || u.protocol === "ws:") && !!u.hostname;
-    } catch {
-      return false;
-    }
-  },
-  normalizeUrl(url) {
-    return String(url || "").trim().replace(/\/+$/, "");
-  },
-  isContentTooLong(text) {
-    return typeof text === "string" && text.length > CONFIG.MAX_POST_LENGTH;
+    throw new Error("NIP-07 対応の拡張機能（Nos2x等）が見つかりません。");
   }
 };
 
 /* =========================
-   1. eventBus (limited)
-   - channels: "comm.*" for relay/nostr messages
-   - "store.updated" for store change notifications
+   1. シンプル Pub/Sub (イベントバス)
    ========================= */
 const eventBus = (() => {
   const handlers = new Map();
   return {
-    on(topic, fn) {
-      if (!handlers.has(topic)) handlers.set(topic, []);
-      handlers.get(topic).push(fn);
+    on(event, fn) {
+      if (!handlers.has(event)) handlers.set(event, []);
+      handlers.get(event).push(fn);
       return () => {
-        const list = handlers.get(topic);
-        if (list) handlers.set(topic, list.filter(h => h !== fn));
+        const list = handlers.get(event);
+        if (list) handlers.set(event, list.filter(h => h !== fn));
       };
     },
-    emit(topic, payload) {
-      (handlers.get(topic) || []).slice().forEach(fn => {
-        try { fn(payload); } catch (e) { console.error(`EventBus error [${topic}]:`, e); }
+    emit(event, payload) {
+      (handlers.get(event) || []).slice().forEach(fn => {
+        try { fn(payload); } catch (e) { console.error(`EventBus error [${event}]:`, e); }
       });
     }
   };
 })();
 
 /* =========================
-   2. storage thin wrapper
+   2. storage 抽象化
    ========================= */
 const storage = {
   getJson(key, fallback) {
@@ -107,244 +91,171 @@ const storage = {
 };
 
 /* =========================
-   3. Lightweight Store
-   - holds 4 slices and exposes subscribe/get/set
-   - setState merges shallowly for each slice
+   3. Validator
    ========================= */
-function createStore(initial = {}) {
-  const state = {
-    timelineEvents: initial.timelineEvents || [],
-    relays: initial.relays || CONFIG.DEFAULT_RELAYS.slice(),
-    ngWords: initial.ngWords || { default: [], user: [] },
-    reactedIds: initial.reactedIds || new Set()
-  };
-  // subscribers per key
-  const subs = new Map();
-
-  function getState(key) {
-    if (!key) return {
-      timelineEvents: [...state.timelineEvents],
-      relays: [...state.relays],
-      ngWords: { default: [...state.ngWords.default], user: [...state.ngWords.user] },
-      reactedIds: new Set(state.reactedIds)
-    };
-    if (key === "reactedIds") return new Set(state.reactedIds);
-    if (key === "ngWords") return { default: [...state.ngWords.default], user: [...state.ngWords.user] };
-    return Array.isArray(state[key]) ? [...state[key]] : state[key];
-  }
-
-  function subscribe(key, fn) {
-    if (!subs.has(key)) subs.set(key, []);
-    subs.get(key).push(fn);
-    return () => {
-      const list = subs.get(key);
-      if (list) subs.set(key, list.filter(f => f !== fn));
-    };
-  }
-
-  function notify(key, value) {
-    eventBus.emit("store.updated", { key, value });
-    (subs.get(key) || []).slice().forEach(f => {
-      try { f(value); } catch (e) { console.error("store subscriber error", e); }
-    });
-  }
-
-  function setState(key, value) {
-    switch (key) {
-      case "timelineEvents":
-        // value expected to be array; replace
-        state.timelineEvents = Array.isArray(value) ? value.slice() : [];
-        notify(key, getState(key));
-        break;
-      case "relays":
-        state.relays = Array.isArray(value) ? value.map(validator.normalizeUrl) : [];
-        storage.setJson("relays", state.relays);
-        notify(key, getState(key));
-        break;
-      case "ngWords":
-        // { default: [], user: [] }
-        state.ngWords = {
-          default: Array.isArray(value.default) ? value.default.map(String) : [],
-          user: Array.isArray(value.user) ? value.user.map(String) : []
-        };
-        storage.setJson("userNgWords", state.ngWords.user);
-        notify(key, getState(key));
-        break;
-      case "reactedIds":
-        state.reactedIds = new Set(value instanceof Set ? value : Array.from(value || []));
-        // store reactedIds in localStorage as array (optional)
-        storage.setJson("reactedIds", Array.from(state.reactedIds));
-        notify(key, getState(key));
-        break;
-      default:
-        console.warn("Unknown store key:", key);
+const validator = {
+  isValidRelayUrl(url) {
+    try {
+      const u = new URL(url);
+      return (u.protocol === "wss:" || u.protocol === "ws:") && !!u.hostname;
+    } catch {
+      return false;
     }
+  },
+  normalizeUrl(url) {
+    return String(url || "").replace(/\/+$/, "");
+  },
+  isContentTooLong(text) {
+    return typeof text === "string" && text.length > CONFIG.MAX_POST_LENGTH;
   }
-
-  return { getState, setState, subscribe };
-}
+};
 
 /* =========================
-   4. NG Word Manager (uses store)
+   4. NGワード管理
    ========================= */
-function createNgWordManager({ store, jsonPath = CONFIG.NGWORDS_JSON_PATH } = {}) {
+function createNgWordManager({ jsonPath = CONFIG.NGWORDS_JSON_PATH } = {}) {
+  let defaultNg = [];
+  let userNg = storage.getJson("userNgWords", []);
+
   async function loadDefault() {
     try {
       const res = await fetch(`${jsonPath}?_=${Date.now()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (Array.isArray(json)) {
-        const defaultNg = json.map(String);
-        const user = storage.getJson("userNgWords", []);
-        store.setState("ngWords", { default: defaultNg, user });
-        eventBus.emit("comm.ngwords.loaded", { defaultNg, userNg: user });
-      }
+      if (Array.isArray(json)) defaultNg = json.map(String);
+      eventBus.emit("ngwords.loaded", { defaultNg, userNg });
     } catch (e) {
       console.warn("NGワード読み込み失敗:", e);
-      const defaultNg = [];
-      const user = storage.getJson("userNgWords", []);
-      store.setState("ngWords", { default: defaultNg, user });
-      eventBus.emit("comm.ngwords.loadFailed", e);
+      defaultNg = [];
+      eventBus.emit("ngwords.loadFailed", e);
     }
   }
 
-  function getAllLower() {
-    const s = store.getState("ngWords");
-    const merged = [...(s.default || []), ...(s.user || [])].map(String).map(w => w.toLowerCase());
-    return new Set(merged.filter(Boolean));
+  function getAll() {
+    const set = new Set([...defaultNg, ...userNg].map(w => String(w).toLowerCase()));
+    return Array.from(set);
   }
 
   function isInvalid(text) {
     if (!text) return false;
     if (validator.isContentTooLong(text)) return true;
     const lower = String(text).toLowerCase();
-    for (const ng of getAllLower()) {
-      if (ng && lower.includes(ng)) return true;
-    }
-    return false;
+    // 空文字チェックを除外して判定
+    return getAll().some(ng => ng && lower.includes(ng));
   }
 
   function addUserWord(word) {
     const trimmed = String(word || "").trim().toLowerCase();
     if (!trimmed) throw new Error("空のNGワードは登録できません。");
-    const s = store.getState("ngWords");
-    const existing = new Set([...(s.default || []), ...(s.user || [])].map(String).map(w => w.toLowerCase()));
-    if (existing.has(trimmed)) throw new Error("既に存在するNGワードです。");
-    const newUser = [...s.user, trimmed];
-    store.setState("ngWords", { default: s.default, user: newUser });
+    if (getAll().includes(trimmed)) throw new Error("既に存在するNGワードです。");
+    
+    userNg.push(trimmed);
+    storage.setJson("userNgWords", userNg);
+    eventBus.emit("ngwords.updated", { userNg });
     return trimmed;
   }
 
   function removeUserWord(index) {
-    const s = store.getState("ngWords");
-    if (index < 0 || index >= s.user.length) return;
-    const newUser = s.user.slice();
-    newUser.splice(index, 1);
-    store.setState("ngWords", { default: s.default, user: newUser });
+    if (index < 0 || index >= userNg.length) return;
+    userNg.splice(index, 1);
+    storage.setJson("userNgWords", userNg);
+    eventBus.emit("ngwords.updated", { userNg });
   }
 
   function setUserWords(list) {
-    const s = store.getState("ngWords");
-    const newUser = Array.isArray(list) ? list.map(String) : [];
-    store.setState("ngWords", { default: s.default, user: newUser });
+    userNg = Array.isArray(list) ? list.map(String) : [];
+    // 保存処理はここで行う（UI側でDebounceして呼び出すことを想定）
+    storage.setJson("userNgWords", userNg);
+    eventBus.emit("ngwords.updated", { userNg });
   }
 
-  return { loadDefault, isInvalid, addUserWord, removeUserWord, setUserWords };
+  return { 
+    loadDefault, isInvalid, addUserWord, removeUserWord, 
+    setUserWords, getUserWords: () => [...userNg], getDefaultWords: () => [...defaultNg] 
+  };
 }
 
 /* =========================
-   5. RelayManager (normalized storage + clients)
-   - keeps normalized relayList in store
-   - maps normalized URL -> client
-   - emits comm.relay.* events via eventBus
+   5. RelayClient / RelayManager
    ========================= */
-function createRelayManager({ store } = {}) {
-  // local clients map uses normalized url as key
-  const clients = new Map();
+function createRelayClient(url) {
+  let ws = null;
+  let ready = false;
 
-  // initialize store relays from storage if exists
-  const stored = storage.getJson("relays", CONFIG.DEFAULT_RELAYS.slice());
-  store.setState("relays", stored.map(validator.normalizeUrl));
+  function connect() {
+    if (ws) ws.close();
+    try {
+      ws = new WebSocket(url);
+    } catch (e) {
+      eventBus.emit("relay.error", { url, error: e });
+      return;
+    }
 
-  function createClient(url) {
-    let ws = null;
-    let ready = false;
-
-    function connect() {
-      if (ws) ws.close();
+    ws.onopen = () => {
+      ready = true;
+      eventBus.emit("relay.open", { url });
+    };
+    ws.onclose = () => {
+      ready = false;
+      eventBus.emit("relay.close", { url });
+    };
+    ws.onerror = (err) => {
+      eventBus.emit("relay.error", { url, error: err });
+    };
+    ws.onmessage = (ev) => {
       try {
-        ws = new WebSocket(url);
+        const parsed = JSON.parse(ev.data);
+        eventBus.emit("relay.message", { url, data: parsed });
       } catch (e) {
-        eventBus.emit("comm.relay.error", { url, error: e });
-        return;
+        console.error("Relay message parse error", e);
       }
-      ws.onopen = () => {
-        ready = true;
-        eventBus.emit("comm.relay.open", { url });
-      };
-      ws.onclose = () => {
-        ready = false;
-        eventBus.emit("comm.relay.close", { url });
-      };
-      ws.onerror = (err) => {
-        eventBus.emit("comm.relay.error", { url, error: err });
-      };
-      ws.onmessage = (ev) => {
-        try {
-          const parsed = JSON.parse(ev.data);
-          // publish communication event
-          eventBus.emit("comm.relay.message", { url, data: parsed });
-        } catch (e) {
-          console.error("Relay message parse error", e);
-        }
-      };
-    }
-
-    function close() {
-      if (ws) {
-        ws.close();
-        ws = null;
-        ready = false;
-      }
-    }
-
-    function send(data) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-      try {
-        ws.send(JSON.stringify(data));
-        return true;
-      } catch (e) {
-        eventBus.emit("comm.relay.error", { url, error: e });
-        return false;
-      }
-    }
-
-    function isOpen() {
-      return ready && ws?.readyState === WebSocket.OPEN;
-    }
-
-    return { connect, close, send, isOpen, url };
+    };
   }
 
+  function close() {
+    if (ws) {
+      ws.close();
+      ws = null;
+      ready = false;
+    }
+  }
+
+  function send(data) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    try {
+      ws.send(JSON.stringify(data));
+      return true;
+    } catch (e) {
+      eventBus.emit("relay.error", { url, error: e });
+      return false;
+    }
+  }
+
+  return { url, connect, close, send, isOpen: () => ready && ws?.readyState === WebSocket.OPEN };
+}
+
+function createRelayManager({ initialRelays = CONFIG.DEFAULT_RELAYS } = {}) {
+  let relayList = storage.getJson("relays", initialRelays.slice());
+  let clients = new Map();
+
   function syncClients() {
-    const relayList = store.getState("relays");
-    // close removed
-    for (const [key, client] of clients.entries()) {
-      if (!relayList.includes(key)) {
+    // 削除されたリレーを切断
+    for (const [keyUrl, client] of clients.entries()) {
+      if (!relayList.some(u => validator.normalizeUrl(u) === keyUrl)) {
         client.close();
-        clients.delete(key);
+        clients.delete(keyUrl);
       }
     }
-    // add new
+    // 新しいリレーを接続
     relayList.forEach(url => {
       const normalized = validator.normalizeUrl(url);
       if (!clients.has(normalized)) {
-        const client = createClient(normalized);
+        const client = createRelayClient(url);
         clients.set(normalized, client);
         client.connect();
       }
     });
-    // notify UI via store (already stored)
+    eventBus.emit("relayList.updated", { relayList: [...relayList] });
   }
 
   function addRelay(url) {
@@ -353,29 +264,28 @@ function createRelayManager({ store } = {}) {
       throw new Error("有効な wss:// URLを入力してください。");
     }
     const normalized = validator.normalizeUrl(trimmed);
-    const current = store.getState("relays");
-    if (current.includes(normalized)) throw new Error("既に登録済みです。");
-    store.setState("relays", [...current, normalized]);
+    if (relayList.some(u => validator.normalizeUrl(u) === normalized)) {
+      throw new Error("既に登録済みです。");
+    }
+    relayList.push(trimmed);
+    storage.setJson("relays", relayList);
     syncClients();
   }
 
   function removeRelayAt(index) {
-    const current = store.getState("relays");
-    if (index >= 0 && index < current.length) {
-      const next = current.slice();
-      next.splice(index, 1);
-      store.setState("relays", next);
+    if (index >= 0 && index < relayList.length) {
+      relayList.splice(index, 1);
+      storage.setJson("relays", relayList);
       syncClients();
     }
   }
 
   function replaceRelayAt(index, newUrl) {
-    const current = store.getState("relays");
-    if (index >= 0 && index < current.length) {
-      const next = current.slice();
-      next[index] = validator.normalizeUrl(String(newUrl).trim());
-      store.setState("relays", next);
-      // don't force reconnect here; call syncClients when saving
+    if (index >= 0 && index < relayList.length) {
+      relayList[index] = String(newUrl).trim();
+      storage.setJson("relays", relayList);
+      // ここでは syncClients せず、保存ボタン押下時に同期するのが一般的だが、
+      // 元コードの挙動に従いリスト更新のみ行う（再接続は SaveRelays で）
     }
   }
 
@@ -388,35 +298,34 @@ function createRelayManager({ store } = {}) {
   }
 
   function connectAll() {
-    if (clients.size === 0) syncClients();
     for (const client of clients.values()) client.connect();
+    if (clients.size === 0) syncClients();
   }
 
-  // subscribe to store changes to keep clients in sync automatically
-  store.subscribe("relays", () => syncClients());
+  syncClients(); // init
 
-  // initial sync
-  syncClients();
-
-  return { addRelay, removeRelayAt, replaceRelayAt, broadcast, connectAll, getRelayList: () => store.getState("relays"), getStatus: (url) => clients.get(validator.normalizeUrl(url))?.isOpen() ?? false, syncClients };
+  return { 
+    addRelay, removeRelayAt, replaceRelayAt, broadcast, 
+    connectAll, getRelayList: () => [...relayList], 
+    getStatus: (url) => clients.get(validator.normalizeUrl(url))?.isOpen() ?? false,
+    syncClients
+  };
 }
 
 /* =========================
-   6. NostrSubscription & NostrPublisher
-   - Subscription: manages subId, dedupe, buffer, pushes to store.timelineEvents
-   - Publisher: signs & broadcasts, ensures local display & reactedIds management
+   6. Nostr クライアント
    ========================= */
-function createNostrSubscription({ relayManager, store, ngWordManager } = {}) {
+function createNostrClient({ relayManager, ngWordManager } = {}) {
   let subId = null;
   const seenEventIds = new Set();
+  const reactedEventIds = new Set();
   let eventBuffer = [];
   let bufferTimer = null;
 
   function startSubscription() {
     subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
     seenEventIds.clear();
-    store.setState("timelineEvents", []); // reset timeline
-    eventBus.emit("comm.nostr.subscriptionStarted", { subId });
+    eventBus.emit("nostr.subscriptionStarted", { subId });
 
     const filter = {
       kinds: [1],
@@ -430,10 +339,12 @@ function createNostrSubscription({ relayManager, store, ngWordManager } = {}) {
     if (!Array.isArray(data) || data[0] !== "EVENT" || data[1] !== subId) return;
     const event = data[2];
     if (!event || seenEventIds.has(event.id)) return;
+    
     if (ngWordManager && ngWordManager.isInvalid(event.content)) return;
 
     seenEventIds.add(event.id);
     eventBuffer.push(event);
+    
     if (!bufferTimer) {
       bufferTimer = setTimeout(flushEventBuffer, CONFIG.EVENT_BUFFER_FLUSH_TIME_MS);
     }
@@ -441,30 +352,21 @@ function createNostrSubscription({ relayManager, store, ngWordManager } = {}) {
 
   function flushEventBuffer() {
     eventBuffer.sort((a, b) => a.created_at - b.created_at);
-    const current = store.getState("timelineEvents");
-    store.setState("timelineEvents", current.concat(eventBuffer));
+    eventBuffer.forEach(e => eventBus.emit("nostr.event", e));
     eventBuffer = [];
     bufferTimer = null;
   }
 
-  // listen to relay messages (via eventBus)
-  const unsub = eventBus.on("comm.relay.message", handleRelayMessage);
-
-  return { startSubscription, dispose: () => unsub() };
-}
-
-function createNostrPublisher({ relayManager, store } = {}) {
-  const reactedEventIds = store.getState("reactedIds"); // Set
-
   async function publishEvent(rawEvent) {
     const nostr = await utils.waitForNostr();
     const signed = await nostr.signEvent(rawEvent);
+    
     if (!signed.id) throw new Error("署名に失敗しました");
-
-    // add to timeline immediately if not seen
-    const timeline = store.getState("timelineEvents");
-    if (!timeline.some(e => e.id === signed.id)) {
-      store.setState("timelineEvents", timeline.concat([signed]));
+    
+    // 自分の投稿は即座に表示済みにする
+    if (!seenEventIds.has(signed.id)) {
+      seenEventIds.add(signed.id);
+      eventBus.emit("nostr.event", signed);
     }
 
     const sentCount = relayManager.broadcast(["EVENT", signed]);
@@ -472,13 +374,13 @@ function createNostrPublisher({ relayManager, store } = {}) {
     return sentCount;
   }
 
-  async function createAndPublishPost(content, ngWordManager) {
+  async function createAndPublishPost(content) {
     if (!content || !String(content).trim()) throw new Error("本文を入力してください。");
     if (ngWordManager && ngWordManager.isInvalid(content)) throw new Error("NGワードが含まれているか、文字数が超過しています。");
 
     const nostr = await utils.waitForNostr();
     const pubkey = await nostr.getPublicKey();
-
+    
     const event = {
       kind: 1,
       content,
@@ -490,9 +392,8 @@ function createNostrPublisher({ relayManager, store } = {}) {
   }
 
   async function reactToEvent(targetEvent) {
-    const reacted = store.getState("reactedIds");
-    if (reacted.has(targetEvent.id)) throw new Error("既にリアクション済みです。");
-
+    if (reactedEventIds.has(targetEvent.id)) throw new Error("既にリアクション済みです。");
+    
     const nostr = await utils.waitForNostr();
     const pubkey = await nostr.getPublicKey();
 
@@ -503,22 +404,21 @@ function createNostrPublisher({ relayManager, store } = {}) {
       tags: [["e", targetEvent.id], ["p", targetEvent.pubkey]],
       pubkey
     };
-
+    
     await publishEvent(event);
-    reacted.add(targetEvent.id);
-    store.setState("reactedIds", reacted);
-    eventBus.emit("comm.nostr.reacted", { eventId: targetEvent.id });
+    reactedEventIds.add(targetEvent.id);
+    eventBus.emit("nostr.reacted", { eventId: targetEvent.id });
   }
 
-  return { createAndPublishPost, reactToEvent };
+  eventBus.on("relay.message", handleRelayMessage);
+
+  return { startSubscription, createAndPublishPost, reactToEvent, reactedEventIds };
 }
 
 /* =========================
-   7. UIRenderer
-   - Purely converts store state -> DOM
-   - Subscribes to store slices
+   7. UI レンダラー
    ========================= */
-function createUIRenderer({ store, nostrPublisher } = {}) {
+function createUI({ relayManager, ngWordManager, nostrClient } = {}) {
   const dom = {
     timeline: document.getElementById("timeline"),
     relayListEl: document.getElementById("relayList"),
@@ -531,7 +431,8 @@ function createUIRenderer({ store, nostrPublisher } = {}) {
     btnAddRelay: document.getElementById("btnAddRelay"),
     btnSaveRelays: document.getElementById("btnSaveRelays"),
     relayInput: document.getElementById("relayInput"),
-
+    
+    // NG Words
     btnNgModal: document.getElementById("btnNgModal"),
     ngModal: document.getElementById("ngModal"),
     btnAddNgWord: document.getElementById("btnAddNgWord"),
@@ -539,9 +440,10 @@ function createUIRenderer({ store, nostrPublisher } = {}) {
     btnCloseNgModal: document.getElementById("btnCloseNgModal"),
     ngWordInput: document.getElementById("ngWordInput"),
     ngWordListEl: document.getElementById("ngWordList"),
-
+    
+    // Scroll
     btnScrollLeft: document.getElementById("scrollLeft"),
-    btnScrollRight: document.getElementById("scrollRight")
+    btnScrollRight: document.getElementById("scrollRight"),
   };
 
   function toggleModal(modalEl, open) {
@@ -560,52 +462,14 @@ function createUIRenderer({ store, nostrPublisher } = {}) {
     return safe;
   }
 
-  function renderTimeline(events) {
-    if (!dom.timeline) return;
-    // replace naive approach: create fragment and append (keeps DOM stable)
-    dom.timeline.innerHTML = "";
-    const frag = document.createDocumentFragment();
-    events.forEach(event => {
-      const noteEl = document.createElement("div");
-      noteEl.className = "note";
-      noteEl.dataset.createdAt = event.created_at;
-      const isReacted = store.getState("reactedIds").has(event.id);
-      noteEl.innerHTML = `
-        <div class="content">${formatContent(event.content)}</div>
-        <div class="meta">
-          <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
-          <span class="author">${utils.escapeHtml((event.pubkey || "").slice(0, 8))}...</span>
-        </div>
-        <button class="btn-reaction" data-id="${utils.escapeHtml(event.id)}" ${isReacted ? "disabled" : ""}>
-          ${isReacted ? "❤️" : "♡"}
-        </button>
-      `;
-      // attach handler via delegation later; but keep simple: attach here
-      const btn = noteEl.querySelector(".btn-reaction");
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        try {
-          await nostrPublisher.reactToEvent(event);
-          btn.textContent = "❤️";
-        } catch (err) {
-          btn.disabled = false;
-          alert(`失敗: ${err.message}`);
-        }
-      });
-      frag.appendChild(noteEl);
-    });
-    dom.timeline.appendChild(frag);
-  }
-
-  function renderRelayList(relays) {
+  // --- Renders ---
+  function renderRelayList() {
     if (!dom.relayListEl) return;
     dom.relayListEl.innerHTML = "";
-    relays.forEach((url, idx) => {
+    relayManager.getRelayList().forEach((url, idx) => {
       const row = document.createElement("div");
       row.className = "relay-row";
-      const status = (function() {
-        try { return relayStatusIndicator(url); } catch { return "🔴"; }
-      })();
+      const status = relayManager.getStatus(url) ? "🟢" : "🔴";
       row.innerHTML = `
         <span class="relay-status">${status}</span>
         <input data-index="${idx}" class="relay-input" type="text" value="${utils.escapeHtml(url)}">
@@ -615,21 +479,18 @@ function createUIRenderer({ store, nostrPublisher } = {}) {
     });
   }
 
-  // relayStatusIndicator uses eventBus query function - simple default (can be overridden)
-  let relayStatusIndicator = (url) => "🔴"; // placeholder, will be set by UIActions during init
-
-  function renderNgWordList(ngWords) {
+  function renderNgWordList() {
     if (!dom.ngWordListEl) return;
     dom.ngWordListEl.innerHTML = "";
 
-    (ngWords.default || []).forEach(word => {
+    ngWordManager.getDefaultWords().forEach(word => {
       const row = document.createElement("div");
       row.className = "ng-word-item ng-default";
       row.innerHTML = `<input type="text" value="${utils.escapeHtml(word)}" disabled><button disabled>✖</button>`;
       dom.ngWordListEl.appendChild(row);
     });
 
-    (ngWords.user || []).forEach((word, idx) => {
+    ngWordManager.getUserWords().forEach((word, idx) => {
       const row = document.createElement("div");
       row.className = "ng-word-item";
       row.innerHTML = `
@@ -640,193 +501,172 @@ function createUIRenderer({ store, nostrPublisher } = {}) {
     });
   }
 
-  // subscribe store slices
-  store.subscribe("timelineEvents", (v) => renderTimeline(v));
-  store.subscribe("relays", (v) => renderRelayList(v));
-  store.subscribe("ngWords", (v) => renderNgWordList(v));
-  store.subscribe("reactedIds", () => {
-    // re-render timeline to reflect reaction changes (simple approach)
-    renderTimeline(store.getState("timelineEvents"));
-  });
+  function renderEvent(event) {
+    if (!dom.timeline) return;
+    const noteEl = document.createElement("div");
+    noteEl.className = "note";
+    noteEl.dataset.createdAt = event.created_at;
+    const isReacted = nostrClient.reactedEventIds.has(event.id);
+    
+    noteEl.innerHTML = `
+      <div class="content">${formatContent(event.content)}</div>
+      <div class="meta">
+        <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
+        <span class="author">${utils.escapeHtml((event.pubkey || "").slice(0, 8))}...</span>
+      </div>
+      <button class="btn-reaction" data-id="${utils.escapeHtml(event.id)}" ${isReacted ? "disabled" : ""}>
+        ${isReacted ? "❤️" : "♡"}
+      </button>
+    `;
 
-  // expose helpers for UIActions
-  return {
-    toggleModal,
-    dom,
-    setRelayStatusFunc(fn) { relayStatusIndicator = fn; }
-  };
-}
-
-/* =========================
-   8. UIActions
-   - wire DOM events to app operations (no direct DOM rendering logic)
-   - uses store, relayManager, ngWordManager, nostrPublisher
-   ========================= */
-function createUIActions({ store, relayManager, ngWordManager, nostrPublisher, uiRenderer } = {}) {
-  const { dom, toggleModal, setRelayStatusFunc } = uiRenderer;
-  // set relay status indicator to query relayManager
-  setRelayStatusFunc((url) => (relayManager.getStatus(url) ? "🟢" : "🔴"));
-
-  // helper: ensure DOM elements exist before binding
-  function bind() {
-    // Publish button
-    dom.btnPublish?.addEventListener("click", async () => {
-      const content = dom.composeArea?.value?.trim();
-      if (!content) return;
+    // Event Delegation ではなく個別にアタッチ (シンプルさ優先)
+    const btn = noteEl.querySelector(".btn-reaction");
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
       try {
-        await nostrPublisher.createAndPublishPost(content, ngWordManager);
-        if (dom.composeArea) dom.composeArea.value = "";
-        if (dom.charCount) dom.charCount.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-      } catch (e) { alert(e.message); }
+        await nostrClient.reactToEvent(event);
+        btn.textContent = "❤️";
+      } catch (err) {
+        btn.disabled = false;
+        alert(`失敗: ${err.message}`);
+      }
     });
 
-    // char count
+    // タイムラインへの挿入位置決定（時系列順）
+    const children = Array.from(dom.timeline.children);
+    const insertPos = children.find(el => Number(el.dataset.createdAt) > event.created_at);
+    if (insertPos) dom.timeline.insertBefore(noteEl, insertPos);
+    else dom.timeline.appendChild(noteEl);
+  }
+
+  // --- Listeners ---
+  function bindEventListeners() {
+    // 投稿
+    dom.btnPublish?.addEventListener("click", async () => {
+        const content = dom.composeArea.value.trim();
+        if(!content) return;
+        try {
+            await nostrClient.createAndPublishPost(content);
+            dom.composeArea.value = "";
+            dom.charCount.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+        } catch (e) { alert(e.message); }
+    });
+
+    // 文字数カウント
     dom.composeArea?.addEventListener("input", (e) => {
-      const len = e.target.value.length;
-      if (dom.charCount) {
-        dom.charCount.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-        dom.charCount.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
-      }
+        const len = e.target.value.length;
+        if(dom.charCount) {
+            dom.charCount.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
+            dom.charCount.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
+        }
     });
 
-    // Ctrl/Cmd+Enter to publish (when compose focused)
+    // グローバルキーボードショートカット (Ctrl+Enterで投稿)
+    // ★ 修正点: 元コードでグローバルにあったものをここへ移動し、domを参照可能に
     document.addEventListener("keydown", (e) => {
-      if (document.activeElement !== dom.composeArea) return;
-      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        dom.btnPublish?.click();
-      }
+        if (document.activeElement !== dom.composeArea) return;
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            dom.btnPublish.click();
+        }
     });
 
-    // Relay modal
-    dom.btnRelayModal?.addEventListener("click", () => { uiRenderer.dom.relayListEl && uiRenderer.dom.relayListEl.scrollTop; uiRenderer.dom.relayListEl; toggleModal(dom.relayModal, true); });
+    // Modal Toggles
+    dom.btnRelayModal?.addEventListener("click", () => { renderRelayList(); toggleModal(dom.relayModal, true); });
     dom.btnCloseModal?.addEventListener("click", () => toggleModal(dom.relayModal, false));
-
-    // NG modal
-    dom.btnNgModal?.addEventListener("click", () => toggleModal(dom.ngModal, true));
+    dom.btnNgModal?.addEventListener("click", () => { renderNgWordList(); toggleModal(dom.ngModal, true); });
     dom.btnCloseNgModal?.addEventListener("click", () => toggleModal(dom.ngModal, false));
 
-    // Add Relay
+    // Relay Actions
     dom.btnAddRelay?.addEventListener("click", () => {
-      try {
-        if (!dom.relayInput) return;
-        relayManager.addRelay(dom.relayInput.value);
-        dom.relayInput.value = "";
-      } catch (e) { alert(e.message); }
+        try { relayManager.addRelay(dom.relayInput.value); dom.relayInput.value = ""; renderRelayList(); } 
+        catch (e) { alert(e.message); }
     });
-
-    // Relay list actions (delegation)
     dom.relayListEl?.addEventListener("click", (e) => {
-      const t = e.target;
-      if (t.matches(".btn-delete-relay")) {
-        relayManager.removeRelayAt(Number(t.dataset.index));
-      }
+        if (e.target.matches(".btn-delete-relay")) {
+            relayManager.removeRelayAt(Number(e.target.dataset.index));
+            renderRelayList();
+        }
     });
-
-    // Relay input edit (local replace)
+    // Relay Input Input (Debounceせず保存もしない、値の更新のみ)
     dom.relayListEl?.addEventListener("input", (e) => {
-      const t = e.target;
-      if (t.matches(".relay-input")) {
-        relayManager.replaceRelayAt(Number(t.dataset.index), t.value);
-      }
+        if (e.target.matches(".relay-input")) {
+             relayManager.replaceRelayAt(Number(e.target.dataset.index), e.target.value);
+        }
     });
-
-    // Save relays: sync clients & start subscription
     dom.btnSaveRelays?.addEventListener("click", () => {
-      relayManager.syncClients();
-      toggleModal(dom.relayModal, false);
-      relayManager.connectAll();
-      // start subscription via comm event so components react
-      eventBus.emit("comm.action.startSubscription");
-      alert("リレー設定を更新しました");
+        relayManager.syncClients();
+        toggleModal(dom.relayModal, false);
+        relayManager.connectAll();
+        nostrClient.startSubscription();
+        alert("リレー設定を更新しました");
     });
 
-    // NG Word add
+    // NG Word Actions
     dom.btnAddNgWord?.addEventListener("click", () => {
-      try {
-        ngWordManager.addUserWord(dom.ngWordInput.value);
-        dom.ngWordInput.value = "";
-      } catch (e) { alert(e.message); }
+        try { ngWordManager.addUserWord(dom.ngWordInput.value); dom.ngWordInput.value = ""; renderNgWordList(); }
+        catch (e) { alert(e.message); }
     });
-
-    // NG Word delete via delegation
     dom.ngWordListEl?.addEventListener("click", (e) => {
-      const t = e.target;
-      if (t.matches(".btn-delete-ng")) {
-        ngWordManager.removeUserWord(Number(t.dataset.index));
-      }
+        if(e.target.matches(".btn-delete-ng")) {
+            ngWordManager.removeUserWord(Number(e.target.dataset.index));
+            renderNgWordList();
+        }
     });
-
-    // NG Word inline edits -> debounced save to store
-    const debouncedSaveNg = utils.debounce(() => {
-      const inputs = dom.ngWordListEl?.querySelectorAll(".ng-input") || [];
-      const newWords = Array.from(inputs).map(i => i.value.trim()).filter(v => v);
-      ngWordManager.setUserWords(newWords);
+    
+    // ★ パフォーマンス改善: NGワードの編集は入力のたびに保存せず、Saveボタンで確定させるか、
+    // どうしてもリアルタイムにするならDebounceが必要。
+    // ここではシンプルに「入力イベントでメモリ上の配列だけ更新し、Saveボタンで保存」という流れに見えるが、
+    // 元コードはInputで即保存していた。ここではDebounceを使って入力遅延保存を実装。
+    const debouncedSaveNg = utils.debounce((newWords) => {
+        ngWordManager.setUserWords(newWords);
     }, 500);
 
     dom.ngWordListEl?.addEventListener("input", (e) => {
-      if (e.target.matches(".ng-input")) debouncedSaveNg();
+        if (e.target.matches(".ng-input")) {
+            const inputs = dom.ngWordListEl.querySelectorAll(".ng-input");
+            const newWords = Array.from(inputs).map(i => i.value.trim()).filter(v => v);
+            debouncedSaveNg(newWords);
+        }
     });
 
-    // Scroll controls
-    dom.btnScrollLeft?.addEventListener("click", () => dom.timeline?.scrollBy({ left: -300, behavior: "smooth" }));
-    dom.btnScrollRight?.addEventListener("click", () => dom.timeline?.scrollBy({ left: 300, behavior: "smooth" }));
-
-    // When store updated for relays, ensure UI props reflect status via setRelayStatusFunc
-    store.subscribe("relays", (relays) => {
-      // causing render handled by UIRenderer; the status indicator uses relayManager.getStatus
-    });
-
-    // Comm action: start subscription
-    eventBus.on("comm.action.startSubscription", () => {
-      eventBus.emit("comm.request.startSubscription");
-    });
+    // 左右スクロール
+    dom.btnScrollLeft?.addEventListener("click", () => dom.timeline?.scrollBy({left: -300, behavior: "smooth"}));
+    dom.btnScrollRight?.addEventListener("click", () => dom.timeline?.scrollBy({left: 300, behavior: "smooth"}));
   }
 
-  // simple helper to expose relay status query to UIRenderer if needed
-  function getRelayStatus(url) {
-    return relayManager.getStatus(url);
+  function bindEventBus() {
+    eventBus.on("relayList.updated", renderRelayList);
+    eventBus.on("relay.open", renderRelayList);
+    eventBus.on("relay.close", renderRelayList);
+    eventBus.on("ngwords.loaded", renderNgWordList);
+    eventBus.on("ngwords.updated", renderNgWordList);
+    eventBus.on("nostr.subscriptionStarted", () => { if(dom.timeline) dom.timeline.innerHTML = ""; });
+    eventBus.on("nostr.event", renderEvent);
   }
 
-  return { bind, getRelayStatus };
+  bindEventListeners();
+  bindEventBus();
+  
+  return { showAlert: alert };
 }
 
 /* =========================
-   9. Boot / init
+   8. 初期化・起動
    ========================= */
 window.addEventListener("DOMContentLoaded", async () => {
-  // 1) Create store with persisted seeds
-  const initialRelays = storage.getJson("relays", CONFIG.DEFAULT_RELAYS.slice()).map(validator.normalizeUrl);
-  const initialUserNg = storage.getJson("userNgWords", []);
-  const initialReacted = new Set(storage.getJson("reactedIds", []));
+  const ngWordManager = createNgWordManager();
+  const relayManager = createRelayManager();
+  const nostrClient = createNostrClient({ relayManager, ngWordManager });
+  
+  createUI({ relayManager, ngWordManager, nostrClient });
 
-  const store = createStore({
-    timelineEvents: [],
-    relays: initialRelays,
-    ngWords: { default: [], user: initialUserNg },
-    reactedIds: initialReacted
-  });
-
-  // 2) Create managers
-  const relayManager = createRelayManager({ store });
-  const ngWordManager = createNgWordManager({ store });
-  const nostrSubscription = createNostrSubscription({ relayManager, store, ngWordManager });
-  const nostrPublisher = createNostrPublisher({ relayManager, store });
-
-  // 3) Renderer & Actions
-  const uiRenderer = createUIRenderer({ store, nostrPublisher });
-  const uiActions = createUIActions({ store, relayManager, ngWordManager, nostrPublisher, uiRenderer });
-  uiActions.bind();
-
-  // 4) wire comm events
-  eventBus.on("comm.relay.open", ({ url }) => console.log("CONNECTED:", url));
-  eventBus.on("comm.relay.error", ({ url, error }) => console.warn("RELAY ERROR", url, error));
-  eventBus.on("comm.relay.close", ({ url }) => console.log("CLOSED:", url));
-  // start subscription when requested (from UIActions or boot)
-  eventBus.on("comm.request.startSubscription", () => nostrSubscription.startSubscription());
-
-  // 5) init sequence
+  // 初期化シーケンス
   await ngWordManager.loadDefault();
   relayManager.connectAll();
-  nostrSubscription.startSubscription();
+  nostrClient.startSubscription();
+
+  // ログ
+  eventBus.on("relay.open", ({ url }) => console.log(`CONNECTED: ${url}`));
+  eventBus.on("relay.error", ({ url, error }) => console.warn(`ERROR ${url}:`, error));
 });
