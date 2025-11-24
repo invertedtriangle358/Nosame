@@ -1,6 +1,9 @@
 /**
- * Nostr Client Refactored
- * Designed with SOLID principles (SRP focus) & KISS
+ * Nostr Client - Refactored for SOLID, KISS, and DRY principles.
+ * - EventValidator: Content validation (length/NG words) is separated.
+ * - SettingsUIHandler: Complex settings UI logic (Relay/NG word list) is separated.
+ * - UIManager: Focuses purely on timeline rendering and primary user interactions.
+ * - Timeline flow: Left to right (Oldest -> Newest), new posts insert at the right end, maintaining scroll position.
  */
 
 // =======================
@@ -20,26 +23,79 @@ const CONFIG = {
     NG_WORDS_URL: "./ngwords.json"
 };
 
+const NOSTR_KINDS = {
+    TEXT: 1,
+    REACTION: 7,
+};
+
+const UI_STRINGS = {
+    EMPTY_POST: "本文を入力してください",
+    INVALID_CONTENT: "NGワードまたは文字数制限です",
+    NIP07_REQUIRED: "NIP-07拡張機能が必要です",
+    NO_RELAY: "接続中のリレーがありません",
+    INVALID_WSS: "正しいwss URLを入力してください",
+    SAVE_RELAY_SUCCESS: "リレー設定を反映して再接続します",
+    SAVE_NG_SUCCESS: "NGワードを保存しました",
+};
+
 // =======================
-// 2. Storage Manager (SRP: Data Persistence)
+// 2. Event Validator (SRP: Event Validation Logic)
+// =======================
+class EventValidator {
+    /** @type {StorageManager} */
+    storage;
+
+    /**
+     * @param {StorageManager} storage
+     */
+    constructor(storage) {
+        this.storage = storage;
+    }
+
+    /**
+     * イベントの内容が不正でないかチェックする (文字数制限、NGワードチェック)
+     * @param {string} text 
+     * @returns {boolean} 不正な場合に true
+     */
+    isContentInvalid(text) {
+        if (!text) return false;
+        if (text.length > CONFIG.MAX_POST_LENGTH) return true;
+        
+        const ngWords = this.storage.getAllNgWords();
+        const lower = text.toLowerCase();
+        
+        return ngWords.some(ng => lower.includes(ng.toLowerCase()));
+    }
+}
+
+
+// =======================
+// 3. Storage Manager (SRP: Data Persistence)
 // =======================
 class StorageManager {
+    /** @type {string[]} */
+    defaultNgWords;
+
     constructor() {
         this.defaultNgWords = [];
     }
 
+    /** @returns {string[]} */
     getRelays() {
         return JSON.parse(localStorage.getItem("relays")) || [...CONFIG.DEFAULT_RELAYS];
     }
 
+    /** @param {string[]} relays */
     saveRelays(relays) {
         localStorage.setItem("relays", JSON.stringify(relays));
     }
 
+    /** @returns {string[]} */
     getUserNgWords() {
         return JSON.parse(localStorage.getItem("userNgWords")) || [];
     }
 
+    /** @param {string[]} words */
     saveUserNgWords(words) {
         localStorage.setItem("userNgWords", JSON.stringify(words));
     }
@@ -49,37 +105,55 @@ class StorageManager {
             const res = await fetch(`${CONFIG.NG_WORDS_URL}?${Date.now()}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             this.defaultNgWords = await res.json();
-            
-            // Initialize user NG words if empty
-            if (!localStorage.getItem("userNgWords")) {
-                this.saveUserNgWords(this.defaultNgWords);
-            }
         } catch (err) {
             console.warn("⚠ NGワードJSONの読み込み失敗:", err);
         }
     }
 
+    /** @returns {string[]} */
     getAllNgWords() {
         return [...new Set([...this.defaultNgWords, ...this.getUserNgWords()])];
     }
 }
 
+
 // =======================
-// 3. Nostr Network Client (SRP: Communication)
+// 4. Nostr Network Client (SRP: Communication)
 // =======================
 class NostrClient {
-    constructor(storage) {
+    /** @type {StorageManager} */
+    storage;
+    /** @type {EventValidator} */
+    validator;
+    /** @type {WebSocket[]} */
+    sockets;
+    /** @type {string | null} */
+    subId;
+    /** @type {Set<string>} */
+    seenEventIds;
+    /** @type {Set<string>} */
+    reactedEventIds;
+    /** @type {((event: import('./types').Event) => void) | null} */
+    onEventCallback;
+    /** @type {(() => void) | null} */
+    onStatusCallback;
+
+    /**
+     * @param {StorageManager} storage 
+     * @param {EventValidator} validator 
+     */
+    constructor(storage, validator) {
         this.storage = storage;
+        this.validator = validator;
         this.sockets = [];
         this.subId = null;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
-        this.onEventCallback = null; // UI update callback
-        this.onStatusCallback = null; // Connection status callback
+        this.onEventCallback = null;
+        this.onStatusCallback = null;
     }
 
     connect() {
-        // Close existing connections
         this.sockets.forEach(ws => ws.close());
         this.sockets = [];
 
@@ -88,7 +162,7 @@ class NostrClient {
             if (!url) return;
             try {
                 const ws = new WebSocket(url);
-                ws.url = url; // store for reference
+                ws.url = url; 
                 
                 ws.onopen = () => {
                     console.log("✅ 接続:", url);
@@ -101,7 +175,7 @@ class NostrClient {
                 
                 this.sockets.push(ws);
             } catch (e) {
-                console.error("接続失敗:", url, e);
+                console.log("接続失敗:", url, e);
             }
         });
         this.notifyStatus();
@@ -117,10 +191,11 @@ class NostrClient {
         this.sockets.forEach(ws => this._sendReqToSocket(ws));
     }
 
+    /** @param {WebSocket} ws */
     _sendReqToSocket(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         const filter = {
-            kinds: [1],
+            kinds: [NOSTR_KINDS.TEXT],
             limit: CONFIG.NOSTR_REQ_LIMIT,
             since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO
         };
@@ -128,14 +203,15 @@ class NostrClient {
         ws.send(JSON.stringify(req));
     }
 
+    /** @param {MessageEvent} ev */
     _handleMessage(ev) {
         try {
             const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event) return;
             if (this.seenEventIds.has(event.id)) return;
 
-            // NG Check
-            if (this._isContentInvalid(event.content)) return;
+            // NG Check (Validatorに委譲)
+            if (this.validator.isContentInvalid(event.content)) return;
 
             this.seenEventIds.add(event.id);
             if (this.onEventCallback) this.onEventCallback(event);
@@ -144,21 +220,14 @@ class NostrClient {
         }
     }
 
-    _isContentInvalid(text) {
-        if (!text) return false;
-        if (text.length > CONFIG.MAX_POST_LENGTH) return true;
-        const ngWords = this.storage.getAllNgWords();
-        const lower = text.toLowerCase();
-        return ngWords.some(ng => lower.includes(ng.toLowerCase()));
-    }
-
+    /** @param {string} content */
     async publish(content) {
-        if (this._isContentInvalid(content)) throw new Error("NGワードまたは文字数制限です");
-        if (!window.nostr) throw new Error("NIP-07拡張機能が必要です");
+        if (this.validator.isContentInvalid(content)) throw new Error(UI_STRINGS.INVALID_CONTENT);
+        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
 
         const pubkey = await window.nostr.getPublicKey();
         const event = {
-            kind: 1,
+            kind: NOSTR_KINDS.TEXT,
             content: content,
             created_at: Math.floor(Date.now() / 1000),
             tags: [],
@@ -169,13 +238,14 @@ class NostrClient {
         return signed;
     }
 
+    /** @param {import('./types').Event} targetEvent */
     async sendReaction(targetEvent) {
         if (this.reactedEventIds.has(targetEvent.id)) return;
-        if (!window.nostr) throw new Error("NIP-07拡張機能が必要です");
+        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
 
         const pubkey = await window.nostr.getPublicKey();
         const event = {
-            kind: 7,
+            kind: NOSTR_KINDS.REACTION,
             content: "+",
             created_at: Math.floor(Date.now() / 1000),
             tags: [["e", targetEvent.id], ["p", targetEvent.pubkey]],
@@ -186,6 +256,7 @@ class NostrClient {
         this.reactedEventIds.add(targetEvent.id);
     }
 
+    /** @param {import('./types').Event} event */
     _broadcast(event) {
         const payload = JSON.stringify(["EVENT", event]);
         let sentCount = 0;
@@ -195,9 +266,10 @@ class NostrClient {
                 sentCount++;
             }
         });
-        if (sentCount === 0) throw new Error("接続中のリレーがありません");
+        if (sentCount === 0) throw new Error(UI_STRINGS.NO_RELAY);
     }
 
+    /** @param {string} url */
     getRelayStatus(url) {
         const normalized = url.replace(/\/+$/, "");
         const ws = this.sockets.find(s => s.url.replace(/\/+$/, "") === normalized);
@@ -205,45 +277,195 @@ class NostrClient {
     }
 }
 
+
 // =======================
-// 4. UI Manager (SRP: DOM & Rendering)
+// 5. Settings UI Handler (SRP: Settings View Logic)
+// =======================
+class SettingsUIHandler {
+    /** @type {Object<string, any>} */
+    dom;
+    /** @type {StorageManager} */
+    storage;
+    /** @type {NostrClient} */
+    client;
+    /** @type {UIManager} */
+    uiRef;
+
+    /**
+     * @param {Object<string, any>} dom
+     * @param {StorageManager} storage
+     * @param {NostrClient} client
+     * @param {UIManager} uiRef
+     */
+    constructor(dom, storage, client, uiRef) {
+        this.dom = dom;
+        this.storage = storage;
+        this.client = client;
+        this.uiRef = uiRef;
+    }
+
+    setupListeners() {
+        this.dom.buttons.addRelay?.addEventListener("click", () => this._addRelay());
+        this.dom.buttons.saveRelays?.addEventListener("click", () => this._saveRelays());
+        this.dom.buttons.addNg?.addEventListener("click", () => this._addNgWord());
+        this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
+    }
+
+    /**
+     * リスト更新の共通ロジック (DRY)
+     * @param {{ container: HTMLElement, getItemList: Function, saveItemList: Function, getStatus?: Function, updateCallback: Function }} options
+     */
+    _updateList(options) {
+        const { container, getItemList, saveItemList, getStatus = null, updateCallback } = options;
+        if (!container) return;
+        container.innerHTML = "";
+        const currentItems = getItemList.call(this.storage);
+
+        currentItems.forEach((item, idx) => {
+            const row = document.createElement("div");
+            row.className = getStatus ? "relay-row" : "ng-word-item";
+            
+            const statusHtml = getStatus ? `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>` : "";
+            
+            row.innerHTML = `
+                ${statusHtml}
+                <input type="text" value="${this.uiRef._escape(item)}" data-idx="${idx}">
+                <button class="btn-delete-${getStatus ? 'relay' : 'ng'}">✖</button>
+            `;
+
+            // Delete
+            row.querySelector(`.btn-delete-${getStatus ? 'relay' : 'ng'}`)?.addEventListener("click", () => {
+                currentItems.splice(idx, 1);
+                saveItemList.call(this.storage, currentItems);
+                updateCallback.call(this); // 再描画
+            });
+            
+            // Auto-save on input (リレー設定は即座に保存する)
+            if(getStatus) {
+                 row.querySelector("input")?.addEventListener("input", (e) => {
+                    // DOMのインデックスではなく、直接リストの値を更新
+                    currentItems[idx] = e.target.value.trim();
+                    saveItemList.call(this.storage, currentItems);
+                });
+            }
+
+            container.appendChild(row);
+        });
+    }
+
+    updateRelayList() {
+        this._updateList({
+            container: this.dom.lists.relays,
+            getItemList: this.storage.getRelays,
+            saveItemList: this.storage.saveRelays,
+            getStatus: this.client.getRelayStatus,
+            updateCallback: this.updateRelayList,
+        });
+    }
+
+    updateNgList() {
+        this._updateList({
+            container: this.dom.lists.ngWords,
+            getItemList: this.storage.getUserNgWords,
+            saveItemList: this.storage.saveUserNgWords,
+            updateCallback: this.updateNgList,
+        });
+    }
+    
+    // --- Relay Handlers ---
+    _addRelay() {
+        const url = this.dom.inputs.relay?.value?.trim();
+        if (!url) return;
+        try {
+            const u = new URL(url);
+            if(u.protocol !== 'wss:' && u.protocol !== 'ws:') throw new Error();
+        } catch {
+            return alert(UI_STRINGS.INVALID_WSS);
+        }
+        const relays = this.storage.getRelays();
+        if (!relays.includes(url)) {
+            relays.push(url);
+            this.storage.saveRelays(relays);
+            this.dom.inputs.relay.value = "";
+            this.updateRelayList();
+        }
+    }
+
+    _saveRelays() {
+        alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
+        this.uiRef._togglePanel(false);
+        this.client.connect();
+        this.client.startSubscription();
+    }
+    
+    // --- NG Word Handlers ---
+    _addNgWord() {
+        const w = this.dom.inputs.ng?.value?.trim();
+        if (!w) return;
+        const words = this.storage.getUserNgWords();
+        if (!words.includes(w)) {
+            words.push(w);
+            this.storage.saveUserNgWords(words);
+            this.dom.inputs.ng.value = "";
+            this.updateNgList();
+        }
+    }
+
+    _saveNgWords() {
+        alert(UI_STRINGS.SAVE_NG_SUCCESS);
+    }
+}
+
+
+// =======================
+// 6. UI Manager (SRP: DOM & Rendering)
 // =======================
 class UIManager {
+    /** @type {NostrClient} */
+    client;
+    /** @type {StorageManager} */
+    storage;
+    /** @type {Object<string, any>} */
+    dom;
+    /** @type {any[]} */
+    eventBuffer;
+    /** @type {number | null} */
+    bufferTimer;
+    /** @type {SettingsUIHandler | null} */
+    settingsHandler;
+
+    /**
+     * @param {NostrClient} nostrClient 
+     * @param {StorageManager} storage 
+     */
     constructor(nostrClient, storage) {
         this.client = nostrClient;
         this.storage = storage;
         this.dom = {};
         this.eventBuffer = [];
         this.bufferTimer = null;
+        this.settingsHandler = null; 
     }
 
     init() {
-        // DOM Elements Fetching (Moved here to ensure DOM exists)
+        // DOM Elements Fetching
         this.dom = {
             timeline: document.getElementById("timeline"),
             spinner: document.getElementById("subscribeSpinner"),
             panel: {
-                side: document.getElementById("sidePanel"),
-                overlay: document.getElementById("panelOverlay"),
-                btnOpen: document.getElementById("btnPanelToggle"),
-                btnClose: document.getElementById("btnPanelClose"),
+                side: document.getElementById("sidePanel"), overlay: document.getElementById("panelOverlay"),
+                btnOpen: document.getElementById("btnPanelToggle"), btnClose: document.getElementById("btnPanelClose"),
             },
             inputs: {
-                full: document.getElementById("composeFull"),
-                simple: document.getElementById("composeSimple"),
-                sidebar: document.getElementById("composeSidebar"),
-                relay: document.getElementById("relayInput"),
+                full: document.getElementById("composeFull"), simple: document.getElementById("composeSimple"),
+                sidebar: document.getElementById("composeSidebar"), relay: document.getElementById("relayInput"),
                 ng: document.getElementById("ngWordInput"),
             },
             buttons: {
-                publishFull: document.getElementById("btnPublish"),
-                publishSimple: document.getElementById("btnPublishSimple"),
-                addRelay: document.getElementById("btnAddRelay"),
-                saveRelays: document.getElementById("btnSaveRelays"),
-                addNg: document.getElementById("btnAddNgWord"),
-                saveNg: document.getElementById("btnSaveNgWords"),
-                scrollLeft: document.getElementById("scrollLeft"),
-                scrollRight: document.getElementById("scrollRight"),
+                publishFull: document.getElementById("btnPublish"), publishSimple: document.getElementById("btnPublishSimple"),
+                addRelay: document.getElementById("btnAddRelay"), saveRelays: document.getElementById("btnSaveRelays"),
+                addNg: document.getElementById("btnAddNgWord"), saveNg: document.getElementById("btnSaveNgWords"),
+                scrollLeft: document.getElementById("scrollLeft"), scrollRight: document.getElementById("scrollRight"),
             },
             lists: {
                 relays: document.getElementById("relayList"),
@@ -255,29 +477,29 @@ class UIManager {
             }
         };
 
+        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
+        
         this._setupListeners();
-        this._updateNgList();
-        this._updateRelayList();
+        
+        this.settingsHandler.updateNgList();
+        this.settingsHandler.updateRelayList();
     }
 
     _setupListeners() {
-        // Panel
+        // Panel 
         this.dom.panel.btnOpen?.addEventListener("click", () => this._togglePanel(true));
         this.dom.panel.btnClose?.addEventListener("click", () => this._togglePanel(false));
         this.dom.panel.overlay?.addEventListener("click", () => this._togglePanel(false));
 
-        // Publish
+        // Publish 
         this.dom.buttons.publishSimple?.addEventListener("click", () => this._handlePublish("simple"));
         this.dom.buttons.publishFull?.addEventListener("click", () => this._handlePublish("full"));
         this.dom.inputs.simple?.addEventListener("keydown", (e) => {
              if (e.key === "Enter") { e.preventDefault(); this._handlePublish("simple"); }
         });
 
-        // Settings (Relay / NG)
-        this.dom.buttons.addRelay?.addEventListener("click", () => this._addRelay());
-        this.dom.buttons.saveRelays?.addEventListener("click", () => this._saveRelays());
-        this.dom.buttons.addNg?.addEventListener("click", () => this._addNgWord());
-        this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
+        // Settings (委譲)
+        this.settingsHandler.setupListeners();
 
         // Scroll
         this.dom.buttons.scrollLeft?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: -300, behavior: "smooth" }));
@@ -294,142 +516,39 @@ class UIManager {
         this.dom.inputs.sidebar?.addEventListener("input", (e) => checkLen(e.target, this.dom.counters.sidebar));
     }
 
+    /** @param {boolean} open */
     _togglePanel(open) {
         if (!this.dom.panel.side) return;
-        if (open) {
-            this.dom.panel.side.classList.add("open");
-            this.dom.panel.side.setAttribute("aria-hidden", "false");
-            this.dom.panel.overlay.hidden = false;
-        } else {
-            this.dom.panel.side.classList.remove("open");
-            this.dom.panel.side.setAttribute("aria-hidden", "true");
-            this.dom.panel.overlay.hidden = true;
-        }
+        this.dom.panel.side.classList.toggle("open", open);
+        this.dom.panel.side.setAttribute("aria-hidden", (!open).toString());
+        this.dom.panel.overlay.hidden = !open;
     }
 
-    // --- Publishing ---
+    /** @param {string} source */
     async _handlePublish(source) {
-        const inputMap = {
-            "simple": this.dom.inputs.simple,
-            "full": this.dom.inputs.full,
-            "sidebar": this.dom.inputs.sidebar
-        };
+        const inputMap = { "simple": this.dom.inputs.simple, "full": this.dom.inputs.full, "sidebar": this.dom.inputs.sidebar };
         const input = inputMap[source];
         const content = input?.value?.trim();
 
-        if (!content) return alert("本文を入力してください");
+        if (!content) return alert(UI_STRINGS.EMPTY_POST);
 
         try {
             const event = await this.client.publish(content);
-            // Add locally immediately
             this.renderEvent(event);
             input.value = "";
-            if (source === "full" && this.dom.counters.full) this.dom.counters.full.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+            if (this.dom.counters.full) this.dom.counters.full.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+            if (this.dom.counters.sidebar) this.dom.counters.sidebar.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
         } catch (err) {
             alert(err.message);
         }
     }
 
-    // --- Settings UI ---
-    _updateRelayList() {
-        const container = this.dom.lists.relays;
-        if (!container) return;
-        container.innerHTML = "";
-        const relays = this.storage.getRelays();
-
-        relays.forEach((url, idx) => {
-            const row = document.createElement("div");
-            row.className = "relay-row";
-            
-            const isConnected = this.client.getRelayStatus(url);
-            
-            row.innerHTML = `
-                <span class="relay-status">${isConnected ? "🟢" : "🔴"}</span>
-                <input type="text" value="${this._escape(url)}" data-idx="${idx}">
-                <button class="btn-delete-relay">✖</button>
-            `;
-
-            // Update value on input
-            row.querySelector("input").addEventListener("input", (e) => {
-                relays[idx] = e.target.value.trim();
-                this.storage.saveRelays(relays); // auto-save interim state or manage separate state? kept simple here
-            });
-            // Delete
-            row.querySelector(".btn-delete-relay").addEventListener("click", () => {
-                relays.splice(idx, 1);
-                this.storage.saveRelays(relays);
-                this._updateRelayList();
-            });
-
-            container.appendChild(row);
-        });
+    _updateRelayListFromClient() {
+        this.settingsHandler.updateRelayList();
     }
-
-    _addRelay() {
-        const url = this.dom.inputs.relay?.value?.trim();
-        if (!url) return;
-        try {
-            const u = new URL(url);
-            if(u.protocol !== 'wss:' && u.protocol !== 'ws:') throw new Error();
-        } catch {
-            return alert("正しいwss URLを入力してください");
-        }
-        const relays = this.storage.getRelays();
-        if (!relays.includes(url)) {
-            relays.push(url);
-            this.storage.saveRelays(relays);
-            this.dom.inputs.relay.value = "";
-            this._updateRelayList();
-        }
-    }
-
-    _saveRelays() {
-        alert("リレー設定を反映して再接続します");
-        this._togglePanel(false);
-        this.client.connect();
-        this.client.startSubscription();
-    }
-
-    _updateNgList() {
-        const container = this.dom.lists.ngWords;
-        if (!container) return;
-        container.innerHTML = "";
-        const words = this.storage.getUserNgWords();
-
-        words.forEach((word, idx) => {
-            const row = document.createElement("div");
-            row.className = "ng-word-item";
-            row.innerHTML = `
-                <input type="text" value="${this._escape(word)}">
-                <button class="btn-delete-ng">✖</button>
-            `;
-            // Delete
-            row.querySelector(".btn-delete-ng").addEventListener("click", () => {
-                words.splice(idx, 1);
-                this.storage.saveUserNgWords(words);
-                this._updateNgList();
-            });
-            container.appendChild(row);
-        });
-    }
-
-    _addNgWord() {
-        const w = this.dom.inputs.ng?.value?.trim();
-        if (!w) return;
-        const words = this.storage.getUserNgWords();
-        if (!words.includes(w)) {
-            words.push(w);
-            this.storage.saveUserNgWords(words);
-            this.dom.inputs.ng.value = "";
-            this._updateNgList();
-        }
-    }
-
-    _saveNgWords() {
-        alert("NGワードを保存しました");
-    }
-
+    
     // --- Rendering ---
+    /** @param {import('./types').Event} event */
     bufferEvent(event) {
         this.eventBuffer.push(event);
         if (!this.bufferTimer) {
@@ -438,24 +557,44 @@ class UIManager {
     }
 
     _flushBuffer() {
-        // Sort: Oldest to Newest, then prepend sequentially.
-        // Loop: 1 (Old) -> 2 (New). 
-        // Prepend 1. Timeline: [1]
-        // Prepend 2. Timeline: [2, 1] -> Newest is on Left.
+        const container = this.dom.timeline;
+        if (!container) return;
+        
+        // スクロール維持ロジックのための事前情報取得
+        const IS_SCROLLED_RIGHT_TOLERANCE = 10;
+        const isScrolledRight = container.scrollLeft >= (container.scrollWidth - container.clientWidth) - IS_SCROLLED_RIGHT_TOLERANCE;
+        const wasScrolledRight = isScrolledRight;
+        const prevScrollWidth = container.scrollWidth;
+
+        // タイムラインの時系列順（Oldest -> Newest）でソート
         this.eventBuffer
-            .sort((a, b) => a.created_at - b.created_at)
+            .sort((a, b) => a.created_at - b.created_at) 
             .forEach(e => this.renderEvent(e));
+        
         this.eventBuffer = [];
         this.bufferTimer = null;
         if(this.dom.spinner) this.dom.spinner.style.display = "none";
+        
+        // スクロール維持ロジック: 右端（最新）に挿入された分の位置を補正
+        const newScrollWidth = container.scrollWidth;
+        
+        if (wasScrolledRight) {
+            // 右端を見ていた場合、新しい右端に自動スクロール
+            container.scrollLeft = newScrollWidth - container.clientWidth;
+        } else {
+            // 履歴を見ていた場合、相対的な位置を維持
+            const addedWidth = newScrollWidth - prevScrollWidth;
+            container.scrollLeft += addedWidth;
+        }
     }
 
+    /** @param {import('./types').Event} event */
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
         const noteEl = document.createElement("div");
         noteEl.className = "note";
-        noteEl.dataset.createdAt = event.created_at;
+        noteEl.dataset.createdAt = event.created_at.toString();
         noteEl.dataset.id = event.id;
 
         const isReacted = this.client.reactedEventIds.has(event.id);
@@ -469,31 +608,22 @@ class UIManager {
             <button class="btn-reaction" ${isReacted ? "disabled" : ""}>${isReacted ? "❤️" : "♡"}</button>
         `;
 
-        noteEl.querySelector(".btn-reaction").addEventListener("click", async (e) => {
+        noteEl.querySelector(".btn-reaction")?.addEventListener("click", async (e) => {
+            const target = /** @type {HTMLButtonElement} */ (e.target);
             try {
                 await this.client.sendReaction(event);
-                e.target.textContent = "❤️";
-                e.target.disabled = true;
+                target.textContent = "❤️";
+                target.disabled = true;
             } catch (err) {
                 alert(err.message);
             }
         });
 
-        // 修正ロジック: 「新しいものを左端(先頭)に」
-        // 既存の子要素を探し、自分より「古い(timeが小さい)」要素の直前に挿入する
-        // リストが [New(20), Old(10)] の場合、Newer(30)が来たら、
-        // 20 < 30 は true なので 20の前に挿入 => [30, 20, 10]
-        const children = Array.from(this.dom.timeline.children);
-        const insertPos = children.find(el => Number(el.dataset.createdAt) < event.created_at);
-
-        if (insertPos) {
-            this.dom.timeline.insertBefore(noteEl, insertPos);
-        } else {
-            // 見つからない＝全ての要素より古い、または空 => 末尾に追加（左端が最新なら、右端に追加）
-            this.dom.timeline.appendChild(noteEl);
-        }
+        // 常に末尾（右端）に追加 (左から右へ流れるタイムライン)
+        this.dom.timeline.appendChild(noteEl);
     }
 
+    /** @param {string} str */
     _escape(str) {
         if (typeof str !== "string") return "";
         return str.replace(/[&<>"']/g, s => ({
@@ -501,9 +631,9 @@ class UIManager {
         }[s]));
     }
 
+    /** @param {string} text */
     _formatContent(text) {
         let safe = this._escape(text);
-        // Simple colorizer example
         const special = "【緊急地震速報】";
         if (safe.includes(special)) {
             safe = safe.replace(special, `<span style="color:#e63946">${special}</span>`);
@@ -512,24 +642,40 @@ class UIManager {
     }
 }
 
+
 // =======================
-// 5. Main Execution (Composition Root)
+// 7. Main Execution (Composition Root)
 // =======================
 window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
     await storage.loadDefaultNgWords();
+    
+    // ユーザーNGワードが未設定の場合、デフォルト値を初期値として設定
+    if (!localStorage.getItem("userNgWords")) {
+        storage.saveUserNgWords(storage.defaultNgWords);
+    }
 
-    const client = new NostrClient(storage);
+    const validator = new EventValidator(storage);
+    const client = new NostrClient(storage, validator);
     const ui = new UIManager(client, storage);
 
     // Wiring
-    ui.init(); // DOM取得はここで行う
+    ui.init(); 
 
     // Client callbacks to update UI
     client.onEventCallback = (e) => ui.bufferEvent(e);
-    client.onStatusCallback = () => ui._updateRelayList();
+    client.onStatusCallback = () => ui._updateRelayListFromClient();
 
     // Start
     client.connect();
     client.startSubscription();
+    
+    // 初期ロード時の自動スクロール
+    setTimeout(() => {
+        const timeline = ui.dom.timeline;
+        if (timeline) {
+            // 右端（最新）にスクロール
+            timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
+        }
+    }, 500);
 });
