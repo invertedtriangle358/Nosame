@@ -454,6 +454,31 @@ main {
     background: #e24b4b;
 }
 
+/* 例: 投稿カード内アイコンの基本的なスタイル */
+.note-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+.profile-icon {
+    width: 24px; /* アイコンサイズ */
+    height: 24px;
+    border-radius: 50%; /* 丸くする */
+    margin-right: 8px;
+    object-fit: cover; /* 画像の比率を維持して表示 */
+    border: 1px solid #ddd;
+}
+.author-name {
+    font-weight: bold;
+    color: #444;
+}
+.pubkey-short {
+    font-size: 0.8em;
+    color: #999;
+    margin-left: 5px;
+}
+/*ここまで*/
+
 /* ==============================
    フッター
 ============================== */
