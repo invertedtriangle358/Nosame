@@ -207,7 +207,8 @@ class NostrClient {
         }
     }
 
-    // ✅ 追加: kind 0 イベントのメタデータをキャッシュする
+
+    // ✅ 修正: メタデータパース時のエラーハンドリングを強化
     _cacheMetadata(event) {
         // created_atが古いメタデータは無視する (NIP-01)
         const currentMetadata = this.metadataCache.get(event.pubkey);
@@ -216,7 +217,20 @@ class NostrClient {
         }
 
         try {
-            const content = JSON.parse(event.content);
+            // contentが空文字列の場合もJSON.parseでエラーになるため、事前にチェック
+            if (!event.content) {
+                console.warn(`⚠ kind 0 メタデータ content が空です。pubkey: ${event.pubkey.slice(0, 8)}...`);
+                return;
+            }
+            
+            const content = JSON.parse(event.content); 
+            
+            // contentが存在しない、またはオブジェクトでない場合は処理をスキップ
+            if (!content || typeof content !== 'object') {
+                console.warn("⚠ 無効なメタデータJSON content:", event);
+                return;
+            }
+
             this.metadataCache.set(event.pubkey, {
                 ...content,
                 created_at: event.created_at,
@@ -227,7 +241,11 @@ class NostrClient {
             if (this.onMetadataCallback) this.onMetadataCallback(event.pubkey);
 
         } catch (e) {
-            console.warn("メタデータパースエラー:", event, e);
+            // ❌ メタデータ (kind 0) のパース失敗時、詳細なエラーログを出力
+            console.warn("❌ メタデータ (kind 0) パース失敗:", 
+                         `Pubkey: ${event.pubkey.slice(0, 8)}...`, 
+                         "Content:", event.content.slice(0, 50) + '...', 
+                         "Error:", e);
         }
     }
 
