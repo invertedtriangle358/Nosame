@@ -32,6 +32,9 @@ const UI_STRINGS = {
     SAVE_NG_SUCCESS: "NGワードを保存しました",
 };
 
+// ✅ 追加: ネットワークリクエスト不要のデフォルトアイコン (シンプルなグレーの円)
+const DEFAULT_ICON_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iI2NjY2NjYyIvPjwvc3ZnPg==";
+
 // =======================
 // 2. Event Validator
 // =======================
@@ -648,7 +651,37 @@ class UIManager {
         }
     }
 
-    // ✅ 修正: アイコンURLと名前の表示ロジックを追加
+ // =======================
+// 6. UI Manager (✅ 修正箇所抜粋)
+// =======================
+class UIManager {
+    // ...
+    
+    // ✅ 修正: メタデータ更新時に、既存のノートのアイコンと名前を更新する
+    updateProfilePicture(pubkey) {
+        const pictureUrl = this.client.getProfilePicture(pubkey);
+        const profileName = this.client.getProfileName(pubkey);
+        const displayName = profileName || (pubkey || "").slice(0, 8);
+
+        // pubkeyに対応する全てのノート要素を検索
+        const notesToUpdate = this.dom.timeline.querySelectorAll(`.note[data-pubkey="${pubkey}"]`);
+        
+        notesToUpdate.forEach(noteEl => {
+            const img = noteEl.querySelector('.profile-icon');
+            if (img) {
+                // 🚀 ここを修正: 'default_icon.png' を Data URI に変更する
+                img.src = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
+            }
+            
+            const nameEl = noteEl.querySelector('.author-name');
+            if (nameEl) {
+                // 名前の更新
+                nameEl.textContent = `${this._escape(displayName)}...`;
+            }
+        });
+
+
+    // ✅ 修正: アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -656,24 +689,26 @@ class UIManager {
         noteEl.className = "note";
         noteEl.dataset.createdAt = event.created_at.toString();
         noteEl.dataset.id = event.id;
-        noteEl.dataset.pubkey = event.pubkey; // ✅ 追加: メタデータ更新用にpubkeyを保存
+        noteEl.dataset.pubkey = event.pubkey;
 
         const isReacted = this.client.reactedEventIds.has(event.id);
         
         // アイコンと名前を取得
         const pictureUrl = this.client.getProfilePicture(event.pubkey);
         const profileName = this.client.getProfileName(event.pubkey);
-        // 名前がある場合は名前を、ない場合はpubkeyの先頭を使う
         const displayName = profileName || (event.pubkey || "").slice(0, 8);
-
+        
+        // 🚀 修正点: pictureUrlがない場合、Data URIを使用する
+        const iconSrc = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
 
         noteEl.innerHTML = `
             <div class="note-header">
                 <img 
-                    src="${this._escape(pictureUrl || 'default_icon.png')}" 
+                    src="${iconSrc}" 
                     class="profile-icon" 
                     alt="Icon" 
-                    onerror="this.src='default_icon.png';" 
+                    // ✅ 修正: 外部のpictureUrlが不正だった場合に、Data URIにフォールバックさせる
+                    onerror="this.src='${DEFAULT_ICON_DATA_URI}';" 
                     loading="lazy"
                 >
                 <span class="author-name">${this._escape(displayName)}...</span>
@@ -697,9 +732,9 @@ class UIManager {
             }
         });
 
-        // 常に右端に追加
         this.dom.timeline.appendChild(noteEl);
     }
+
 
     _escape(str) {
         if (typeof str !== "string") return "";
