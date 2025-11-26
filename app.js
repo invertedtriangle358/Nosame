@@ -19,7 +19,7 @@ const CONFIG = {
 const NOSTR_KINDS = {
     TEXT: 1,
     REACTION: 7,
-    PROFILE: 0, // ✅ 修正: kind 0 (メタデータ) を追加
+    PROFILE: 0,
 };
 
 const UI_STRINGS = {
@@ -32,8 +32,9 @@ const UI_STRINGS = {
     SAVE_NG_SUCCESS: "NGワードを保存しました",
 };
 
-// ✅ 追加: ネットワークリクエスト不要のデフォルトアイコン (シンプルなグレーの円)
+// Data URI に統一されたデフォルトアイコン
 const DEFAULT_ICON_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iI2NjY2NjYyIvPjwvc3ZnPg==";
+
 
 // =======================
 // 2. Event Validator
@@ -52,28 +53,48 @@ class EventValidator {
     }
 }
 
+
 // =======================
-// 3. Storage Manager
+// 3. Storage Manager (DRY原則に基づき簡素化)
 // =======================
 class StorageManager {
     constructor() {
         this.defaultNgWords = [];
     }
+
+    // ヘルパー: localStorageから取得/保存
+    _getStorageItem(key, defaultValue) {
+        try {
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+            console.error(`Storage read error for key ${key}:`, e);
+            return defaultValue;
+        }
+    }
+
+    _setStorageItem(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error(`Storage write error for key ${key}:`, e);
+        }
+    }
     
     getRelays() {
-        return JSON.parse(localStorage.getItem("relays")) || [...CONFIG.DEFAULT_RELAYS];
+        return this._getStorageItem("relays", [...CONFIG.DEFAULT_RELAYS]);
     }
 
     saveRelays(relays) {
-        localStorage.setItem("relays", JSON.stringify(relays));
+        this._setStorageItem("relays", relays);
     }
 
     getUserNgWords() {
-        return JSON.parse(localStorage.getItem("userNgWords")) || [];
+        return this._getStorageItem("userNgWords", []);
     }
 
     saveUserNgWords(words) {
-        localStorage.setItem("userNgWords", JSON.stringify(words));
+        this._setStorageItem("userNgWords", words);
     }
 
     async loadDefaultNgWords() {
@@ -91,74 +112,109 @@ class StorageManager {
     }
 }
 
+
+// ------------------------------------
+// 4a. Relay Socket Handler (新規導入: 接続管理の責務を分離)
+// ------------------------------------
+class RelaySocket {
+    constructor(url, clientRef) {
+        if (!url) throw new Error("URL must be provided for RelaySocket.");
+        this.url = url;
+        this.clientRef = clientRef; // NostrClientへの参照
+        this.ws = null;
+        this.connect();
+    }
+
+    connect() {
+        if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+            this.ws.close();
+        }
+        
+        try {
+            this.ws = new WebSocket(this.url);
+            this._setupListeners();
+        } catch (e) {
+            console.error("接続開始失敗:", this.url, e);
+            this.clientRef.notifyStatus();
+        }
+    }
+
+    _setupListeners() {
+        this.ws.onopen = () => {
+            console.log("✅ 接続:", this.url);
+            this.clientRef.notifyStatus();
+            // 接続後に購読リクエストを送信
+            if (this.clientRef.subId) this.clientRef._sendReqToSocket(this.ws);
+        };
+        
+        this.ws.onclose = () => { 
+            console.log("🔌 切断:", this.url); 
+            this.clientRef.notifyStatus();
+            // 自動再接続
+            setTimeout(() => this._reconnect(), CONFIG.RECONNECT_DELAY_MS); 
+        };
+        
+        this.ws.onerror = (err) => { 
+            console.error("❌ エラー (即時切断):", this.url, err); 
+            this.clientRef.notifyStatus(); 
+            this.ws.close();
+        };
+        
+        this.ws.onmessage = (ev) => this.clientRef._handleMessage(ev);
+    }
+
+    _reconnect() {
+        console.log("🔄 再接続試行:", this.url);
+        this.connect();
+    }
+
+    close() {
+        this.ws?.close();
+    }
+
+    send(data) {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(data);
+            return true;
+        }
+        return false;
+    }
+
+    isOpen() {
+        return this.ws?.readyState === WebSocket.OPEN;
+    }
+}
+
+
 // =======================
-// 4. Nostr Network Client (✅ 修正あり)
+// 4. Nostr Network Client (RelaySocketにソケット管理を委譲)
 // =======================
 class NostrClient {
     constructor(storage, validator) {
         this.storage = storage;
         this.validator = validator;
-        this.sockets = [];
+        this.relaySockets = []; // RelaySocketインスタンスの配列に変更
         this.subId = null;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
         this.onEventCallback = null;
         this.onStatusCallback = null;
-        this.onMetadataCallback = null; // ✅ 追加: メタデータ更新通知用コールバック
-        this.metadataCache = new Map(); // ✅ 追加: pubkey -> メタデータ をキャッシュ
-    }
-
-    _setupSocketListeners(ws) {
-        // 修正: ws.url ではなく ws._relayUrl (カスタムプロパティ) を使用
-        ws.onopen = () => {
-            console.log("✅ 接続:", ws._relayUrl);
-            this.notifyStatus();
-            if (this.subId) this._sendReqToSocket(ws);
-        };
-        
-        ws.onclose = () => { 
-            console.log("🔌 切断:", ws._relayUrl); 
-            this.notifyStatus(); 
-            // 自動再接続
-            setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS); 
-        };
-        
-        ws.onerror = (err) => { 
-            console.error("❌ エラー (即時切断):", ws._relayUrl, err); 
-            this.notifyStatus(); 
-            ws.close();
-        };
-        
-        ws.onmessage = (ev) => this._handleMessage(ev);
-    }
-
-    _reconnect(url) {
-        // urlプロパティではなく _relayUrl でフィルタリング
-        this.sockets = this.sockets.filter(s => s._relayUrl !== url);
-        console.log("🔄 再接続試行:", url);
-        
-        try {
-            const ws = new WebSocket(url);
-            ws._relayUrl = url; // 修正: 読み取り専用のws.urlではなくカスタムプロパティに保存
-            this._setupSocketListeners(ws);
-            this.sockets.push(ws);
-        } catch (e) {
-            console.error("再接続処理失敗:", url, e);
-        }
+        this.onMetadataCallback = null;
+        this.metadataCache = new Map();
     }
 
     connect() {
-        this.sockets.forEach(ws => ws.close());
-        this.sockets = [];
+        // 既存ソケットを閉じる
+        this.relaySockets.forEach(rs => rs.close());
+        this.relaySockets = [];
 
         const relays = this.storage.getRelays();
         relays.forEach(url => {
             if (!url) return;
             try {
-                const ws = new WebSocket(url);
-                ws._relayUrl = url; // 修正: カスタムプロパティに保存
-                this._setupSocketListeners(ws);
-                this.sockets.push(ws);
+                // RelaySocketインスタンスを作成し、接続を開始
+                const rs = new RelaySocket(url, this);
+                this.relaySockets.push(rs);
             } catch (e) {
                 console.error("接続開始失敗:", url, e);
             }
@@ -173,13 +229,13 @@ class NostrClient {
     startSubscription() {
         this.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
         this.seenEventIds.clear();
-        this.sockets.forEach(ws => this._sendReqToSocket(ws));
+        // RelaySocketのwsプロパティ (WebSocketオブジェクト) を使用
+        this.relaySockets.forEach(rs => this._sendReqToSocket(rs.ws)); 
     }
 
     _sendReqToSocket(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         const filter = {
-            // ✅ kind 0 (プロフィール) を購読に追加
             kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.PROFILE],
             limit: CONFIG.NOSTR_REQ_LIMIT,
             since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO
@@ -193,13 +249,11 @@ class NostrClient {
             const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event) return;
 
-            // ✅ kind 0 の処理: キャッシュに保存して終了
             if (event.kind === NOSTR_KINDS.PROFILE) {
                 this._cacheMetadata(event);
                 return; 
             }
 
-            // kind 1 (ノート) の処理
             if (this.seenEventIds.has(event.id)) return;
             if (this.validator.isContentInvalid(event.content)) return;
 
@@ -210,17 +264,13 @@ class NostrClient {
         }
     }
 
-
-    // ✅ 修正: メタデータパース時のエラーハンドリングを強化
     _cacheMetadata(event) {
-        // created_atが古いメタデータは無視する (NIP-01)
         const currentMetadata = this.metadataCache.get(event.pubkey);
         if (currentMetadata && currentMetadata.created_at >= event.created_at) {
             return;
         }
 
         try {
-            // contentが空文字列の場合もJSON.parseでエラーになるため、事前にチェック
             if (!event.content) {
                 console.warn(`⚠ kind 0 メタデータ content が空です。pubkey: ${event.pubkey.slice(0, 8)}...`);
                 return;
@@ -228,7 +278,6 @@ class NostrClient {
             
             const content = JSON.parse(event.content); 
             
-            // contentが存在しない、またはオブジェクトでない場合は処理をスキップ
             if (!content || typeof content !== 'object') {
                 console.warn("⚠ 無効なメタデータJSON content:", event);
                 return;
@@ -240,11 +289,9 @@ class NostrClient {
                 pubkey: event.pubkey
             });
             
-            // UIに更新を通知
             if (this.onMetadataCallback) this.onMetadataCallback(event.pubkey);
 
         } catch (e) {
-            // ❌ メタデータ (kind 0) のパース失敗時、詳細なエラーログを出力
             console.warn("❌ メタデータ (kind 0) パース失敗:", 
                          `Pubkey: ${event.pubkey.slice(0, 8)}...`, 
                          "Content:", event.content.slice(0, 50) + '...', 
@@ -252,17 +299,14 @@ class NostrClient {
         }
     }
 
-    // ✅ 追加: アイコンURLを取得する
     getProfilePicture(pubkey) {
         return this.metadataCache.get(pubkey)?.picture || null;
     }
     
-    // ✅ 追加: プロフィール名を取得する
     getProfileName(pubkey) {
         return this.metadataCache.get(pubkey)?.name || null;
     }
 
-    // ... (publish, sendReaction, _broadcast, getRelayStatus は変更なし)
     async publish(content) {
         if (this.validator.isContentInvalid(content)) throw new Error(UI_STRINGS.INVALID_CONTENT);
         if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
@@ -300,9 +344,8 @@ class NostrClient {
     _broadcast(event) {
         const payload = JSON.stringify(["EVENT", event]);
         let sentCount = 0;
-        this.sockets.forEach(ws => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(payload);
+        this.relaySockets.forEach(rs => {
+            if (rs.send(payload)) {
                 sentCount++;
             }
         });
@@ -311,14 +354,14 @@ class NostrClient {
 
     getRelayStatus(url) {
         const normalized = url.replace(/\/+$/, "");
-        // 修正: _relayUrlを使用して検索
-        const ws = this.sockets.find(s => s._relayUrl.replace(/\/+$/, "") === normalized);
-        return ws && ws.readyState === WebSocket.OPEN;
+        const rs = this.relaySockets.find(s => s.url.replace(/\/+$/, "") === normalized);
+        return rs ? rs.isOpen() : false;
     }
 }
 
+
 // =======================
-// 5. Settings UI Handler (変更なし)
+// 5. Settings UI Handler
 // =======================
 class SettingsUIHandler {
     constructor(dom, storage, client, uiRef) {
@@ -335,7 +378,6 @@ class SettingsUIHandler {
         this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
     }
 
-    // リレーリスト用（変更なし）
     _updateList(options) {
         const { container, getItemList, saveItemList, getStatus = null, updateCallback } = options;
         if (!container) return;
@@ -345,7 +387,7 @@ class SettingsUIHandler {
         currentItems.forEach((item, idx) => {
             const row = document.createElement("div");
             row.className = "relay-row";
-            const statusHtml = `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>`;
+            const statusHtml = getStatus ? `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>` : '';
             
             row.innerHTML = `
                 ${statusHtml}
@@ -377,13 +419,12 @@ class SettingsUIHandler {
         });
     }
 
-    // NGワードリスト専用の描画ロジック（変更なし）
     updateNgList() {
         const container = this.dom.lists.ngWords;
         if (!container) return;
         container.innerHTML = "";
 
-        // 1. デフォルトNGワード（読み取り専用・グレーアウト）
+        // 1. デフォルトNGワード
         const defaultWords = this.storage.defaultNgWords || [];
         defaultWords.forEach(word => {
             const row = document.createElement("div");
@@ -395,7 +436,7 @@ class SettingsUIHandler {
             container.appendChild(row);
         });
 
-        // 2. ユーザーNGワード（編集・削除可能）
+        // 2. ユーザーNGワード
         const userWords = this.storage.getUserNgWords();
         userWords.forEach((word, idx) => {
             const row = document.createElement("div");
@@ -405,14 +446,12 @@ class SettingsUIHandler {
                 <button class="btn-delete-ng">✖</button>
             `;
 
-            // 削除
             row.querySelector(".btn-delete-ng")?.addEventListener("click", () => {
                 userWords.splice(idx, 1);
                 this.storage.saveUserNgWords(userWords);
-                this.updateNgList(); // 再描画
+                this.updateNgList();
             });
 
-            // 編集（即時保存）
             row.querySelector("input")?.addEventListener("input", (e) => {
                 userWords[idx] = e.target.value.trim();
                 this.storage.saveUserNgWords(userWords);
@@ -464,8 +503,9 @@ class SettingsUIHandler {
     }
 }
 
+
 // =======================
-// 6. UI Manager (✅ 修正あり)
+// 6. UI Manager
 // =======================
 class UIManager {
     constructor(nostrClient, storage) {
@@ -478,17 +518,15 @@ class UIManager {
     }
 
     init() {
-        // DOM要素取得: 大本のHTML IDに合わせて調整
+        // DOM要素取得
         this.dom = {
             timeline: document.getElementById("timeline"),
-            spinner: document.getElementById("subscribeSpinner"), // HTMLに無い場合は無視されます
-            // モダール関連 (大本のHTMLに基づく)
+            spinner: document.getElementById("subscribeSpinner"), 
             modals: {
                 relay: document.getElementById("relayModal"),
                 ng: document.getElementById("ngModal"),
             },
             buttons: {
-                // 大本のID: btnPublish, btnRelayModal, btnNgModal など
                 publish: document.getElementById("btnPublish"),
                 openRelay: document.getElementById("btnRelayModal"),
                 closeRelay: document.getElementById("btnCloseModal"),
@@ -503,7 +541,6 @@ class UIManager {
                 scrollRight: document.getElementById("scrollRight"),
             },
             inputs: {
-                // 大本のID: compose, relayInput, ngWordInput
                 compose: document.getElementById("compose"), 
                 relay: document.getElementById("relayInput"),
                 ng: document.getElementById("ngWordInput"),
@@ -524,7 +561,7 @@ class UIManager {
     }
 
     _setupListeners() {
-        // モダール開閉 (大本のロジックを再現)
+        // モダール開閉
         this.dom.buttons.openRelay?.addEventListener("click", () => {
             this._toggleModal(this.dom.modals.relay, true);
             this.settingsHandler.updateRelayList();
@@ -532,8 +569,8 @@ class UIManager {
         this.dom.buttons.closeRelay?.addEventListener("click", () => this._toggleModal(this.dom.modals.relay, false));
 
         this.dom.buttons.openNg?.addEventListener("click", () => {
-             this._toggleModal(this.dom.modals.ng, true);
-             this.settingsHandler.updateNgList();
+               this._toggleModal(this.dom.modals.ng, true);
+               this.settingsHandler.updateNgList();
         });
         this.dom.buttons.closeNg?.addEventListener("click", () => this._toggleModal(this.dom.modals.ng, false));
 
@@ -591,7 +628,7 @@ class UIManager {
         this.settingsHandler.updateRelayList();
     }
     
-    // ✅ 追加: メタデータ更新時に、既存のノートのアイコンと名前を更新する
+    // ✅ 修正済み: メタデータ更新時に、既存のノートのアイコンと名前を更新する
     updateProfilePicture(pubkey) {
         const pictureUrl = this.client.getProfilePicture(pubkey);
         const profileName = this.client.getProfileName(pubkey);
@@ -603,8 +640,8 @@ class UIManager {
         notesToUpdate.forEach(noteEl => {
             const img = noteEl.querySelector('.profile-icon');
             if (img) {
-                // 画像が見つからなかった場合に 'default_icon.png' にフォールバック
-                img.src = this._escape(pictureUrl || 'default_icon.png');
+                // Data URIへのフォールバックを適用
+                img.src = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
             }
             
             const nameEl = noteEl.querySelector('.author-name');
@@ -627,7 +664,6 @@ class UIManager {
         const container = this.dom.timeline;
         if (!container) return;
         
-        // スクロール判定
         const IS_SCROLLED_RIGHT_TOLERANCE = 10;
         const isScrolledRight = container.scrollLeft >= (container.scrollWidth - container.clientWidth) - IS_SCROLLED_RIGHT_TOLERANCE;
         const wasScrolledRight = isScrolledRight;
@@ -641,7 +677,7 @@ class UIManager {
         this.bufferTimer = null;
         if(this.dom.spinner) this.dom.spinner.style.display = "none";
         
-        // スクロール位置制御 (右端に追加していくので、右端を見ていた場合は追従)
+        // スクロール位置制御
         const newScrollWidth = container.scrollWidth;
         if (wasScrolledRight) {
             container.scrollLeft = newScrollWidth - container.clientWidth;
@@ -651,37 +687,7 @@ class UIManager {
         }
     }
 
- // =======================
-// 6. UI Manager (✅ 修正箇所抜粋)
-// =======================
-class UIManager {
-    // ...
-    
-    // ✅ 修正: メタデータ更新時に、既存のノートのアイコンと名前を更新する
-    updateProfilePicture(pubkey) {
-        const pictureUrl = this.client.getProfilePicture(pubkey);
-        const profileName = this.client.getProfileName(pubkey);
-        const displayName = profileName || (pubkey || "").slice(0, 8);
-
-        // pubkeyに対応する全てのノート要素を検索
-        const notesToUpdate = this.dom.timeline.querySelectorAll(`.note[data-pubkey="${pubkey}"]`);
-        
-        notesToUpdate.forEach(noteEl => {
-            const img = noteEl.querySelector('.profile-icon');
-            if (img) {
-                // 🚀 ここを修正: 'default_icon.png' を Data URI に変更する
-                img.src = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
-            }
-            
-            const nameEl = noteEl.querySelector('.author-name');
-            if (nameEl) {
-                // 名前の更新
-                nameEl.textContent = `${this._escape(displayName)}...`;
-            }
-        });
-
-
-    // ✅ 修正: アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
+    // ✅ 修正済み: アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -698,7 +704,7 @@ class UIManager {
         const profileName = this.client.getProfileName(event.pubkey);
         const displayName = profileName || (event.pubkey || "").slice(0, 8);
         
-        // 🚀 修正点: pictureUrlがない場合、Data URIを使用する
+        // Data URIへのフォールバックを適用
         const iconSrc = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
 
         noteEl.innerHTML = `
@@ -707,7 +713,7 @@ class UIManager {
                     src="${iconSrc}" 
                     class="profile-icon" 
                     alt="Icon" 
-                    // ✅ 修正: 外部のpictureUrlが不正だった場合に、Data URIにフォールバックさせる
+                    // 外部のpictureUrlが不正だった場合のフォールバック
                     onerror="this.src='${DEFAULT_ICON_DATA_URI}';" 
                     loading="lazy"
                 >
@@ -753,13 +759,15 @@ class UIManager {
     }
 }
 
+
 // =======================
-// 7. Main Execution (✅ 修正あり)
+// 7. Main Execution
 // =======================
 window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
     await storage.loadDefaultNgWords();
     
+    // 初回実行時、デフォルトNGワードをローカルストレージにコピー
     if (!localStorage.getItem("userNgWords")) {
         storage.saveUserNgWords(storage.defaultNgWords);
     }
@@ -772,7 +780,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
-    client.onMetadataCallback = (pubkey) => ui.updateProfilePicture(pubkey); // ✅ 追加: メタデータ更新時の処理
+    client.onMetadataCallback = (pubkey) => ui.updateProfilePicture(pubkey);
 
     client.connect();
     client.startSubscription();
