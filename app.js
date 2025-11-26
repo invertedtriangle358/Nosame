@@ -523,7 +523,7 @@ class SettingsUIHandler {
 
 
 // =======================
-// 6. UI Manager (修正版)
+// 6. UI Manager (完全な骨子)
 // =======================
 class UIManager {
     constructor(nostrClient, storage) {
@@ -534,35 +534,58 @@ class UIManager {
         this.bufferTimer = null;
         this.settingsHandler = null; 
     }
-    // ... (init, _setupListeners, _toggleModal, _handlePublish, _updateRelayListFromClient は省略)
-    
-    // ⭐ 修正箇所: メタデータ更新時に、既存のノートのアイコンと名前を更新する
-    updateProfilePicture(pubkey) {
-        const pictureUrl = this.client.getProfilePicture(pubkey);
-        const profileName = this.client.getProfileName(pubkey);
-        const displayName = profileName || (pubkey || "").slice(0, 8);
 
-        const notesToUpdate = this.dom.timeline.querySelectorAll(`.note[data-pubkey="${pubkey}"]`);
+    /**
+     * ⭐ 必須: アプリケーションの初期化を実行する
+     */
+    init() {
+        this._getDomElements(); // 1. DOM要素の取得
         
-        notesToUpdate.forEach(noteEl => {
-            // ⭐ 修正: .profile-icon-placeholder を探す
-            const iconEl = noteEl.querySelector('.profile-icon-placeholder');
-            if (iconEl) {
-                if (pictureUrl) {
-                    // 外部URLがある場合、背景画像を上書き
-                    iconEl.style.backgroundImage = `url('${this._escape(pictureUrl)}')`;
-                } else {
-                    // URLがない場合、CSSで設定されたデフォルトに戻す
-                    iconEl.style.backgroundImage = ''; 
-                }
-            }
-            
-            const nameEl = noteEl.querySelector('.author-name');
-            if (nameEl) {
-                // 名前の更新
-                nameEl.textContent = `${this._escape(displayName)}...`;
-            }
+        // 2. SettingsUIHandler の初期化 (dom要素取得後)
+        this.settingsHandler = new SettingsUIHandler(
+            this.dom, 
+            this.storage, 
+            this.client, 
+            this // UI Manager自身を渡す
+        );
+        
+        this._setupListeners(); // 3. イベントリスナーの設定
+        
+        // 4. 初期リストの描画
+        this.settingsHandler.updateRelayList();
+        this.settingsHandler.updateNgList();
+    }
+    
+    // --- 必須のプライベートメソッド ---
+
+    _getDomElements() {
+        // ⭐ DOM要素を全て取得し、this.domに格納する
+        this.dom.timeline = document.getElementById('timeline');
+        this.dom.postForm = document.getElementById('post-form');
+        this.dom.postContent = document.getElementById('post-content');
+        this.dom.relayCount = document.getElementById('relay-count');
+        this.dom.modals = {
+            relay: document.getElementById('relay-settings-modal'),
+            // ... 他のモーダル要素
+        };
+        this.dom.buttons = {
+            openRelay: document.getElementById('btn-open-relay-settings'),
+            // ...
+        };
+        this.dom.lists = {
+            relays: document.getElementById('relay-list-container'),
+            ngWords: document.getElementById('ng-word-list-container')
+        }
+        // ...
+    }
+
+    _setupListeners() {
+        // ⭐ DOM要素にイベントリスナーを設定する
+        this.dom.postForm?.addEventListener('submit', (e) => this._handlePublish(e));
+        this.dom.buttons.openRelay?.addEventListener('click', () => {
+             this._toggleModal(this.dom.modals.relay, true);
         });
+        this.settingsHandler.setupListeners(); // SettingsUIHandlerのリスナーもここで設定
     }
 
     // ... (_flushBuffer は省略)
@@ -653,6 +676,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const client = new NostrClient(storage, validator);
     const ui = new UIManager(client, storage);
 
+    ui.init();
 
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
