@@ -268,6 +268,7 @@ class SettingsUIHandler {
         this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
     }
 
+    // リレーリスト用（変更なし）
     _updateList(options) {
         const { container, getItemList, saveItemList, getStatus = null, updateCallback } = options;
         if (!container) return;
@@ -276,27 +277,25 @@ class SettingsUIHandler {
 
         currentItems.forEach((item, idx) => {
             const row = document.createElement("div");
-            row.className = getStatus ? "relay-row" : "ng-word-item";
-            const statusHtml = getStatus ? `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>` : "";
+            row.className = "relay-row";
+            const statusHtml = `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>`;
             
             row.innerHTML = `
                 ${statusHtml}
                 <input type="text" value="${this.uiRef._escape(item)}" data-idx="${idx}">
-                <button class="btn-delete-${getStatus ? 'relay' : 'ng'}">✖</button>
+                <button class="btn-delete-relay">✖</button>
             `;
 
-            row.querySelector(`.btn-delete-${getStatus ? 'relay' : 'ng'}`)?.addEventListener("click", () => {
+            row.querySelector(".btn-delete-relay")?.addEventListener("click", () => {
                 currentItems.splice(idx, 1);
                 saveItemList.call(this.storage, currentItems);
                 updateCallback.call(this);
             });
             
-            if(getStatus) { 
-                 row.querySelector("input")?.addEventListener("input", (e) => {
-                    currentItems[idx] = e.target.value.trim();
-                    saveItemList.call(this.storage, currentItems);
-                });
-            }
+            row.querySelector("input")?.addEventListener("input", (e) => {
+                currentItems[idx] = e.target.value.trim();
+                saveItemList.call(this.storage, currentItems);
+            });
             container.appendChild(row);
         });
     }
@@ -311,12 +310,48 @@ class SettingsUIHandler {
         });
     }
 
+    // ✅ 修正: NGワードリスト専用の描画ロジックを復活
     updateNgList() {
-        this._updateList({
-            container: this.dom.lists.ngWords,
-            getItemList: this.storage.getUserNgWords,
-            saveItemList: this.storage.saveUserNgWords,
-            updateCallback: this.updateNgList,
+        const container = this.dom.lists.ngWords;
+        if (!container) return;
+        container.innerHTML = "";
+
+        // 1. デフォルトNGワード（読み取り専用・グレーアウト）
+        const defaultWords = this.storage.defaultNgWords || [];
+        defaultWords.forEach(word => {
+            const row = document.createElement("div");
+            row.className = "ng-word-item ng-default";
+            row.innerHTML = `
+                <input type="text" value="${this.uiRef._escape(word)}" disabled style="background:#eee; color:#666;">
+                <button disabled style="opacity:0.3; cursor:not-allowed;">✖</button>
+            `;
+            container.appendChild(row);
+        });
+
+        // 2. ユーザーNGワード（編集・削除可能）
+        const userWords = this.storage.getUserNgWords();
+        userWords.forEach((word, idx) => {
+            const row = document.createElement("div");
+            row.className = "ng-word-item";
+            row.innerHTML = `
+                <input type="text" value="${this.uiRef._escape(word)}">
+                <button class="btn-delete-ng">✖</button>
+            `;
+
+            // 削除
+            row.querySelector(".btn-delete-ng")?.addEventListener("click", () => {
+                userWords.splice(idx, 1);
+                this.storage.saveUserNgWords(userWords);
+                this.updateNgList(); // 再描画
+            });
+
+            // 編集（即時保存）
+            row.querySelector("input")?.addEventListener("input", (e) => {
+                userWords[idx] = e.target.value.trim();
+                this.storage.saveUserNgWords(userWords);
+            });
+
+            container.appendChild(row);
         });
     }
     
@@ -340,7 +375,7 @@ class SettingsUIHandler {
 
     _saveRelays() {
         alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
-        this.uiRef._toggleModal(this.dom.modals.relay, false); // 修正: パネルではなくモダールを閉じる
+        this.uiRef._toggleModal(this.dom.modals.relay, false);
         this.client.connect();
         this.client.startSubscription();
     }
