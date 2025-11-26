@@ -653,7 +653,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     const client = new NostrClient(storage, validator);
     const ui = new UIManager(client, storage);
 
-    ui.init(); 
 
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
