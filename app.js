@@ -1,4 +1,3 @@
-
 // =======================
 // 1. Constants & Config
 // =======================
@@ -20,6 +19,7 @@ const CONFIG = {
 const NOSTR_KINDS = {
     TEXT: 1,
     REACTION: 7,
+    PROFILE: 0, // ✅ 修正: kind 0 (メタデータ) を追加
 };
 
 const UI_STRINGS = {
@@ -89,7 +89,7 @@ class StorageManager {
 }
 
 // =======================
-// 4. Nostr Network Client
+// 4. Nostr Network Client (✅ 修正あり)
 // =======================
 class NostrClient {
     constructor(storage, validator) {
@@ -101,6 +101,8 @@ class NostrClient {
         this.reactedEventIds = new Set();
         this.onEventCallback = null;
         this.onStatusCallback = null;
+        this.onMetadataCallback = null; // ✅ 追加: メタデータ更新通知用コールバック
+        this.metadataCache = new Map(); // ✅ 追加: pubkey -> メタデータ をキャッシュ
     }
 
     _setupSocketListeners(ws) {
@@ -174,7 +176,8 @@ class NostrClient {
     _sendReqToSocket(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         const filter = {
-            kinds: [NOSTR_KINDS.TEXT],
+            // ✅ kind 0 (プロフィール) を購読に追加
+            kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.PROFILE],
             limit: CONFIG.NOSTR_REQ_LIMIT,
             since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO
         };
@@ -186,6 +189,14 @@ class NostrClient {
         try {
             const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event) return;
+
+            // ✅ kind 0 の処理: キャッシュに保存して終了
+            if (event.kind === NOSTR_KINDS.PROFILE) {
+                this._cacheMetadata(event);
+                return; 
+            }
+
+            // kind 1 (ノート) の処理
             if (this.seenEventIds.has(event.id)) return;
             if (this.validator.isContentInvalid(event.content)) return;
 
@@ -196,6 +207,41 @@ class NostrClient {
         }
     }
 
+    // ✅ 追加: kind 0 イベントのメタデータをキャッシュする
+    _cacheMetadata(event) {
+        // created_atが古いメタデータは無視する (NIP-01)
+        const currentMetadata = this.metadataCache.get(event.pubkey);
+        if (currentMetadata && currentMetadata.created_at >= event.created_at) {
+            return;
+        }
+
+        try {
+            const content = JSON.parse(event.content);
+            this.metadataCache.set(event.pubkey, {
+                ...content,
+                created_at: event.created_at,
+                pubkey: event.pubkey
+            });
+            
+            // UIに更新を通知
+            if (this.onMetadataCallback) this.onMetadataCallback(event.pubkey);
+
+        } catch (e) {
+            console.warn("メタデータパースエラー:", event, e);
+        }
+    }
+
+    // ✅ 追加: アイコンURLを取得する
+    getProfilePicture(pubkey) {
+        return this.metadataCache.get(pubkey)?.picture || null;
+    }
+    
+    // ✅ 追加: プロフィール名を取得する
+    getProfileName(pubkey) {
+        return this.metadataCache.get(pubkey)?.name || null;
+    }
+
+    // ... (publish, sendReaction, _broadcast, getRelayStatus は変更なし)
     async publish(content) {
         if (this.validator.isContentInvalid(content)) throw new Error(UI_STRINGS.INVALID_CONTENT);
         if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
@@ -251,7 +297,7 @@ class NostrClient {
 }
 
 // =======================
-// 5. Settings UI Handler
+// 5. Settings UI Handler (変更なし)
 // =======================
 class SettingsUIHandler {
     constructor(dom, storage, client, uiRef) {
@@ -310,7 +356,7 @@ class SettingsUIHandler {
         });
     }
 
-    // ✅ 修正: NGワードリスト専用の描画ロジックを復活
+    // NGワードリスト専用の描画ロジック（変更なし）
     updateNgList() {
         const container = this.dom.lists.ngWords;
         if (!container) return;
@@ -398,7 +444,7 @@ class SettingsUIHandler {
 }
 
 // =======================
-// 6. UI Manager
+// 6. UI Manager (✅ 修正あり)
 // =======================
 class UIManager {
     constructor(nostrClient, storage) {
@@ -524,6 +570,30 @@ class UIManager {
         this.settingsHandler.updateRelayList();
     }
     
+    // ✅ 追加: メタデータ更新時に、既存のノートのアイコンと名前を更新する
+    updateProfilePicture(pubkey) {
+        const pictureUrl = this.client.getProfilePicture(pubkey);
+        const profileName = this.client.getProfileName(pubkey);
+        const displayName = profileName || (pubkey || "").slice(0, 8);
+
+        // pubkeyに対応する全てのノート要素を検索
+        const notesToUpdate = this.dom.timeline.querySelectorAll(`.note[data-pubkey="${pubkey}"]`);
+        
+        notesToUpdate.forEach(noteEl => {
+            const img = noteEl.querySelector('.profile-icon');
+            if (img) {
+                // 画像が見つからなかった場合に 'default_icon.png' にフォールバック
+                img.src = this._escape(pictureUrl || 'default_icon.png');
+            }
+            
+            const nameEl = noteEl.querySelector('.author-name');
+            if (nameEl) {
+                // 名前の更新
+                nameEl.textContent = `${this._escape(displayName)}...`;
+            }
+        });
+    }
+
     // --- Rendering ---
     bufferEvent(event) {
         this.eventBuffer.push(event);
@@ -560,6 +630,7 @@ class UIManager {
         }
     }
 
+    // ✅ 修正: アイコンURLと名前の表示ロジックを追加
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -567,14 +638,32 @@ class UIManager {
         noteEl.className = "note";
         noteEl.dataset.createdAt = event.created_at.toString();
         noteEl.dataset.id = event.id;
+        noteEl.dataset.pubkey = event.pubkey; // ✅ 追加: メタデータ更新用にpubkeyを保存
 
         const isReacted = this.client.reactedEventIds.has(event.id);
+        
+        // アイコンと名前を取得
+        const pictureUrl = this.client.getProfilePicture(event.pubkey);
+        const profileName = this.client.getProfileName(event.pubkey);
+        // 名前がある場合は名前を、ない場合はpubkeyの先頭を使う
+        const displayName = profileName || (event.pubkey || "").slice(0, 8);
+
 
         noteEl.innerHTML = `
+            <div class="note-header">
+                <img 
+                    src="${this._escape(pictureUrl || 'default_icon.png')}" 
+                    class="profile-icon" 
+                    alt="Icon" 
+                    onerror="this.src='default_icon.png';" 
+                    loading="lazy"
+                >
+                <span class="author-name">${this._escape(displayName)}...</span>
+            </div>
             <div class="content">${this._formatContent(event.content)}</div>
             <div class="meta">
                 <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
-                <span class="author">${this._escape((event.pubkey || "").slice(0, 8))}...</span>
+                <span class="pubkey-short">(${this._escape((event.pubkey || "").slice(0, 4))}...)</span>
             </div>
             <button class="btn-reaction" ${isReacted ? "disabled" : ""}>${isReacted ? "❤️" : "♡"}</button>
         `;
@@ -612,7 +701,7 @@ class UIManager {
 }
 
 // =======================
-// 7. Main Execution
+// 7. Main Execution (✅ 修正あり)
 // =======================
 window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
@@ -630,6 +719,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
+    client.onMetadataCallback = (pubkey) => ui.updateProfilePicture(pubkey); // ✅ 追加: メタデータ更新時の処理
 
     client.connect();
     client.startSubscription();
