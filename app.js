@@ -1,3 +1,4 @@
+
 // =======================
 // 1. Constants & Config
 // =======================
@@ -19,7 +20,6 @@ const CONFIG = {
 const NOSTR_KINDS = {
     TEXT: 1,
     REACTION: 7,
-    PROFILE: 0,
 };
 
 const UI_STRINGS = {
@@ -31,7 +31,6 @@ const UI_STRINGS = {
     SAVE_RELAY_SUCCESS: "リレー設定を反映して再接続します",
     SAVE_NG_SUCCESS: "NGワードを保存しました",
 };
-
 
 // =======================
 // 2. Event Validator
@@ -50,48 +49,28 @@ class EventValidator {
     }
 }
 
-
 // =======================
-// 3. Storage Manager (DRY原則に基づき簡素化)
+// 3. Storage Manager
 // =======================
 class StorageManager {
     constructor() {
         this.defaultNgWords = [];
     }
-
-    // ヘルパー: localStorageから取得/保存
-    _getStorageItem(key, defaultValue) {
-        try {
-            const item = localStorage.getItem(key);
-            return item ? JSON.parse(item) : defaultValue;
-        } catch (e) {
-            console.error(`Storage read error for key ${key}:`, e);
-            return defaultValue;
-        }
-    }
-
-    _setStorageItem(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-            console.error(`Storage write error for key ${key}:`, e);
-        }
-    }
     
     getRelays() {
-        return this._getStorageItem("relays", [...CONFIG.DEFAULT_RELAYS]);
+        return JSON.parse(localStorage.getItem("relays")) || [...CONFIG.DEFAULT_RELAYS];
     }
 
     saveRelays(relays) {
-        this._setStorageItem("relays", relays);
+        localStorage.setItem("relays", JSON.stringify(relays));
     }
 
     getUserNgWords() {
-        return this._getStorageItem("userNgWords", []);
+        return JSON.parse(localStorage.getItem("userNgWords")) || [];
     }
 
     saveUserNgWords(words) {
-        this._setStorageItem("userNgWords", words);
+        localStorage.setItem("userNgWords", JSON.stringify(words));
     }
 
     async loadDefaultNgWords() {
@@ -109,128 +88,74 @@ class StorageManager {
     }
 }
 
-
-// ------------------------------------
-// 4a. Relay Socket Handler
-// ------------------------------------
-class RelaySocket {
-  constructor(url, { onOpen, onClose, onError, onMessage }) {
-    if (!url) throw new Error("URL is required.");
-    this.url = url;
-
-    // コールバック登録（外部依存を注入する）
-    this.onOpen = onOpen;
-    this.onClose = onClose;
-    this.onError = onError;
-    this.onMessage = onMessage;
-
-    this.ws = null;
-
-    this.connect();
-  }
-
-  connect() {
-    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
-      this.ws.close();
-    }
-
-    try {
-      this.ws = new WebSocket(this.url);
-      this._setupListeners();
-    } catch (err) {
-      this.onError?.(err, this);
-    }
-  }
-
-  _setupListeners() {
-    this.ws.onopen = () => {
-      this.onOpen?.(this);
-    };
-
-    this.ws.onclose = () => {
-      this.onClose?.(this);
-      setTimeout(() => this.connect(), CONFIG.RECONNECT_DELAY_MS);
-    };
-
-    this.ws.onerror = (err) => {
-      this.onError?.(err, this);
-      this.ws.close();
-    };
-
-    this.ws.onmessage = (ev) => {
-      try {
-        const msg = JSON.parse(ev.data);
-        this.onMessage?.(msg, this);
-      } catch (_) {}
-    };
-  }
-
-  send(obj) {
-    if (this.isOpen()) {
-      this.ws.send(JSON.stringify(obj));
-      return true;
-    }
-    return false;
-  }
-
-  isOpen() {
-    return this.ws?.readyState === WebSocket.OPEN;
-  }
-
-  close() {
-    this.ws?.close();
-  }
-}
-
-
 // =======================
-// 4. Nostr Network Client (RelaySocketにソケット管理を委譲)
+// 4. Nostr Network Client
 // =======================
 class NostrClient {
     constructor(storage, validator) {
         this.storage = storage;
         this.validator = validator;
-        this.relaySockets = []; // RelaySocketインスタンスの配列に変更
+        this.sockets = [];
         this.subId = null;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
         this.onEventCallback = null;
         this.onStatusCallback = null;
-        this.onMetadataCallback = null;
-        this.metadataCache = new Map();
+    }
+
+    _setupSocketListeners(ws) {
+        // 修正: ws.url ではなく ws._relayUrl (カスタムプロパティ) を使用
+        ws.onopen = () => {
+            console.log("✅ 接続:", ws._relayUrl);
+            this.notifyStatus();
+            if (this.subId) this._sendReqToSocket(ws);
+        };
+        
+        ws.onclose = () => { 
+            console.log("🔌 切断:", ws._relayUrl); 
+            this.notifyStatus(); 
+            // 自動再接続
+            setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS); 
+        };
+        
+        ws.onerror = (err) => { 
+            console.error("❌ エラー (即時切断):", ws._relayUrl, err); 
+            this.notifyStatus(); 
+            ws.close();
+        };
+        
+        ws.onmessage = (ev) => this._handleMessage(ev);
+    }
+
+    _reconnect(url) {
+        // urlプロパティではなく _relayUrl でフィルタリング
+        this.sockets = this.sockets.filter(s => s._relayUrl !== url);
+        console.log("🔄 再接続試行:", url);
+        
+        try {
+            const ws = new WebSocket(url);
+            ws._relayUrl = url; // 修正: 読み取り専用のws.urlではなくカスタムプロパティに保存
+            this._setupSocketListeners(ws);
+            this.sockets.push(ws);
+        } catch (e) {
+            console.error("再接続処理失敗:", url, e);
+        }
     }
 
     connect() {
-        // 既存ソケットを閉じる
-        this.relaySockets.forEach(rs => rs.close());
-        this.relaySockets = [];
+        this.sockets.forEach(ws => ws.close());
+        this.sockets = [];
 
         const relays = this.storage.getRelays();
         relays.forEach(url => {
             if (!url) return;
             try {
-                // RelaySocketインスタンスを作成し、接続を開始
-                const rs = new RelaySocket(url, {
-                    onOpen: () => {
-                        console.log("✅ 接続:", url);
-                        this.notifyStatus();
-                        // 接続後に購読リクエストを送信
-                        if (this.subId) this._sendReqToSocket(rs);
-                    },
-                    onClose: () => {
-                        console.log("🔌 切断:", url);
-                        this.notifyStatus();
-                    },
-                    onError: (err) => {
-                        console.error("❌ エラー:", url, err);
-                        this.notifyStatus();
-                    },
-                    onMessage: (msg) => this._handleMessage(msg, rs)
-                });
-                this.relaySockets.push(rs);
+                const ws = new WebSocket(url);
+                ws._relayUrl = url; // 修正: カスタムプロパティに保存
+                this._setupSocketListeners(ws);
+                this.sockets.push(ws);
             } catch (e) {
                 console.error("接続開始失敗:", url, e);
-                this.notifyStatus();
             }
         });
         this.notifyStatus();
@@ -243,30 +168,24 @@ class NostrClient {
     startSubscription() {
         this.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
         this.seenEventIds.clear();
-        // RelaySocketのインスタンスを使ってREQを送信
-        this.relaySockets.forEach(rs => this._sendReqToSocket(rs)); 
+        this.sockets.forEach(ws => this._sendReqToSocket(ws));
     }
 
-    _sendReqToSocket(rs) {
-        if (!rs.isOpen()) return;
+    _sendReqToSocket(ws) {
+        if (ws.readyState !== WebSocket.OPEN) return;
         const filter = {
-            kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.PROFILE],
+            kinds: [NOSTR_KINDS.TEXT],
             limit: CONFIG.NOSTR_REQ_LIMIT,
             since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO
         };
         const req = ["REQ", this.subId, filter];
-        rs.send(req);
+        ws.send(JSON.stringify(req));
     }
 
-    _handleMessage([type, subId, event]) {
+    _handleMessage(ev) {
         try {
+            const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event) return;
-
-            if (event.kind === NOSTR_KINDS.PROFILE) {
-                this._cacheMetadata(event);
-                return; 
-            }
-
             if (this.seenEventIds.has(event.id)) return;
             if (this.validator.isContentInvalid(event.content)) return;
 
@@ -275,54 +194,6 @@ class NostrClient {
         } catch (e) {
             console.error("MSG処理エラー", e);
         }
-    }
-
-    _cacheMetadata(event) {
-        const currentMetadata = this.metadataCache.get(event.pubkey);
-        if (currentMetadata && currentMetadata.created_at >= event.created_at) {
-            return;
-        }
-
-        try {
-            if (!event.content) {
-                console.warn(`⚠ kind 0 メタデータ content が空です。pubkey: ${event.pubkey.slice(0, 8)}...`);
-                return;
-            }
-            
-            const content = JSON.parse(event.content); 
-            
-            if (!content || typeof content !== 'object') {
-                console.warn("⚠ 無効なメタデータJSON content:", event);
-                return;
-            }
-
-            // ⭐ 修正箇所: pictureが空文字列などの場合は強制的に null にする
-            const picture = content.picture || null; 
-
-            this.metadataCache.set(event.pubkey, {
-                ...content,
-                picture: picture, // null または有効なURL
-                created_at: event.created_at,
-                pubkey: event.pubkey
-            });
-            
-            if (this.onMetadataCallback) this.onMetadataCallback(event.pubkey);
-
-        } catch (e) {
-            console.warn("❌ メタデータ (kind 0) パース失敗:", 
-                         `Pubkey: ${event.pubkey.slice(0, 8)}...`, 
-                         "Content:", event.content.slice(0, 50) + '...', 
-                         "Error:", e);
-        }
-    }
-
-    getProfilePicture(pubkey) {
-        // null または有効な URL が返る
-        return this.metadataCache.get(pubkey)?.picture || null;
-    }
-    
-    getProfileName(pubkey) {
-        return this.metadataCache.get(pubkey)?.name || null;
     }
 
     async publish(content) {
@@ -360,10 +231,11 @@ class NostrClient {
     }
 
     _broadcast(event) {
-        const payload = ["EVENT", event];
+        const payload = JSON.stringify(["EVENT", event]);
         let sentCount = 0;
-        this.relaySockets.forEach(rs => {
-            if (rs.send(payload)) {
+        this.sockets.forEach(ws => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(payload);
                 sentCount++;
             }
         });
@@ -372,11 +244,11 @@ class NostrClient {
 
     getRelayStatus(url) {
         const normalized = url.replace(/\/+$/, "");
-        const rs = this.relaySockets.find(s => s.url.replace(/\/+$/, "") === normalized);
-        return rs ? rs.isOpen() : false;
+        // 修正: _relayUrlを使用して検索
+        const ws = this.sockets.find(s => s._relayUrl.replace(/\/+$/, "") === normalized);
+        return ws && ws.readyState === WebSocket.OPEN;
     }
 }
-
 
 // =======================
 // 5. Settings UI Handler
@@ -396,6 +268,7 @@ class SettingsUIHandler {
         this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
     }
 
+    // リレーリスト用（変更なし）
     _updateList(options) {
         const { container, getItemList, saveItemList, getStatus = null, updateCallback } = options;
         if (!container) return;
@@ -405,7 +278,7 @@ class SettingsUIHandler {
         currentItems.forEach((item, idx) => {
             const row = document.createElement("div");
             row.className = "relay-row";
-            const statusHtml = getStatus ? `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>` : '';
+            const statusHtml = `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>`;
             
             row.innerHTML = `
                 ${statusHtml}
@@ -437,12 +310,13 @@ class SettingsUIHandler {
         });
     }
 
+    // ✅ 修正: NGワードリスト専用の描画ロジックを復活
     updateNgList() {
         const container = this.dom.lists.ngWords;
         if (!container) return;
         container.innerHTML = "";
 
-        // 1. デフォルトNGワード
+        // 1. デフォルトNGワード（読み取り専用・グレーアウト）
         const defaultWords = this.storage.defaultNgWords || [];
         defaultWords.forEach(word => {
             const row = document.createElement("div");
@@ -454,7 +328,7 @@ class SettingsUIHandler {
             container.appendChild(row);
         });
 
-        // 2. ユーザーNGワード
+        // 2. ユーザーNGワード（編集・削除可能）
         const userWords = this.storage.getUserNgWords();
         userWords.forEach((word, idx) => {
             const row = document.createElement("div");
@@ -464,12 +338,14 @@ class SettingsUIHandler {
                 <button class="btn-delete-ng">✖</button>
             `;
 
+            // 削除
             row.querySelector(".btn-delete-ng")?.addEventListener("click", () => {
                 userWords.splice(idx, 1);
                 this.storage.saveUserNgWords(userWords);
-                this.updateNgList();
+                this.updateNgList(); // 再描画
             });
 
+            // 編集（即時保存）
             row.querySelector("input")?.addEventListener("input", (e) => {
                 userWords[idx] = e.target.value.trim();
                 this.storage.saveUserNgWords(userWords);
@@ -521,9 +397,8 @@ class SettingsUIHandler {
     }
 }
 
-
 // =======================
-// 6. UI Manager (完全な骨子)
+// 6. UI Manager
 // =======================
 class UIManager {
     constructor(nostrClient, storage) {
@@ -535,62 +410,156 @@ class UIManager {
         this.settingsHandler = null; 
     }
 
-    /**
-     * ⭐ 必須: アプリケーションの初期化を実行する
-     */
     init() {
-        this._getDomElements(); // 1. DOM要素の取得
-        
-        // 2. SettingsUIHandler の初期化 (dom要素取得後)
-        this.settingsHandler = new SettingsUIHandler(
-            this.dom, 
-            this.storage, 
-            this.client, 
-            this // UI Manager自身を渡す
-        );
-        
-        this._setupListeners(); // 3. イベントリスナーの設定
-        
-        // 4. 初期リストの描画
-        this.settingsHandler.updateRelayList();
-        this.settingsHandler.updateNgList();
-    }
-    
-    // --- 必須のプライベートメソッド ---
+        // DOM要素取得: 大本のHTML IDに合わせて調整
+        this.dom = {
+            timeline: document.getElementById("timeline"),
+            spinner: document.getElementById("subscribeSpinner"), // HTMLに無い場合は無視されます
+            // モダール関連 (大本のHTMLに基づく)
+            modals: {
+                relay: document.getElementById("relayModal"),
+                ng: document.getElementById("ngModal"),
+            },
+            buttons: {
+                // 大本のID: btnPublish, btnRelayModal, btnNgModal など
+                publish: document.getElementById("btnPublish"),
+                openRelay: document.getElementById("btnRelayModal"),
+                closeRelay: document.getElementById("btnCloseModal"),
+                openNg: document.getElementById("btnNgModal"),
+                closeNg: document.getElementById("btnCloseNgModal"),
+                
+                addRelay: document.getElementById("btnAddRelay"),
+                saveRelays: document.getElementById("btnSaveRelays"),
+                addNg: document.getElementById("btnAddNgWord"),
+                saveNg: document.getElementById("btnSaveNgWords"),
+                scrollLeft: document.getElementById("scrollLeft"),
+                scrollRight: document.getElementById("scrollRight"),
+            },
+            inputs: {
+                // 大本のID: compose, relayInput, ngWordInput
+                compose: document.getElementById("compose"), 
+                relay: document.getElementById("relayInput"),
+                ng: document.getElementById("ngWordInput"),
+            },
+            lists: {
+                relays: document.getElementById("relayList"),
+                ngWords: document.getElementById("ngWordList"),
+            },
+            counters: {
+                char: document.getElementById("charCount"),
+            }
+        };
 
-    _getDomElements() {
-        // ⭐ DOM要素を全て取得し、this.domに格納する
-        this.dom.timeline = document.getElementById('timeline');
-        this.dom.postForm = document.getElementById('post-form');
-        this.dom.postContent = document.getElementById('post-content');
-        this.dom.relayCount = document.getElementById('relay-count');
-        this.dom.modals = {
-            relay: document.getElementById('relay-settings-modal'),
-            // ... 他のモーダル要素
-        };
-        this.dom.buttons = {
-            openRelay: document.getElementById('btn-open-relay-settings'),
-            // ...
-        };
-        this.dom.lists = {
-            relays: document.getElementById('relay-list-container'),
-            ngWords: document.getElementById('ng-word-list-container')
-        }
-        // ...
+        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
+        this._setupListeners();
+        this.settingsHandler.updateNgList();
+        this.settingsHandler.updateRelayList();
     }
 
     _setupListeners() {
-        // ⭐ DOM要素にイベントリスナーを設定する
-        this.dom.postForm?.addEventListener('submit', (e) => this._handlePublish(e));
-        this.dom.buttons.openRelay?.addEventListener('click', () => {
-             this._toggleModal(this.dom.modals.relay, true);
+        // モダール開閉 (大本のロジックを再現)
+        this.dom.buttons.openRelay?.addEventListener("click", () => {
+            this._toggleModal(this.dom.modals.relay, true);
+            this.settingsHandler.updateRelayList();
         });
-        this.settingsHandler.setupListeners(); // SettingsUIHandlerのリスナーもここで設定
+        this.dom.buttons.closeRelay?.addEventListener("click", () => this._toggleModal(this.dom.modals.relay, false));
+
+        this.dom.buttons.openNg?.addEventListener("click", () => {
+             this._toggleModal(this.dom.modals.ng, true);
+             this.settingsHandler.updateNgList();
+        });
+        this.dom.buttons.closeNg?.addEventListener("click", () => this._toggleModal(this.dom.modals.ng, false));
+
+        // 投稿
+        this.dom.buttons.publish?.addEventListener("click", () => this._handlePublish());
+
+        // 設定関連のリスナー委譲
+        this.settingsHandler.setupListeners();
+
+        // スクロール
+        this.dom.buttons.scrollLeft?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: -300, behavior: "smooth" }));
+        this.dom.buttons.scrollRight?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: 300, behavior: "smooth" }));
+
+        // 文字数カウント
+        this.dom.inputs.compose?.addEventListener("input", (e) => {
+            const len = e.target.value.length;
+            if(this.dom.counters.char) {
+                this.dom.counters.char.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
+                this.dom.counters.char.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
+            }
+        });
+        
+        // モダール背景クリックで閉じる
+        [this.dom.modals.relay, this.dom.modals.ng].forEach(modal => {
+            modal?.addEventListener("click", e => {
+                if (e.target === modal) this._toggleModal(modal, false);
+            });
+        });
     }
 
-    // ... (_flushBuffer は省略)
+    _toggleModal(modalEl, open) {
+        if (!modalEl) return;
+        modalEl.style.display = open ? "block" : "none";
+        modalEl.setAttribute("aria-hidden", String(!open));
+        document.body.style.overflow = open ? "hidden" : "";
+    }
 
-    // ⭐ 修正箇所: HTMLテンプレートを <span> ベースに変更
+    async _handlePublish() {
+        const input = this.dom.inputs.compose;
+        const content = input?.value?.trim();
+
+        if (!content) return alert(UI_STRINGS.EMPTY_POST);
+
+        try {
+            const event = await this.client.publish(content);
+            this.renderEvent(event);
+            input.value = "";
+            if (this.dom.counters.char) this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    _updateRelayListFromClient() {
+        this.settingsHandler.updateRelayList();
+    }
+    
+    // --- Rendering ---
+    bufferEvent(event) {
+        this.eventBuffer.push(event);
+        if (!this.bufferTimer) {
+            this.bufferTimer = setTimeout(() => this._flushBuffer(), CONFIG.EVENT_BUFFER_FLUSH_TIME_MS);
+        }
+    }
+
+    _flushBuffer() {
+        const container = this.dom.timeline;
+        if (!container) return;
+        
+        // スクロール判定
+        const IS_SCROLLED_RIGHT_TOLERANCE = 10;
+        const isScrolledRight = container.scrollLeft >= (container.scrollWidth - container.clientWidth) - IS_SCROLLED_RIGHT_TOLERANCE;
+        const wasScrolledRight = isScrolledRight;
+        const prevScrollWidth = container.scrollWidth;
+
+        this.eventBuffer
+            .sort((a, b) => a.created_at - b.created_at) // 古い順にソート
+            .forEach(e => this.renderEvent(e));
+        
+        this.eventBuffer = [];
+        this.bufferTimer = null;
+        if(this.dom.spinner) this.dom.spinner.style.display = "none";
+        
+        // スクロール位置制御 (右端に追加していくので、右端を見ていた場合は追従)
+        const newScrollWidth = container.scrollWidth;
+        if (wasScrolledRight) {
+            container.scrollLeft = newScrollWidth - container.clientWidth;
+        } else {
+            const addedWidth = newScrollWidth - prevScrollWidth;
+            container.scrollLeft += addedWidth;
+        }
+    }
+
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -598,32 +567,14 @@ class UIManager {
         noteEl.className = "note";
         noteEl.dataset.createdAt = event.created_at.toString();
         noteEl.dataset.id = event.id;
-        noteEl.dataset.pubkey = event.pubkey;
 
         const isReacted = this.client.reactedEventIds.has(event.id);
-        
-        const pictureUrl = this.client.getProfilePicture(event.pubkey);
-        const profileName = this.client.getProfileName(event.pubkey);
-        const displayName = profileName || (event.pubkey || "").slice(0, 8);
-        
-        // pictureUrlがある場合のみインラインスタイルを定義
-        const inlineStyle = pictureUrl ? 
-            `style="background-image: url('${this._escape(pictureUrl)}');"` : 
-            '';
 
         noteEl.innerHTML = `
-            <div class="note-header">
-                <span 
-                    class="profile-icon-placeholder" 
-                    alt="Icon" 
-                    ${inlineStyle} 
-                ></span>
-                <span class="author-name">${this._escape(displayName)}...</span>
-            </div>
             <div class="content">${this._formatContent(event.content)}</div>
             <div class="meta">
                 <span class="time">${new Date(event.created_at * 1000).toLocaleString()}</span>
-                <span class="pubkey-short">(${this._escape((event.pubkey || "").slice(0, 4))}...)</span>
+                <span class="author">${this._escape((event.pubkey || "").slice(0, 8))}...</span>
             </div>
             <button class="btn-reaction" ${isReacted ? "disabled" : ""}>${isReacted ? "❤️" : "♡"}</button>
         `;
@@ -639,6 +590,7 @@ class UIManager {
             }
         });
 
+        // 常に右端に追加
         this.dom.timeline.appendChild(noteEl);
     }
 
@@ -659,7 +611,6 @@ class UIManager {
     }
 }
 
-
 // =======================
 // 7. Main Execution
 // =======================
@@ -667,7 +618,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
     await storage.loadDefaultNgWords();
     
-    // 初回実行時、デフォルトNGワードをローカルストレージにコピー
     if (!localStorage.getItem("userNgWords")) {
         storage.saveUserNgWords(storage.defaultNgWords);
     }
@@ -676,11 +626,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     const client = new NostrClient(storage, validator);
     const ui = new UIManager(client, storage);
 
-    ui.init();
+    ui.init(); 
 
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
-    client.onMetadataCallback = (pubkey) => ui.updateProfilePicture(pubkey);
 
     client.connect();
     client.startSubscription();
