@@ -1,6 +1,3 @@
-/**
- * Nostr Client - 接続安定性向上＆SOLID原則準拠
- */
 
 // =======================
 // 1. Constants & Config
@@ -39,7 +36,6 @@ const UI_STRINGS = {
 // 2. Event Validator
 // =======================
 class EventValidator {
-    /** @param {StorageManager} storage */
     constructor(storage) {
         this.storage = storage;
     }
@@ -47,42 +43,32 @@ class EventValidator {
     isContentInvalid(text) {
         if (!text) return false;
         if (text.length > CONFIG.MAX_POST_LENGTH) return true;
-        
         const ngWords = this.storage.getAllNgWords();
         const lower = text.toLowerCase();
-        
         return ngWords.some(ng => lower.includes(ng.toLowerCase()));
     }
 }
-
 
 // =======================
 // 3. Storage Manager
 // =======================
 class StorageManager {
-    /** @type {string[]} */
-    defaultNgWords;
-
     constructor() {
         this.defaultNgWords = [];
     }
     
-    /** @returns {string[]} */
     getRelays() {
         return JSON.parse(localStorage.getItem("relays")) || [...CONFIG.DEFAULT_RELAYS];
     }
 
-    /** @param {string[]} relays */
     saveRelays(relays) {
         localStorage.setItem("relays", JSON.stringify(relays));
     }
 
-    /** @returns {string[]} */
     getUserNgWords() {
         return JSON.parse(localStorage.getItem("userNgWords")) || [];
     }
 
-    /** @param {string[]} words */
     saveUserNgWords(words) {
         localStorage.setItem("userNgWords", JSON.stringify(words));
     }
@@ -97,18 +83,15 @@ class StorageManager {
         }
     }
 
-    /** @returns {string[]} */
     getAllNgWords() {
         return [...new Set([...this.defaultNgWords, ...this.getUserNgWords()])];
     }
 }
 
-
 // =======================
 // 4. Nostr Network Client
 // =======================
 class NostrClient {
-    /** @param {StorageManager} storage @param {EventValidator} validator */
     constructor(storage, validator) {
         this.storage = storage;
         this.validator = validator;
@@ -120,22 +103,23 @@ class NostrClient {
         this.onStatusCallback = null;
     }
 
-    /** @param {WebSocket} ws */
     _setupSocketListeners(ws) {
+        // 修正: ws.url ではなく ws._relayUrl (カスタムプロパティ) を使用
         ws.onopen = () => {
-            console.log("✅ 接続:", ws.url);
+            console.log("✅ 接続:", ws._relayUrl);
             this.notifyStatus();
             if (this.subId) this._sendReqToSocket(ws);
         };
         
         ws.onclose = () => { 
-            console.log("🔌 切断:", ws.url); 
+            console.log("🔌 切断:", ws._relayUrl); 
             this.notifyStatus(); 
-            setTimeout(() => this._reconnect(ws.url), CONFIG.RECONNECT_DELAY_MS); 
+            // 自動再接続
+            setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS); 
         };
         
         ws.onerror = (err) => { 
-            console.error("❌ エラー (即時切断):", ws.url, err); 
+            console.error("❌ エラー (即時切断):", ws._relayUrl, err); 
             this.notifyStatus(); 
             ws.close();
         };
@@ -143,14 +127,14 @@ class NostrClient {
         ws.onmessage = (ev) => this._handleMessage(ev);
     }
 
-    /** @param {string} url */
     _reconnect(url) {
-        this.sockets = this.sockets.filter(s => s.url !== url);
+        // urlプロパティではなく _relayUrl でフィルタリング
+        this.sockets = this.sockets.filter(s => s._relayUrl !== url);
         console.log("🔄 再接続試行:", url);
         
         try {
             const ws = new WebSocket(url);
-            ws.url = url; 
+            ws._relayUrl = url; // 修正: 読み取り専用のws.urlではなくカスタムプロパティに保存
             this._setupSocketListeners(ws);
             this.sockets.push(ws);
         } catch (e) {
@@ -167,7 +151,7 @@ class NostrClient {
             if (!url) return;
             try {
                 const ws = new WebSocket(url);
-                ws.url = url; 
+                ws._relayUrl = url; // 修正: カスタムプロパティに保存
                 this._setupSocketListeners(ws);
                 this.sockets.push(ws);
             } catch (e) {
@@ -187,7 +171,6 @@ class NostrClient {
         this.sockets.forEach(ws => this._sendReqToSocket(ws));
     }
 
-    /** @param {WebSocket} ws */
     _sendReqToSocket(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         const filter = {
@@ -199,7 +182,6 @@ class NostrClient {
         ws.send(JSON.stringify(req));
     }
 
-    /** @param {MessageEvent} ev */
     _handleMessage(ev) {
         try {
             const [type, subId, event] = JSON.parse(ev.data);
@@ -214,7 +196,6 @@ class NostrClient {
         }
     }
 
-    /** @param {string} content */
     async publish(content) {
         if (this.validator.isContentInvalid(content)) throw new Error(UI_STRINGS.INVALID_CONTENT);
         if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
@@ -232,7 +213,6 @@ class NostrClient {
         return signed;
     }
 
-    /** @param {any} targetEvent */
     async sendReaction(targetEvent) {
         if (this.reactedEventIds.has(targetEvent.id)) return;
         if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
@@ -250,7 +230,6 @@ class NostrClient {
         this.reactedEventIds.add(targetEvent.id);
     }
 
-    /** @param {any} event */
     _broadcast(event) {
         const payload = JSON.stringify(["EVENT", event]);
         let sentCount = 0;
@@ -263,20 +242,18 @@ class NostrClient {
         if (sentCount === 0) throw new Error(UI_STRINGS.NO_RELAY);
     }
 
-    /** @param {string} url */
     getRelayStatus(url) {
         const normalized = url.replace(/\/+$/, "");
-        const ws = this.sockets.find(s => s.url.replace(/\/+$/, "") === normalized);
+        // 修正: _relayUrlを使用して検索
+        const ws = this.sockets.find(s => s._relayUrl.replace(/\/+$/, "") === normalized);
         return ws && ws.readyState === WebSocket.OPEN;
     }
 }
-
 
 // =======================
 // 5. Settings UI Handler
 // =======================
 class SettingsUIHandler {
-    /** @param {Object<string, any>} dom @param {StorageManager} storage @param {NostrClient} client @param {UIManager} uiRef */
     constructor(dom, storage, client, uiRef) {
         this.dom = dom;
         this.storage = storage;
@@ -291,9 +268,6 @@ class SettingsUIHandler {
         this.dom.buttons.saveNg?.addEventListener("click", () => this._saveNgWords());
     }
 
-    /**
-     * @param {{ container: HTMLElement, getItemList: Function, saveItemList: Function, getStatus?: Function, updateCallback: Function }} options
-     */
     _updateList(options) {
         const { container, getItemList, saveItemList, getStatus = null, updateCallback } = options;
         if (!container) return;
@@ -303,7 +277,6 @@ class SettingsUIHandler {
         currentItems.forEach((item, idx) => {
             const row = document.createElement("div");
             row.className = getStatus ? "relay-row" : "ng-word-item";
-            
             const statusHtml = getStatus ? `<span class="relay-status">${getStatus.call(this.client, item) ? "🟢" : "🔴"}</span>` : "";
             
             row.innerHTML = `
@@ -324,7 +297,6 @@ class SettingsUIHandler {
                     saveItemList.call(this.storage, currentItems);
                 });
             }
-
             container.appendChild(row);
         });
     }
@@ -348,7 +320,6 @@ class SettingsUIHandler {
         });
     }
     
-    // --- Relay Handlers ---
     _addRelay() {
         const url = this.dom.inputs.relay?.value?.trim();
         if (!url) return;
@@ -369,12 +340,11 @@ class SettingsUIHandler {
 
     _saveRelays() {
         alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
-        this.uiRef._togglePanel(false);
+        this.uiRef._toggleModal(this.dom.modals.relay, false); // 修正: パネルではなくモダールを閉じる
         this.client.connect();
         this.client.startSubscription();
     }
     
-    // --- NG Word Handlers ---
     _addNgWord() {
         const w = this.dom.inputs.ng?.value?.trim();
         if (!w) return;
@@ -392,12 +362,10 @@ class SettingsUIHandler {
     }
 }
 
-
 // =======================
 // 6. UI Manager
 // =======================
 class UIManager {
-    /** @param {NostrClient} nostrClient @param {StorageManager} storage */
     constructor(nostrClient, storage) {
         this.client = nostrClient;
         this.storage = storage;
@@ -408,29 +376,42 @@ class UIManager {
     }
 
     init() {
-        // DOM Elements Fetching (省略)
+        // DOM要素取得: 大本のHTML IDに合わせて調整
         this.dom = {
-            timeline: document.getElementById("timeline"), spinner: document.getElementById("subscribeSpinner"),
-            panel: {
-                side: document.getElementById("sidePanel"), overlay: document.getElementById("panelOverlay"),
-                btnOpen: document.getElementById("btnPanelToggle"), btnClose: document.getElementById("btnPanelClose"),
-            },
-            inputs: {
-                full: document.getElementById("composeFull"), simple: document.getElementById("composeSimple"),
-                sidebar: document.getElementById("composeSidebar"), relay: document.getElementById("relayInput"),
-                ng: document.getElementById("ngWordInput"),
+            timeline: document.getElementById("timeline"),
+            spinner: document.getElementById("subscribeSpinner"), // HTMLに無い場合は無視されます
+            // モダール関連 (大本のHTMLに基づく)
+            modals: {
+                relay: document.getElementById("relayModal"),
+                ng: document.getElementById("ngModal"),
             },
             buttons: {
-                publishFull: document.getElementById("btnPublish"), publishSimple: document.getElementById("btnPublishSimple"),
-                addRelay: document.getElementById("btnAddRelay"), saveRelays: document.getElementById("btnSaveRelays"),
-                addNg: document.getElementById("btnAddNgWord"), saveNg: document.getElementById("btnSaveNgWords"),
-                scrollLeft: document.getElementById("scrollLeft"), scrollRight: document.getElementById("scrollRight"),
+                // 大本のID: btnPublish, btnRelayModal, btnNgModal など
+                publish: document.getElementById("btnPublish"),
+                openRelay: document.getElementById("btnRelayModal"),
+                closeRelay: document.getElementById("btnCloseModal"),
+                openNg: document.getElementById("btnNgModal"),
+                closeNg: document.getElementById("btnCloseNgModal"),
+                
+                addRelay: document.getElementById("btnAddRelay"),
+                saveRelays: document.getElementById("btnSaveRelays"),
+                addNg: document.getElementById("btnAddNgWord"),
+                saveNg: document.getElementById("btnSaveNgWords"),
+                scrollLeft: document.getElementById("scrollLeft"),
+                scrollRight: document.getElementById("scrollRight"),
+            },
+            inputs: {
+                // 大本のID: compose, relayInput, ngWordInput
+                compose: document.getElementById("compose"), 
+                relay: document.getElementById("relayInput"),
+                ng: document.getElementById("ngWordInput"),
             },
             lists: {
-                relays: document.getElementById("relayList"), ngWords: document.getElementById("ngWordList"),
+                relays: document.getElementById("relayList"),
+                ngWords: document.getElementById("ngWordList"),
             },
             counters: {
-                full: document.getElementById("charCount"), sidebar: document.getElementById("charCountSidebar"),
+                char: document.getElementById("charCount"),
             }
         };
 
@@ -441,42 +422,55 @@ class UIManager {
     }
 
     _setupListeners() {
-        // Panel & Publish & Scroll (省略)
-        this.dom.panel.btnOpen?.addEventListener("click", () => this._togglePanel(true));
-        this.dom.panel.btnClose?.addEventListener("click", () => this._togglePanel(false));
-        this.dom.panel.overlay?.addEventListener("click", () => this._togglePanel(false));
-        this.dom.buttons.publishSimple?.addEventListener("click", () => this._handlePublish("simple"));
-        this.dom.buttons.publishFull?.addEventListener("click", () => this._handlePublish("full"));
-        this.dom.inputs.simple?.addEventListener("keydown", (e) => {
-             if (e.key === "Enter") { e.preventDefault(); this._handlePublish("simple"); }
+        // モダール開閉 (大本のロジックを再現)
+        this.dom.buttons.openRelay?.addEventListener("click", () => {
+            this._toggleModal(this.dom.modals.relay, true);
+            this.settingsHandler.updateRelayList();
         });
+        this.dom.buttons.closeRelay?.addEventListener("click", () => this._toggleModal(this.dom.modals.relay, false));
+
+        this.dom.buttons.openNg?.addEventListener("click", () => {
+             this._toggleModal(this.dom.modals.ng, true);
+             this.settingsHandler.updateNgList();
+        });
+        this.dom.buttons.closeNg?.addEventListener("click", () => this._toggleModal(this.dom.modals.ng, false));
+
+        // 投稿
+        this.dom.buttons.publish?.addEventListener("click", () => this._handlePublish());
+
+        // 設定関連のリスナー委譲
         this.settingsHandler.setupListeners();
+
+        // スクロール
         this.dom.buttons.scrollLeft?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: -300, behavior: "smooth" }));
         this.dom.buttons.scrollRight?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: 300, behavior: "smooth" }));
 
-        // Inputs (省略)
-        const checkLen = (input, counter) => {
-            if(!input || !counter) return;
-            const len = input.value.length;
-            counter.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-            counter.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
-        };
-        this.dom.inputs.full?.addEventListener("input", (e) => checkLen(e.target, this.dom.counters.full));
-        this.dom.inputs.sidebar?.addEventListener("input", (e) => checkLen(e.target, this.dom.counters.sidebar));
+        // 文字数カウント
+        this.dom.inputs.compose?.addEventListener("input", (e) => {
+            const len = e.target.value.length;
+            if(this.dom.counters.char) {
+                this.dom.counters.char.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
+                this.dom.counters.char.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
+            }
+        });
+        
+        // モダール背景クリックで閉じる
+        [this.dom.modals.relay, this.dom.modals.ng].forEach(modal => {
+            modal?.addEventListener("click", e => {
+                if (e.target === modal) this._toggleModal(modal, false);
+            });
+        });
     }
 
-    /** @param {boolean} open */
-    _togglePanel(open) {
-        if (!this.dom.panel.side) return;
-        this.dom.panel.side.classList.toggle("open", open);
-        this.dom.panel.side.setAttribute("aria-hidden", (!open).toString());
-        this.dom.panel.overlay.hidden = !open;
+    _toggleModal(modalEl, open) {
+        if (!modalEl) return;
+        modalEl.style.display = open ? "block" : "none";
+        modalEl.setAttribute("aria-hidden", String(!open));
+        document.body.style.overflow = open ? "hidden" : "";
     }
 
-    /** @param {string} source */
-    async _handlePublish(source) {
-        const inputMap = { "simple": this.dom.inputs.simple, "full": this.dom.inputs.full, "sidebar": this.dom.inputs.sidebar };
-        const input = inputMap[source];
+    async _handlePublish() {
+        const input = this.dom.inputs.compose;
         const content = input?.value?.trim();
 
         if (!content) return alert(UI_STRINGS.EMPTY_POST);
@@ -485,8 +479,7 @@ class UIManager {
             const event = await this.client.publish(content);
             this.renderEvent(event);
             input.value = "";
-            if (this.dom.counters.full) this.dom.counters.full.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-            if (this.dom.counters.sidebar) this.dom.counters.sidebar.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+            if (this.dom.counters.char) this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
         } catch (err) {
             alert(err.message);
         }
@@ -497,7 +490,6 @@ class UIManager {
     }
     
     // --- Rendering ---
-    /** @param {any} event */
     bufferEvent(event) {
         this.eventBuffer.push(event);
         if (!this.bufferTimer) {
@@ -509,21 +501,22 @@ class UIManager {
         const container = this.dom.timeline;
         if (!container) return;
         
+        // スクロール判定
         const IS_SCROLLED_RIGHT_TOLERANCE = 10;
         const isScrolledRight = container.scrollLeft >= (container.scrollWidth - container.clientWidth) - IS_SCROLLED_RIGHT_TOLERANCE;
         const wasScrolledRight = isScrolledRight;
         const prevScrollWidth = container.scrollWidth;
 
         this.eventBuffer
-            .sort((a, b) => a.created_at - b.created_at) 
+            .sort((a, b) => a.created_at - b.created_at) // 古い順にソート
             .forEach(e => this.renderEvent(e));
         
         this.eventBuffer = [];
         this.bufferTimer = null;
         if(this.dom.spinner) this.dom.spinner.style.display = "none";
         
+        // スクロール位置制御 (右端に追加していくので、右端を見ていた場合は追従)
         const newScrollWidth = container.scrollWidth;
-        
         if (wasScrolledRight) {
             container.scrollLeft = newScrollWidth - container.clientWidth;
         } else {
@@ -532,7 +525,6 @@ class UIManager {
         }
     }
 
-    /** @param {any} event */
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -553,7 +545,7 @@ class UIManager {
         `;
 
         noteEl.querySelector(".btn-reaction")?.addEventListener("click", async (e) => {
-            const target = /** @type {HTMLButtonElement} */ (e.target);
+            const target = e.target;
             try {
                 await this.client.sendReaction(event);
                 target.textContent = "❤️";
@@ -563,10 +555,10 @@ class UIManager {
             }
         });
 
+        // 常に右端に追加
         this.dom.timeline.appendChild(noteEl);
     }
 
-    /** @param {string} str */
     _escape(str) {
         if (typeof str !== "string") return "";
         return str.replace(/[&<>"']/g, s => ({
@@ -574,7 +566,6 @@ class UIManager {
         }[s]));
     }
 
-    /** @param {string} text */
     _formatContent(text) {
         let safe = this._escape(text);
         const special = "【緊急地震速報】";
@@ -585,7 +576,6 @@ class UIManager {
     }
 }
 
-
 // =======================
 // 7. Main Execution
 // =======================
@@ -593,7 +583,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
     await storage.loadDefaultNgWords();
     
-    // ユーザーNGワードが未設定の場合、デフォルト値を初期値として設定
     if (!localStorage.getItem("userNgWords")) {
         storage.saveUserNgWords(storage.defaultNgWords);
     }
@@ -602,18 +591,15 @@ window.addEventListener("DOMContentLoaded", async () => {
     const client = new NostrClient(storage, validator);
     const ui = new UIManager(client, storage);
 
-    // Wiring
     ui.init(); 
 
-    // Client callbacks to update UI
     client.onEventCallback = (e) => ui.bufferEvent(e);
     client.onStatusCallback = () => ui._updateRelayListFromClient();
 
-    // Start
     client.connect();
     client.startSubscription();
     
-    // 初期ロード時の自動スクロール
+    // 初期ロード時は右端(最新)へスクロール
     setTimeout(() => {
         const timeline = ui.dom.timeline;
         if (timeline) {
