@@ -114,7 +114,7 @@ class StorageManager {
 
 
 // ------------------------------------
-// 4a. Relay Socket Handler (新規導入: 接続管理の責務を分離)
+// 4a. Relay Socket Handler
 // ------------------------------------
 class RelaySocket {
   constructor(url, { onOpen, onClose, onError, onMessage }) {
@@ -186,7 +186,6 @@ class RelaySocket {
 }
 
 
-
 // =======================
 // 4. Nostr Network Client (RelaySocketにソケット管理を委譲)
 // =======================
@@ -214,10 +213,27 @@ class NostrClient {
             if (!url) return;
             try {
                 // RelaySocketインスタンスを作成し、接続を開始
-                const rs = new RelaySocket(url, this);
+                const rs = new RelaySocket(url, {
+                    onOpen: () => {
+                        console.log("✅ 接続:", url);
+                        this.notifyStatus();
+                        // 接続後に購読リクエストを送信
+                        if (this.subId) this._sendReqToSocket(rs);
+                    },
+                    onClose: () => {
+                        console.log("🔌 切断:", url);
+                        this.notifyStatus();
+                    },
+                    onError: (err) => {
+                        console.error("❌ エラー:", url, err);
+                        this.notifyStatus();
+                    },
+                    onMessage: (msg) => this._handleMessage(msg, rs)
+                });
                 this.relaySockets.push(rs);
             } catch (e) {
                 console.error("接続開始失敗:", url, e);
+                this.notifyStatus();
             }
         });
         this.notifyStatus();
@@ -230,24 +246,23 @@ class NostrClient {
     startSubscription() {
         this.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
         this.seenEventIds.clear();
-        // RelaySocketのwsプロパティ (WebSocketオブジェクト) を使用
-        this.relaySockets.forEach(rs => this._sendReqToSocket(rs.ws)); 
+        // RelaySocketのインスタンスを使ってREQを送信
+        this.relaySockets.forEach(rs => this._sendReqToSocket(rs)); 
     }
 
-    _sendReqToSocket(ws) {
-        if (ws.readyState !== WebSocket.OPEN) return;
+    _sendReqToSocket(rs) {
+        if (!rs.isOpen()) return;
         const filter = {
             kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.PROFILE],
             limit: CONFIG.NOSTR_REQ_LIMIT,
             since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO
         };
         const req = ["REQ", this.subId, filter];
-        ws.send(JSON.stringify(req));
+        rs.send(req);
     }
 
-    _handleMessage(ev) {
+    _handleMessage([type, subId, event]) {
         try {
-            const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event) return;
 
             if (event.kind === NOSTR_KINDS.PROFILE) {
@@ -284,8 +299,12 @@ class NostrClient {
                 return;
             }
 
+            // ⭐ 修正箇所: pictureが空文字列などの場合は強制的に null にする
+            const picture = content.picture || null; 
+
             this.metadataCache.set(event.pubkey, {
                 ...content,
+                picture: picture, // null または有効なURL
                 created_at: event.created_at,
                 pubkey: event.pubkey
             });
@@ -301,6 +320,7 @@ class NostrClient {
     }
 
     getProfilePicture(pubkey) {
+        // null または有効な URL が返る
         return this.metadataCache.get(pubkey)?.picture || null;
     }
     
@@ -343,7 +363,7 @@ class NostrClient {
     }
 
     _broadcast(event) {
-        const payload = JSON.stringify(["EVENT", event]);
+        const payload = ["EVENT", event];
         let sentCount = 0;
         this.relaySockets.forEach(rs => {
             if (rs.send(payload)) {
@@ -629,7 +649,7 @@ class UIManager {
         this.settingsHandler.updateRelayList();
     }
     
-    // ✅ 修正済み: メタデータ更新時に、既存のノートのアイコンと名前を更新する
+    // ⭐ 修正箇所: メタデータ更新時に、既存のノートのアイコンと名前を更新する
     updateProfilePicture(pubkey) {
         const pictureUrl = this.client.getProfilePicture(pubkey);
         const profileName = this.client.getProfileName(pubkey);
@@ -642,7 +662,12 @@ class UIManager {
             const img = noteEl.querySelector('.profile-icon');
             if (img) {
                 // Data URIへのフォールバックを適用
-                img.src = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
+                const finalSrc = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
+
+                // ⭐ 修正: 新しいURLが現在のsrcと異なる場合のみ更新（二重ロード防止とフォールバックの適用）
+                if (img.src !== finalSrc) {
+                    img.src = finalSrc;
+                }
             }
             
             const nameEl = noteEl.querySelector('.author-name');
@@ -688,7 +713,7 @@ class UIManager {
         }
     }
 
-    // ✅ 修正済み: アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
+    // ✅ アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
