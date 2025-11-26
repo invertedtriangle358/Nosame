@@ -117,73 +117,74 @@ class StorageManager {
 // 4a. Relay Socket Handler (新規導入: 接続管理の責務を分離)
 // ------------------------------------
 class RelaySocket {
-    constructor(url, clientRef) {
-        if (!url) throw new Error("URL must be provided for RelaySocket.");
-        this.url = url;
-        this.clientRef = clientRef; // NostrClientへの参照
-        this.ws = null;
-        this.connect();
+  constructor(url, { onOpen, onClose, onError, onMessage }) {
+    if (!url) throw new Error("URL is required.");
+    this.url = url;
+
+    // コールバック登録（外部依存を注入する）
+    this.onOpen = onOpen;
+    this.onClose = onClose;
+    this.onError = onError;
+    this.onMessage = onMessage;
+
+    this.ws = null;
+
+    this.connect();
+  }
+
+  connect() {
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
+      this.ws.close();
     }
 
-    connect() {
-        if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
-            this.ws.close();
-        }
-        
-        try {
-            this.ws = new WebSocket(this.url);
-            this._setupListeners();
-        } catch (e) {
-            console.error("接続開始失敗:", this.url, e);
-            this.clientRef.notifyStatus();
-        }
+    try {
+      this.ws = new WebSocket(this.url);
+      this._setupListeners();
+    } catch (err) {
+      this.onError?.(err, this);
     }
+  }
 
-    _setupListeners() {
-        this.ws.onopen = () => {
-            console.log("✅ 接続:", this.url);
-            this.clientRef.notifyStatus();
-            // 接続後に購読リクエストを送信
-            if (this.clientRef.subId) this.clientRef._sendReqToSocket(this.ws);
-        };
-        
-        this.ws.onclose = () => { 
-            console.log("🔌 切断:", this.url); 
-            this.clientRef.notifyStatus();
-            // 自動再接続
-            setTimeout(() => this._reconnect(), CONFIG.RECONNECT_DELAY_MS); 
-        };
-        
-        this.ws.onerror = (err) => { 
-            console.error("❌ エラー (即時切断):", this.url, err); 
-            this.clientRef.notifyStatus(); 
-            this.ws.close();
-        };
-        
-        this.ws.onmessage = (ev) => this.clientRef._handleMessage(ev);
-    }
+  _setupListeners() {
+    this.ws.onopen = () => {
+      this.onOpen?.(this);
+    };
 
-    _reconnect() {
-        console.log("🔄 再接続試行:", this.url);
-        this.connect();
-    }
+    this.ws.onclose = () => {
+      this.onClose?.(this);
+      setTimeout(() => this.connect(), CONFIG.RECONNECT_DELAY_MS);
+    };
 
-    close() {
-        this.ws?.close();
-    }
+    this.ws.onerror = (err) => {
+      this.onError?.(err, this);
+      this.ws.close();
+    };
 
-    send(data) {
-        if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(data);
-            return true;
-        }
-        return false;
-    }
+    this.ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        this.onMessage?.(msg, this);
+      } catch (_) {}
+    };
+  }
 
-    isOpen() {
-        return this.ws?.readyState === WebSocket.OPEN;
+  send(obj) {
+    if (this.isOpen()) {
+      this.ws.send(JSON.stringify(obj));
+      return true;
     }
+    return false;
+  }
+
+  isOpen() {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  close() {
+    this.ws?.close();
+  }
 }
+
 
 
 // =======================
