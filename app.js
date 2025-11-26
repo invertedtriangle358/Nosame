@@ -1,3 +1,6 @@
+/**
+ * Nostr Client - 接続安定性向上＆SOLID原則準拠
+ */
 
 // =======================
 // 1. Constants & Config
@@ -14,7 +17,7 @@ const CONFIG = {
         "wss://relay.barine.co"
     ],
     NG_WORDS_URL: "./ngwords.json",
-    RECONNECT_DELAY_MS: 5000, // 接続失敗時の再接続遅延時間
+    RECONNECT_DELAY_MS: 5000,
 };
 
 const NOSTR_KINDS = {
@@ -27,24 +30,20 @@ const UI_STRINGS = {
     INVALID_CONTENT: "NGワードまたは文字数制限です",
     NIP07_REQUIRED: "NIP-07拡張機能が必要です",
     NO_RELAY: "接続中のリレーがありません",
-    INVALID_WSS: "正しいwss:// URLを入力してください", // 修正
+    INVALID_WSS: "正しいwss:// URLを入力してください",
     SAVE_RELAY_SUCCESS: "リレー設定を反映して再接続します",
     SAVE_NG_SUCCESS: "NGワードを保存しました",
 };
 
 // =======================
-// 2. Event Validator (SRP: Event Validation Logic)
+// 2. Event Validator
 // =======================
 class EventValidator {
     /** @param {StorageManager} storage */
     constructor(storage) {
         this.storage = storage;
     }
-
-    /**
-     * @param {string} text 
-     * @returns {boolean} 不正な場合に true
-     */
+    
     isContentInvalid(text) {
         if (!text) return false;
         if (text.length > CONFIG.MAX_POST_LENGTH) return true;
@@ -58,7 +57,7 @@ class EventValidator {
 
 
 // =======================
-// 3. Storage Manager (SRP: Data Persistence)
+// 3. Storage Manager
 // =======================
 class StorageManager {
     /** @type {string[]} */
@@ -106,22 +105,10 @@ class StorageManager {
 
 
 // =======================
-// 4. Nostr Network Client (SRP: Communication)
+// 4. Nostr Network Client
 // =======================
 class NostrClient {
-    /** @type {StorageManager} */ storage;
-    /** @type {EventValidator} */ validator;
-    /** @type {WebSocket[]} */ sockets;
-    /** @type {string | null} */ subId;
-    /** @type {Set<string>} */ seenEventIds;
-    /** @type {Set<string>} */ reactedEventIds;
-    /** @type {((event: any) => void) | null} */ onEventCallback;
-    /** @type {(() => void) | null} */ onStatusCallback;
-
-    /**
-     * @param {StorageManager} storage 
-     * @param {EventValidator} validator 
-     */
+    /** @param {StorageManager} storage @param {EventValidator} validator */
     constructor(storage, validator) {
         this.storage = storage;
         this.validator = validator;
@@ -141,7 +128,6 @@ class NostrClient {
             if (this.subId) this._sendReqToSocket(ws);
         };
         
-        // 🛠️ 接続切断時に再接続を試みるロジックを追加
         ws.onclose = () => { 
             console.log("🔌 切断:", ws.url); 
             this.notifyStatus(); 
@@ -151,7 +137,7 @@ class NostrClient {
         ws.onerror = (err) => { 
             console.error("❌ エラー (即時切断):", ws.url, err); 
             this.notifyStatus(); 
-            ws.close(); // エラー発生時は即座にクローズし、oncloseイベントから再接続に繋げる
+            ws.close();
         };
         
         ws.onmessage = (ev) => this._handleMessage(ev);
@@ -159,7 +145,6 @@ class NostrClient {
 
     /** @param {string} url */
     _reconnect(url) {
-        // 既存のソケットをリストから除去してから再接続を試みる
         this.sockets = this.sockets.filter(s => s.url !== url);
         console.log("🔄 再接続試行:", url);
         
@@ -183,7 +168,7 @@ class NostrClient {
             try {
                 const ws = new WebSocket(url);
                 ws.url = url; 
-                this._setupSocketListeners(ws); // リスナー設定をメソッドに委譲
+                this._setupSocketListeners(ws);
                 this.sockets.push(ws);
             } catch (e) {
                 console.error("接続開始失敗:", url, e);
@@ -288,7 +273,7 @@ class NostrClient {
 
 
 // =======================
-// 5. Settings UI Handler (SRP: Settings View Logic)
+// 5. Settings UI Handler
 // =======================
 class SettingsUIHandler {
     /** @param {Object<string, any>} dom @param {StorageManager} storage @param {NostrClient} client @param {UIManager} uiRef */
@@ -333,7 +318,7 @@ class SettingsUIHandler {
                 updateCallback.call(this);
             });
             
-            if(getStatus) { // Relay List
+            if(getStatus) { 
                  row.querySelector("input")?.addEventListener("input", (e) => {
                     currentItems[idx] = e.target.value.trim();
                     saveItemList.call(this.storage, currentItems);
@@ -369,7 +354,6 @@ class SettingsUIHandler {
         if (!url) return;
         try {
             const u = new URL(url);
-            // 修正: wss:// のみ許可
             if(u.protocol !== 'wss:') throw new Error(); 
         } catch {
             return alert(UI_STRINGS.INVALID_WSS);
@@ -410,7 +394,7 @@ class SettingsUIHandler {
 
 
 // =======================
-// 6. UI Manager (SRP: DOM & Rendering)
+// 6. UI Manager
 // =======================
 class UIManager {
     /** @param {NostrClient} nostrClient @param {StorageManager} storage */
@@ -424,7 +408,7 @@ class UIManager {
     }
 
     init() {
-        // DOM Elements Fetching (略)
+        // DOM Elements Fetching (省略)
         this.dom = {
             timeline: document.getElementById("timeline"), spinner: document.getElementById("subscribeSpinner"),
             panel: {
@@ -457,7 +441,7 @@ class UIManager {
     }
 
     _setupListeners() {
-        // Panel & Publish & Scroll (略)
+        // Panel & Publish & Scroll (省略)
         this.dom.panel.btnOpen?.addEventListener("click", () => this._togglePanel(true));
         this.dom.panel.btnClose?.addEventListener("click", () => this._togglePanel(false));
         this.dom.panel.overlay?.addEventListener("click", () => this._togglePanel(false));
@@ -470,7 +454,7 @@ class UIManager {
         this.dom.buttons.scrollLeft?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: -300, behavior: "smooth" }));
         this.dom.buttons.scrollRight?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: 300, behavior: "smooth" }));
 
-        // Inputs (略)
+        // Inputs (省略)
         const checkLen = (input, counter) => {
             if(!input || !counter) return;
             const len = input.value.length;
@@ -603,7 +587,7 @@ class UIManager {
 
 
 // =======================
-// 7. Main Execution (Composition Root)
+// 7. Main Execution
 // =======================
 window.addEventListener("DOMContentLoaded", async () => {
     const storage = new StorageManager();
