@@ -461,8 +461,8 @@ main {
     margin-bottom: 5px;
 }
 .profile-icon {
-    width: 24px; /* アイコンサイズ */
-    height: 24px;
+    width: 50px; /* アイコンサイズ */
+    height: 50px;
     border-radius: 50%; /* 丸くする */
     margin-right: 8px;
     object-fit: cover; /* 画像の比率を維持して表示 */
@@ -474,7 +474,7 @@ main {
 }
 .pubkey-short {
     font-size: 0.8em;
-    color: #999;
+    color: #fff;
     margin-left: 5px;
 }
 /*ここまで*/
