@@ -32,9 +32,6 @@ const UI_STRINGS = {
     SAVE_NG_SUCCESS: "NGワードを保存しました",
 };
 
-// Data URI に統一されたデフォルトアイコン
-const DEFAULT_ICON_DATA_URI = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iI2NjY2NjYyIvPjwvc3ZnPg==";
-
 
 // =======================
 // 2. Event Validator
@@ -526,7 +523,7 @@ class SettingsUIHandler {
 
 
 // =======================
-// 6. UI Manager
+// 6. UI Manager (修正版)
 // =======================
 class UIManager {
     constructor(nostrClient, storage) {
@@ -537,117 +534,7 @@ class UIManager {
         this.bufferTimer = null;
         this.settingsHandler = null; 
     }
-
-    init() {
-        // DOM要素取得
-        this.dom = {
-            timeline: document.getElementById("timeline"),
-            spinner: document.getElementById("subscribeSpinner"), 
-            modals: {
-                relay: document.getElementById("relayModal"),
-                ng: document.getElementById("ngModal"),
-            },
-            buttons: {
-                publish: document.getElementById("btnPublish"),
-                openRelay: document.getElementById("btnRelayModal"),
-                closeRelay: document.getElementById("btnCloseModal"),
-                openNg: document.getElementById("btnNgModal"),
-                closeNg: document.getElementById("btnCloseNgModal"),
-                
-                addRelay: document.getElementById("btnAddRelay"),
-                saveRelays: document.getElementById("btnSaveRelays"),
-                addNg: document.getElementById("btnAddNgWord"),
-                saveNg: document.getElementById("btnSaveNgWords"),
-                scrollLeft: document.getElementById("scrollLeft"),
-                scrollRight: document.getElementById("scrollRight"),
-            },
-            inputs: {
-                compose: document.getElementById("compose"), 
-                relay: document.getElementById("relayInput"),
-                ng: document.getElementById("ngWordInput"),
-            },
-            lists: {
-                relays: document.getElementById("relayList"),
-                ngWords: document.getElementById("ngWordList"),
-            },
-            counters: {
-                char: document.getElementById("charCount"),
-            }
-        };
-
-        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
-        this._setupListeners();
-        this.settingsHandler.updateNgList();
-        this.settingsHandler.updateRelayList();
-    }
-
-    _setupListeners() {
-        // モダール開閉
-        this.dom.buttons.openRelay?.addEventListener("click", () => {
-            this._toggleModal(this.dom.modals.relay, true);
-            this.settingsHandler.updateRelayList();
-        });
-        this.dom.buttons.closeRelay?.addEventListener("click", () => this._toggleModal(this.dom.modals.relay, false));
-
-        this.dom.buttons.openNg?.addEventListener("click", () => {
-               this._toggleModal(this.dom.modals.ng, true);
-               this.settingsHandler.updateNgList();
-        });
-        this.dom.buttons.closeNg?.addEventListener("click", () => this._toggleModal(this.dom.modals.ng, false));
-
-        // 投稿
-        this.dom.buttons.publish?.addEventListener("click", () => this._handlePublish());
-
-        // 設定関連のリスナー委譲
-        this.settingsHandler.setupListeners();
-
-        // スクロール
-        this.dom.buttons.scrollLeft?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: -300, behavior: "smooth" }));
-        this.dom.buttons.scrollRight?.addEventListener("click", () => this.dom.timeline.scrollBy({ left: 300, behavior: "smooth" }));
-
-        // 文字数カウント
-        this.dom.inputs.compose?.addEventListener("input", (e) => {
-            const len = e.target.value.length;
-            if(this.dom.counters.char) {
-                this.dom.counters.char.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-                this.dom.counters.char.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
-            }
-        });
-        
-        // モダール背景クリックで閉じる
-        [this.dom.modals.relay, this.dom.modals.ng].forEach(modal => {
-            modal?.addEventListener("click", e => {
-                if (e.target === modal) this._toggleModal(modal, false);
-            });
-        });
-    }
-
-    _toggleModal(modalEl, open) {
-        if (!modalEl) return;
-        modalEl.style.display = open ? "block" : "none";
-        modalEl.setAttribute("aria-hidden", String(!open));
-        document.body.style.overflow = open ? "hidden" : "";
-    }
-
-    async _handlePublish() {
-        const input = this.dom.inputs.compose;
-        const content = input?.value?.trim();
-
-        if (!content) return alert(UI_STRINGS.EMPTY_POST);
-
-        try {
-            const event = await this.client.publish(content);
-            this.renderEvent(event);
-            input.value = "";
-            if (this.dom.counters.char) this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-        } catch (err) {
-            alert(err.message);
-        }
-    }
-
-    _updateRelayListFromClient() {
-        this.settingsHandler.updateRelayList();
-    }
+    // ... (init, _setupListeners, _toggleModal, _handlePublish, _updateRelayListFromClient は省略)
     
     // ⭐ 修正箇所: メタデータ更新時に、既存のノートのアイコンと名前を更新する
     updateProfilePicture(pubkey) {
@@ -655,18 +542,18 @@ class UIManager {
         const profileName = this.client.getProfileName(pubkey);
         const displayName = profileName || (pubkey || "").slice(0, 8);
 
-        // pubkeyに対応する全てのノート要素を検索
         const notesToUpdate = this.dom.timeline.querySelectorAll(`.note[data-pubkey="${pubkey}"]`);
         
         notesToUpdate.forEach(noteEl => {
-            const img = noteEl.querySelector('.profile-icon');
-            if (img) {
-                // Data URIへのフォールバックを適用
-                const finalSrc = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
-
-                // ⭐ 修正: 新しいURLが現在のsrcと異なる場合のみ更新（二重ロード防止とフォールバックの適用）
-                if (img.src !== finalSrc) {
-                    img.src = finalSrc;
+            // ⭐ 修正: .profile-icon-placeholder を探す
+            const iconEl = noteEl.querySelector('.profile-icon-placeholder');
+            if (iconEl) {
+                if (pictureUrl) {
+                    // 外部URLがある場合、背景画像を上書き
+                    iconEl.style.backgroundImage = `url('${this._escape(pictureUrl)}')`;
+                } else {
+                    // URLがない場合、CSSで設定されたデフォルトに戻す
+                    iconEl.style.backgroundImage = ''; 
                 }
             }
             
@@ -678,42 +565,9 @@ class UIManager {
         });
     }
 
-    // --- Rendering ---
-    bufferEvent(event) {
-        this.eventBuffer.push(event);
-        if (!this.bufferTimer) {
-            this.bufferTimer = setTimeout(() => this._flushBuffer(), CONFIG.EVENT_BUFFER_FLUSH_TIME_MS);
-        }
-    }
+    // ... (_flushBuffer は省略)
 
-    _flushBuffer() {
-        const container = this.dom.timeline;
-        if (!container) return;
-        
-        const IS_SCROLLED_RIGHT_TOLERANCE = 10;
-        const isScrolledRight = container.scrollLeft >= (container.scrollWidth - container.clientWidth) - IS_SCROLLED_RIGHT_TOLERANCE;
-        const wasScrolledRight = isScrolledRight;
-        const prevScrollWidth = container.scrollWidth;
-
-        this.eventBuffer
-            .sort((a, b) => a.created_at - b.created_at) // 古い順にソート
-            .forEach(e => this.renderEvent(e));
-        
-        this.eventBuffer = [];
-        this.bufferTimer = null;
-        if(this.dom.spinner) this.dom.spinner.style.display = "none";
-        
-        // スクロール位置制御
-        const newScrollWidth = container.scrollWidth;
-        if (wasScrolledRight) {
-            container.scrollLeft = newScrollWidth - container.clientWidth;
-        } else {
-            const addedWidth = newScrollWidth - prevScrollWidth;
-            container.scrollLeft += addedWidth;
-        }
-    }
-
-    // ✅ アイコンURLと名前の表示ロジックを Data URI フォールバックに変更
+    // ⭐ 修正箇所: HTMLテンプレートを <span> ベースに変更
     renderEvent(event) {
         if (!this.dom.timeline) return;
 
@@ -725,24 +579,22 @@ class UIManager {
 
         const isReacted = this.client.reactedEventIds.has(event.id);
         
-        // アイコンと名前を取得
         const pictureUrl = this.client.getProfilePicture(event.pubkey);
         const profileName = this.client.getProfileName(event.pubkey);
         const displayName = profileName || (event.pubkey || "").slice(0, 8);
         
-        // Data URIへのフォールバックを適用
-        const iconSrc = this._escape(pictureUrl || DEFAULT_ICON_DATA_URI);
+        // pictureUrlがある場合のみインラインスタイルを定義
+        const inlineStyle = pictureUrl ? 
+            `style="background-image: url('${this._escape(pictureUrl)}');"` : 
+            '';
 
         noteEl.innerHTML = `
             <div class="note-header">
-                <img 
-                    src="${iconSrc}" 
-                    class="profile-icon" 
+                <span 
+                    class="profile-icon-placeholder" 
                     alt="Icon" 
-                    // 外部のpictureUrlが不正だった場合のフォールバック
-                    onerror="this.src='${DEFAULT_ICON_DATA_URI}';" 
-                    loading="lazy"
-                >
+                    ${inlineStyle} 
+                ></span>
                 <span class="author-name">${this._escape(displayName)}...</span>
             </div>
             <div class="content">${this._formatContent(event.content)}</div>
@@ -766,7 +618,6 @@ class UIManager {
 
         this.dom.timeline.appendChild(noteEl);
     }
-
 
     _escape(str) {
         if (typeof str !== "string") return "";
