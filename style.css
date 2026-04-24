@@ -136,7 +136,7 @@ main {
 
 .composer textarea {
     width: 100%;
-    height: 570px;
+    height: 550px;
     resize: none;
     writing-mode: vertical-rl;
     text-orientation: mixed;
