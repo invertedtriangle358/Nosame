@@ -16,7 +16,10 @@ const CONFIG = {
     RECONNECT_DELAY_MS: 5000,
 };
 
-const NOSTR_KINDS = { TEXT: 1, REACTION: 7 };
+const NOSTR_KINDS = {
+    TEXT: 1,
+    REACTION: 7,
+};
 
 const UI_STRINGS = {
     EMPTY_POST: "本文を入力してください。",
@@ -43,7 +46,9 @@ class EventValidator {
         if (text.length > CONFIG.MAX_POST_LENGTH) return true;
 
         const lower = text.toLowerCase();
-        return this.storage.getAllNgWords().some((ng) => lower.includes(ng.toLowerCase()));
+        return this.storage.getAllNgWords().some((ng) =>
+            lower.includes(ng.toLowerCase())
+        );
     }
 }
 
@@ -116,6 +121,7 @@ class NostrClient {
         this.subId = null;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
+        this.closedRelayUrls = new Set();
 
         this.onEventCallback = null;
         this.onStatusCallback = null;
@@ -131,6 +137,7 @@ class NostrClient {
     _attachSocketListeners(ws) {
         ws.onopen = () => {
             console.log("Relay connected:", ws._relayUrl);
+            this.closedRelayUrls.delete(ws._relayUrl);
             this._notifyStatus();
             if (this.subId) this._sendSubscription(ws);
         };
@@ -138,6 +145,12 @@ class NostrClient {
         ws.onclose = () => {
             console.log("Relay disconnected:", ws._relayUrl);
             this._notifyStatus();
+
+            if (this.closedRelayUrls.has(ws._relayUrl)) {
+                this.closedRelayUrls.delete(ws._relayUrl);
+                return;
+            }
+
             setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS);
         };
 
@@ -154,7 +167,10 @@ class NostrClient {
     }
 
     connect() {
-        this.sockets.forEach((ws) => ws.close());
+        this.sockets.forEach((ws) => {
+            this.closedRelayUrls.add(ws._relayUrl);
+            ws.close();
+        });
         this.sockets = [];
 
         this.storage.getRelays().forEach((url) => {
@@ -169,6 +185,16 @@ class NostrClient {
     }
 
     _reconnect(url) {
+        const stillConfigured = this.storage.getRelays().includes(url);
+        if (!stillConfigured) return;
+
+        const alreadyConnected = this.sockets.some(
+            (socket) =>
+                socket._relayUrl === url &&
+                (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)
+        );
+        if (alreadyConnected) return;
+
         this.sockets = this.sockets.filter((socket) => socket._relayUrl !== url);
         console.log("Reconnecting relay:", url);
 
@@ -181,7 +207,9 @@ class NostrClient {
 
     getRelayStatus(url) {
         const normalize = (value) => value.replace(/\/+$/, "");
-        const ws = this.sockets.find((socket) => normalize(socket._relayUrl) === normalize(url));
+        const ws = this.sockets.find(
+            (socket) => normalize(socket._relayUrl) === normalize(url)
+        );
         return ws?.readyState === WebSocket.OPEN;
     }
 
@@ -194,15 +222,17 @@ class NostrClient {
     _sendSubscription(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
 
-        ws.send(JSON.stringify([
-            "REQ",
-            this.subId,
-            {
-                kinds: [NOSTR_KINDS.TEXT],
-                limit: CONFIG.NOSTR_REQ_LIMIT,
-                since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
-            },
-        ]));
+        ws.send(
+            JSON.stringify([
+                "REQ",
+                this.subId,
+                {
+                    kinds: [NOSTR_KINDS.TEXT],
+                    limit: CONFIG.NOSTR_REQ_LIMIT,
+                    since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
+                },
+            ])
+        );
     }
 
     _handleMessage(ev) {
@@ -271,7 +301,9 @@ class NostrClient {
             }
         });
 
-        if (sent === 0) throw new Error(UI_STRINGS.NO_RELAY);
+        if (sent === 0) {
+            throw new Error(UI_STRINGS.NO_RELAY);
+        }
     }
 }
 
@@ -397,75 +429,137 @@ class SettingsUIHandler {
         input.value = "";
         this.updateRelayList();
     }
-_saveRelays() {
+
+    _saveRelays() {
         alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
-        this.ui._toggleModal(this.dom.modals.relay, false);
         this.ui.toggleSettingsPanel(false);
         this.client.connect();
         this.client.startSubscription();
     }
 
+    _addNgWord() {
+        const input = this.dom.inputs.ng;
+        const word = input?.value?.trim();
+        if (!word) return;
+
+        const words = this.storage.getUserNgWords();
+        if (words.includes(word)) {
+            alert(UI_STRINGS.DUPLICATE_NG);
+            return;
+        }
+
+        words.push(word);
+        this.storage.saveUserNgWords(words);
+        input.value = "";
+        this.updateNgList();
+    }
+
     _saveNgWords() {
         alert(UI_STRINGS.SAVE_NG_SUCCESS);
-        this.ui._toggleModal(this.dom.modals.ng, false);
         this.ui.toggleSettingsPanel(false);
     }
 }
 
+// =======================
+// 6. UI Manager
+// =======================
+class UIManager {
+    constructor(client, storage) {
+        this.client = client;
+        this.storage = storage;
+        this.dom = {};
+
+        this.eventBuffer = [];
+        this.bufferTimer = null;
+
+        this.settingsHandler = null;
+    }
+
+    init() {
+        this._cacheDom();
+        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
+
+        this._setupListeners();
+        this.settingsHandler.updateRelayList();
+        this.settingsHandler.updateNgList();
+    }
+
+    _cacheDom() {
         const $ = (id) => document.getElementById(id);
+
         this.dom = {
             timeline: $("timeline"),
-            modals: {
-                relay: $("relayModal"),
-                ng: $("ngModal"),
             panels: {
                 settings: $("settingsPanel"),
                 backdrop: $("menuBackdrop"),
             },
             buttons: {
                 publish: $("btnPublish"),
-                openRelay: $("btnRelayModal"),
-                closeRelay: $("btnCloseModal"),
-                openNg: $("btnNgModal"),
-                closeNg: $("btnCloseNgModal"),
                 openMenu: $("btnMenu"),
                 closeMenu: $("btnCloseMenu"),
                 addRelay: $("btnAddRelay"),
                 saveRelays: $("btnSaveRelays"),
                 addNg: $("btnAddNgWord"),
+                saveNg: $("btnSaveNgWords"),
+                scrollLeft: $("scrollLeft"),
+                scrollRight: $("scrollRight"),
+            },
+            inputs: {
+                compose: $("compose"),
+                relay: $("relayInput"),
+                ng: $("ngWordInput"),
+            },
+            lists: {
+                relays: $("relayList"),
+                ngWords: $("ngWordList"),
+            },
+            counters: {
+                char: $("charCount"),
+            },
+        };
+    }
+
     _setupListeners() {
         const btn = this.dom.buttons;
 
-        btn.openRelay?.addEventListener("click", () => {
-            this._toggleModal(this.dom.modals.relay, true);
         btn.openMenu?.addEventListener("click", () => {
             this.toggleSettingsPanel(true);
             this.settingsHandler.updateRelayList();
-        });
-
-        btn.closeRelay?.addEventListener("click", () => {
-            this._toggleModal(this.dom.modals.relay, false);
-        });
-
-        btn.openNg?.addEventListener("click", () => {
-            this._toggleModal(this.dom.modals.ng, true);
             this.settingsHandler.updateNgList();
         });
 
-        btn.closeNg?.addEventListener("click", () => {
-            this._toggleModal(this.dom.modals.ng, false);
         btn.closeMenu?.addEventListener("click", () => {
             this.toggleSettingsPanel(false);
         });
 
         btn.publish?.addEventListener("click", () => this._handlePublish());
+
+        this.settingsHandler.setupListeners();
+
+        btn.scrollLeft?.addEventListener("click", () => {
+            this.dom.timeline?.scrollBy({ left: -300, behavior: "smooth" });
+        });
+
+        btn.scrollRight?.addEventListener("click", () => {
+            this.dom.timeline?.scrollBy({ left: 300, behavior: "smooth" });
+        });
+
+        this.dom.inputs.compose?.addEventListener("input", (e) => {
+            const len = e.target.value.length;
+            const counter = this.dom.counters.char;
+            if (!counter) return;
+
+            counter.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
+            counter.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
+        });
+
+        this.dom.inputs.compose?.addEventListener("keydown", (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                this._handlePublish();
             }
         });
 
-        Object.values(this.dom.modals).forEach((modal) => {
-            modal?.addEventListener("click", (e) => {
-                if (e.target === modal) this._toggleModal(modal, false);
-            });
         this.dom.panels.backdrop?.addEventListener("click", () => {
             this.toggleSettingsPanel(false);
         });
@@ -477,14 +571,11 @@ _saveRelays() {
         });
     }
 
-    _toggleModal(el, open) {
-        if (!el) return;
-        el.style.display = open ? "block" : "none";
-        el.setAttribute("aria-hidden", String(!open));
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
         const backdrop = this.dom.panels.backdrop;
         const button = this.dom.buttons.openMenu;
+
         if (!panel || !backdrop) return;
 
         panel.classList.toggle("is-open", open);
@@ -536,13 +627,18 @@ _saveRelays() {
         this.bufferTimer = null;
 
         const newWidth = view.scrollWidth;
-        if (atRight) view.scrollLeft = newWidth - view.clientWidth;
-        else view.scrollLeft += newWidth - prevWidth;
+        if (atRight) {
+            view.scrollLeft = newWidth - view.clientWidth;
+        } else {
+            view.scrollLeft += newWidth - prevWidth;
+        }
     }
 
     renderEvent(ev) {
         const view = this.dom.timeline;
-        if (!view || !ev?.id || view.querySelector(`[data-id="${CSS.escape(ev.id)}"]`)) return;
+        if (!view || !ev?.id || view.querySelector(`[data-id="${CSS.escape(ev.id)}"]`)) {
+            return;
+        }
 
         const el = document.createElement("div");
         el.className = "note";
