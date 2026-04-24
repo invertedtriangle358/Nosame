@@ -27,7 +27,7 @@
         aria-expanded="false"
         aria-controls="settingsPanel"
       >
-        Menu
+        三
       </button>
     </div>
   </header>
@@ -42,8 +42,8 @@
       >
         <div class="settings-panel-header">
           <div>
-            <p class="settings-kicker">Settings</p>
-            <h2 id="settingsPanelTitle" tabindex="-1">Customize Nosame</h2>
+            <p class="settings-kicker">設定</p>
+            <h2 id="settingsPanelTitle" tabindex="-1">Customize</h2>
           </div>
           <button
             id="btnCloseMenu"
@@ -51,35 +51,35 @@
             type="button"
             aria-label="Close settings"
           >
-            Close
+            閉じる
           </button>
         </div>
 
         <section class="settings-section" aria-labelledby="relaySectionTitle">
           <div class="settings-section-header">
-            <h3 id="relaySectionTitle">Relay Settings</h3>
-            <button id="btnSaveRelays" type="button">Save</button>
+            <h3 id="relaySectionTitle">接続</h3>
+            <button id="btnSaveRelays" type="button">保存</button>
           </div>
 
           <div id="relayList"></div>
 
           <div class="relay-add-area">
             <input id="relayInput" type="text" placeholder="wss://example.com" />
-            <button id="btnAddRelay" type="button">Add</button>
+            <button id="btnAddRelay" type="button">追加</button>
           </div>
         </section>
 
         <section class="settings-section" aria-labelledby="ngSectionTitle">
           <div class="settings-section-header">
-            <h3 id="ngSectionTitle">NG Word Settings</h3>
-            <button id="btnSaveNgWords" type="button">Save</button>
+            <h3 id="ngSectionTitle">禁句</h3>
+            <button id="btnSaveNgWords" type="button">保存</button>
           </div>
 
           <div id="ngWordList" class="ng-list"></div>
 
           <div class="ng-add-area">
             <input id="ngWordInput" type="text" placeholder="Add an NG word" />
-            <button id="btnAddNgWord" type="button">Add</button>
+            <button id="btnAddNgWord" type="button">追加</button>
           </div>
         </section>
       </div>
