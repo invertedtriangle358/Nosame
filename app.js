@@ -397,68 +397,30 @@ class SettingsUIHandler {
         input.value = "";
         this.updateRelayList();
     }
-
-    _saveRelays() {
+_saveRelays() {
         alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
         this.ui._toggleModal(this.dom.modals.relay, false);
+        this.ui.toggleSettingsPanel(false);
         this.client.connect();
         this.client.startSubscription();
-    }
-
-    _addNgWord() {
-        const input = this.dom.inputs.ng;
-        const word = input?.value?.trim();
-        if (!word) return;
-
-        const words = this.storage.getUserNgWords();
-        if (words.includes(word)) {
-            alert(UI_STRINGS.DUPLICATE_NG);
-            return;
-        }
-
-        words.push(word);
-        this.storage.saveUserNgWords(words);
-        input.value = "";
-        this.updateNgList();
     }
 
     _saveNgWords() {
         alert(UI_STRINGS.SAVE_NG_SUCCESS);
         this.ui._toggleModal(this.dom.modals.ng, false);
+        this.ui.toggleSettingsPanel(false);
     }
 }
 
-// =======================
-// 6. UI Manager
-// =======================
-class UIManager {
-    constructor(client, storage) {
-        this.client = client;
-        this.storage = storage;
-        this.dom = {};
-
-        this.eventBuffer = [];
-        this.bufferTimer = null;
-
-        this.settingsHandler = null;
-    }
-
-    init() {
-        this._cacheDom();
-        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
-
-        this._setupListeners();
-        this.settingsHandler.updateRelayList();
-        this.settingsHandler.updateNgList();
-    }
-
-    _cacheDom() {
         const $ = (id) => document.getElementById(id);
         this.dom = {
             timeline: $("timeline"),
             modals: {
                 relay: $("relayModal"),
                 ng: $("ngModal"),
+            panels: {
+                settings: $("settingsPanel"),
+                backdrop: $("menuBackdrop"),
             },
             buttons: {
                 publish: $("btnPublish"),
@@ -466,33 +428,18 @@ class UIManager {
                 closeRelay: $("btnCloseModal"),
                 openNg: $("btnNgModal"),
                 closeNg: $("btnCloseNgModal"),
+                openMenu: $("btnMenu"),
+                closeMenu: $("btnCloseMenu"),
                 addRelay: $("btnAddRelay"),
                 saveRelays: $("btnSaveRelays"),
                 addNg: $("btnAddNgWord"),
-                saveNg: $("btnSaveNgWords"),
-                scrollLeft: $("scrollLeft"),
-                scrollRight: $("scrollRight"),
-            },
-            inputs: {
-                compose: $("compose"),
-                relay: $("relayInput"),
-                ng: $("ngWordInput"),
-            },
-            lists: {
-                relays: $("relayList"),
-                ngWords: $("ngWordList"),
-            },
-            counters: {
-                char: $("charCount"),
-            },
-        };
-    }
-
     _setupListeners() {
         const btn = this.dom.buttons;
 
         btn.openRelay?.addEventListener("click", () => {
             this._toggleModal(this.dom.modals.relay, true);
+        btn.openMenu?.addEventListener("click", () => {
+            this.toggleSettingsPanel(true);
             this.settingsHandler.updateRelayList();
         });
 
@@ -507,33 +454,11 @@ class UIManager {
 
         btn.closeNg?.addEventListener("click", () => {
             this._toggleModal(this.dom.modals.ng, false);
+        btn.closeMenu?.addEventListener("click", () => {
+            this.toggleSettingsPanel(false);
         });
 
         btn.publish?.addEventListener("click", () => this._handlePublish());
-
-        this.settingsHandler.setupListeners();
-
-        btn.scrollLeft?.addEventListener("click", () => {
-            this.dom.timeline?.scrollBy({ left: -300, behavior: "smooth" });
-        });
-
-        btn.scrollRight?.addEventListener("click", () => {
-            this.dom.timeline?.scrollBy({ left: 300, behavior: "smooth" });
-        });
-
-        this.dom.inputs.compose?.addEventListener("input", (e) => {
-            const len = e.target.value.length;
-            const counter = this.dom.counters.char;
-            if (!counter) return;
-
-            counter.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-            counter.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
-        });
-
-        this.dom.inputs.compose?.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                this._handlePublish();
             }
         });
 
@@ -541,6 +466,14 @@ class UIManager {
             modal?.addEventListener("click", (e) => {
                 if (e.target === modal) this._toggleModal(modal, false);
             });
+        this.dom.panels.backdrop?.addEventListener("click", () => {
+            this.toggleSettingsPanel(false);
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                this.toggleSettingsPanel(false);
+            }
         });
     }
 
@@ -548,6 +481,17 @@ class UIManager {
         if (!el) return;
         el.style.display = open ? "block" : "none";
         el.setAttribute("aria-hidden", String(!open));
+    toggleSettingsPanel(open) {
+        const panel = this.dom.panels.settings;
+        const backdrop = this.dom.panels.backdrop;
+        const button = this.dom.buttons.openMenu;
+        if (!panel || !backdrop) return;
+
+        panel.classList.toggle("is-open", open);
+        backdrop.classList.toggle("is-open", open);
+        panel.setAttribute("aria-hidden", String(!open));
+        backdrop.setAttribute("aria-hidden", String(!open));
+        button?.setAttribute("aria-expanded", String(open));
         document.body.style.overflow = open ? "hidden" : "";
     }
 
