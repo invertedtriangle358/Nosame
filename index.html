@@ -7,55 +7,87 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
+ <link href="https://fonts.googleapis.com/css2?family=Sawarabi+Mincho&display=swap" rel="stylesheet">
 </head>
 <body>
+  <div id="menuBackdrop" class="menu-backdrop" aria-hidden="true"></div>
   <header>
     <h1 class="sawarabi-mincho-regular title-ruby">
       <ruby>
-       　<rt>野雨-Nosame-</rt>
       </ruby>
     </h1>
     <div class="header-actions">
-      <button id="btnRelayModal" type="button">リレー</button>
+      <button id="btnRelayModal" type="button">Relays</button>
       <button id="btnNgModal" type="button">NG</button>
+      <button id="btnMenu" class="menu-toggle" type="button" aria-label="Open settings" aria-expanded="false" aria-controls="settingsPanel">Menu</button>
     </div>
   </header>
 
   <main>
     <div id="relayModal" class="modal" aria-hidden="true">
       <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="relayModalTitle">
-        <h2 id="relayModalTitle" tabindex="-1">リレー設定</h2>
+        <h2 id="relayModalTitle" tabindex="-1">Relay Settings</h2>
         <div id="relayList"></div>
 
         <div class="relay-add-area">
           <input id="relayInput" type="text" placeholder="wss://example.com" />
-          <button id="btnAddRelay" type="button">追加</button>
+          <button id="btnAddRelay" type="button">Add</button>
+    <aside id="settingsPanel" class="settings-panel" aria-hidden="true">
+      <div class="settings-panel-inner" role="dialog" aria-modal="true" aria-labelledby="settingsPanelTitle">
+        <div class="settings-panel-header">
+          <div>
+            <p class="settings-kicker">Settings</p>
+            <h2 id="settingsPanelTitle" tabindex="-1">Customize Nosame</h2>
+          </div>
+          <button id="btnCloseMenu" class="settings-close" type="button" aria-label="Close settings">Close</button>
         </div>
 
         <div class="modal-actions">
-          <button id="btnSaveRelays" type="button">保存</button>
-          <button id="btnCloseModal" type="button">閉じる</button>
+          <button id="btnSaveRelays" type="button">Save</button>
+          <button id="btnCloseModal" type="button">Close</button>
         </div>
       </div>
     </div>
+        <section class="settings-section" aria-labelledby="relaySectionTitle">
+          <div class="settings-section-header">
+            <h3 id="relaySectionTitle">Relay Settings</h3>
+            <button id="btnSaveRelays" type="button">Save</button>
+          </div>
+          <div id="relayList"></div>
 
     <div id="ngModal" class="modal" aria-hidden="true">
       <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="ngModalTitle">
-        <h2 id="ngModalTitle">NGワード設定</h2>
+        <h2 id="ngModalTitle">NG Word Settings</h2>
+          <div class="relay-add-area">
+            <input id="relayInput" type="text" placeholder="wss://example.com" />
+            <button id="btnAddRelay" type="button">Add</button>
+          </div>
+        </section>
 
         <div id="ngWordList" class="ng-list"></div>
         <div class="ng-add-area">
-          <input id="ngWordInput" type="text" placeholder="NGワードを追加" />
-          <button id="btnAddNgWord" type="button">追加</button>
+          <input id="ngWordInput" type="text" placeholder="Add an NG word" />
+          <button id="btnAddNgWord" type="button">Add</button>
         </div>
+        <section class="settings-section" aria-labelledby="ngSectionTitle">
+          <div class="settings-section-header">
+            <h3 id="ngSectionTitle">NG Word Settings</h3>
+            <button id="btnSaveNgWords" type="button">Save</button>
+          </div>
+          <div id="ngWordList" class="ng-list"></div>
 
         <div class="modal-actions">
-          <button id="btnSaveNgWords" type="button">保存</button>
-          <button id="btnCloseNgModal" type="button">閉じる</button>
+          <button id="btnSaveNgWords" type="button">Save</button>
+          <button id="btnCloseNgModal" type="button">Close</button>
         </div>
+          <div class="ng-add-area">
+            <input id="ngWordInput" type="text" placeholder="Add an NG word" />
+            <button id="btnAddNgWord" type="button">Add</button>
+          </div>
+        </section>
       </div>
     </div>
+    </aside>
 
     <aside class="sidebar">
       <div class="sidebar-header">
