@@ -239,6 +239,24 @@ main {
     font-weight: bold;
 }
 
+.note .meta .author-copy {
+    border: none;
+    padding: 4px 6px;
+    border-radius: var(--radius-m);
+    background: rgba(255, 255, 255, 0.18);
+    color: var(--c-white);
+    cursor: pointer;
+    font: inherit;
+}
+
+.note .meta .author-copy:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.note .meta .time {
+    color: #222;
+}
+
 .note .meta .time {
     color: #222;
 }
