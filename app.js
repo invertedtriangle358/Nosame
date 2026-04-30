@@ -22,7 +22,7 @@ const NOSTR_KINDS = {
 };
 
 const UI_STRINGS = {
-EMPTY_POST: "本文を入力してください。",
+    EMPTY_POST: "本文を入力してください。",
     INVALID_CONTENT: "禁句を含むか、文字数制限を超えています。",
     BLOCKED_PUBKEY: "この公開鍵は遮断されています。",
     NIP07_REQUIRED: "NIP-07対応のNostr拡張機能が必要です。",
@@ -38,6 +38,7 @@ EMPTY_POST: "本文を入力してください。",
     COPY_NPUB_SUCCESS: "npub をコピーしました。",
     COPY_NPUB_FAILED: "npub をコピーできませんでした。",
 };
+
 
 const Bech32 = (() => {
     const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
