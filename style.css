@@ -222,6 +222,9 @@ main {
     padding: 14px;
     border: 1px solid #242733;
     border-radius: var(--radius-xl);
+    background: var(--c-bg-card);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
 }
 
 .note .content {
