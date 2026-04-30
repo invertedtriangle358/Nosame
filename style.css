@@ -210,14 +210,14 @@ main {
 ============================== */
 .note {
     display: inline-flex;
-    flex: 0 0 320px;
+    flex: 0 0 auto;
     flex-direction: column;
     writing-mode: vertical-rl;
     text-orientation: mixed;
     height: 630px;
-    width: 160px;
-    min-width: 320px;
-    max-width: 320px;
+    width: auto;
+    min-width: 100px;
+    max-width: 640px;
     margin: 0;
     padding: 14px;
     border: 1px solid #242733;
