@@ -79,12 +79,24 @@
 
           <div class="ng-add-area">
             <input id="ngWordInput" type="text" placeholder="Add an NG word" />
-            <button id="btnAddNgWord" type="button">追加</button>
+            <button id="btnAddNgWord" type="button">Add</button>
+          </div>
+        </section>
+
+        <section class="settings-section" aria-labelledby="blockSectionTitle">
+          <div class="settings-section-header">
+            <h3 id="blockSectionTitle">Block Pubkeys</h3>
+            <button id="btnSaveBlockedPubkeys" type="button">Save</button>
+          </div>
+          <div id="blockedPubkeyList" class="ng-list"></div>
+
+          <div class="ng-add-area">
+            <input id="blockedPubkeyInput" type="text" placeholder="hex pubkey or npub1..." />
+            <button id="btnAddBlockedPubkey" type="button">Add</button>
           </div>
         </section>
       </div>
     </aside>
-
     <aside class="sidebar">
       <div class="sidebar-header">
         <button id="btnPublish" type="button" aria-label="投稿する">投稿</button>
