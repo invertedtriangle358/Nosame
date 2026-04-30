@@ -257,10 +257,6 @@ main {
     color: #222;
 }
 
-.note .meta .time {
-    color: #222;
-}
-
 .note .btn-reaction {
     width: 30px;
     height: 30px;
@@ -353,7 +349,8 @@ main {
 .settings-close,
 .settings-section-header button,
 #btnAddRelay,
-#btnAddNgWord {
+#btnAddNgWord,
+#btnAddBlockedPubkey {
     padding: 6px 12px;
     border: none;
     border-radius: var(--radius-m);
@@ -382,17 +379,20 @@ main {
 }
 
 #btnAddRelay,
-#btnAddNgWord {
+#btnAddNgWord,
+#btnAddBlockedPubkey {
     background: var(--c-btn-blue);
 }
 
 #btnAddRelay:hover,
-#btnAddNgWord:hover {
+#btnAddNgWord:hover,
+#btnAddBlockedPubkey:hover {
     background: var(--c-btn-blue-hover);
 }
 
 #btnSaveRelays,
-#btnSaveNgWords {
+#btnSaveNgWords,
+#btnSaveBlockedPubkeys {
     background: var(--c-btn-blue-hover);
 }
 
@@ -459,9 +459,10 @@ main {
 }
 
 /* ==============================
-   NGワード
+   NGワード / 遮断公開鍵
 ============================== */
-#ngWordList {
+#ngWordList,
+#blockedPubkeyList {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -471,11 +472,13 @@ main {
     overflow-y: auto;
 }
 
-#ngWordList::-webkit-scrollbar {
+#ngWordList::-webkit-scrollbar,
+#blockedPubkeyList::-webkit-scrollbar {
     width: 6px;
 }
 
-#ngWordList::-webkit-scrollbar-thumb {
+#ngWordList::-webkit-scrollbar-thumb,
+#blockedPubkeyList::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.3);
     border-radius: 4px;
 }
