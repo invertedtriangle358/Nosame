@@ -23,7 +23,7 @@
         id="btnMenu"
         class="menu-toggle"
         type="button"
-        aria-label="Open settings"
+        aria-label="設定を開く"
         aria-expanded="false"
         aria-controls="settingsPanel"
       >
@@ -49,7 +49,7 @@
             id="btnCloseMenu"
             class="settings-close"
             type="button"
-            aria-label="Close settings"
+            aria-label="設定を閉じる"
           >
             ×
           </button>
@@ -78,25 +78,27 @@
           <div id="ngWordList" class="ng-list"></div>
 
           <div class="ng-add-area">
-            <input id="ngWordInput" type="text" placeholder="Add an NG word" />
-            <button id="btnAddNgWord" type="button">Add</button>
+            <input id="ngWordInput" type="text" placeholder="NGワードを追加" />
+            <button id="btnAddNgWord" type="button">追加</button>
           </div>
         </section>
 
         <section class="settings-section" aria-labelledby="blockSectionTitle">
           <div class="settings-section-header">
             <h3 id="blockSectionTitle">遮断</h3>
-            <button id="btnSaveBlockedPubkeys" type="button">Save</button>
+            <button id="btnSaveBlockedPubkeys" type="button">保存</button>
           </div>
+
           <div id="blockedPubkeyList" class="ng-list"></div>
 
           <div class="ng-add-area">
-            <input id="blockedPubkeyInput" type="text" placeholder="hex pubkey or npub1..." />
-            <button id="btnAddBlockedPubkey" type="button">Add</button>
+            <input id="blockedPubkeyInput" type="text" placeholder="hex公開鍵 または npub1..." />
+            <button id="btnAddBlockedPubkey" type="button">追加</button>
           </div>
         </section>
       </div>
     </aside>
+
     <aside class="sidebar">
       <div class="sidebar-header">
         <button id="btnPublish" type="button" aria-label="投稿する">投稿</button>
