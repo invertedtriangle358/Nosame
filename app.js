@@ -544,7 +544,7 @@ class SettingsUIHandler {
             row.className = "ng-word-item ng-default";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}" disabled>
-                <button type="button" disabled>-</button>
+                <button type="button" disabled> - </button>
             `;
             container.appendChild(row);
         });
