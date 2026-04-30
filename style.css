@@ -92,9 +92,10 @@ header {
         flex-direction: row;
     }
 
-.timeline-controls {
+    .timeline-controls {
         display: none;
     }
+
     .settings-panel-inner {
         padding-bottom: 56px;
     }
@@ -209,18 +210,16 @@ main {
 .note {
     display: inline-flex;
     flex-direction: column;
-writing-mode: vertical-rl;
+    writing-mode: vertical-rl;
     text-orientation: mixed;
     height: 630px;
-    max-width: 200px;
     max-width: 320px;
     margin: 3px;
     padding: 14px;
     border: 1px solid #242733;
-    line-height: 1.5;
-    color: var(--c-white);
-    word-break: break-word;
-    overflow-y: auto;
+    border-radius: var(--radius-xl);
+    background: var(--c-bg-card);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     overflow: hidden;
 }
 
@@ -230,7 +229,7 @@ writing-mode: vertical-rl;
     line-height: 1.5;
     color: var(--c-white);
     word-break: break-word;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .note .meta {
@@ -465,29 +464,8 @@ writing-mode: vertical-rl;
 }
 
 /* ==============================
-   NGワード
+   NGワード / 遮断公開鍵
 ============================== */
-#ngWordList {
-#ngWordList,
-#blockedPubkeyList {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow-y: auto;
-}
-
-#ngWordList::-webkit-scrollbar {
-#ngWordList::-webkit-scrollbar,
-#blockedPubkeyList::-webkit-scrollbar {
-    width: 6px;
-}
-#ngWordList::-webkit-scrollbar-thumb {
-
-#ngWordList::-webkit-scrollbar-thumb,
-#blockedPubkeyList::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 4px;
-}
 #ngWordList,
 #blockedPubkeyList {
     display: flex;
