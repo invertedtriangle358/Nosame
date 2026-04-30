@@ -506,7 +506,7 @@ class SettingsUIHandler {
             row.innerHTML = `
                 <span class="relay-status">${getStatus.call(this.client, item) ? "●" : "○"}</span>
                 <input type="text" value="${this.ui._escape(item)}" data-idx="${idx}">
-                <button class="btn-delete-relay" type="button">削除</button>
+                <button class="btn-delete-relay" type="button">×</button>
             `;
 
             row.querySelector(".btn-delete-relay").onclick = () => {
@@ -544,7 +544,7 @@ class SettingsUIHandler {
             row.className = "ng-word-item ng-default";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}" disabled>
-                <button type="button" disabled>既定</button>
+                <button type="button" disabled>-</button>
             `;
             container.appendChild(row);
         });
@@ -555,7 +555,7 @@ class SettingsUIHandler {
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}">
-                <button class="btn-delete-ng" type="button">削除</button>
+                <button class="btn-delete-ng" type="button">×</button>
             `;
 
             row.querySelector("input").oninput = (e) => {
@@ -584,7 +584,7 @@ class SettingsUIHandler {
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(this.ui._formatNpub(pubkey).short)}" title="${this.ui._escape(pubkey)}" disabled>
-                <button class="btn-delete-blocked" type="button">削除</button>
+                <button class="btn-delete-blocked" type="button">×</button>
             `;
 
             row.querySelector(".btn-delete-blocked").onclick = () => {
