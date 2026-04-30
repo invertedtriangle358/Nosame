@@ -932,9 +932,10 @@ class UIManager {
         }[char]));
     }
 
-    _formatContent(text) {
-        const safe = this._escape(text);
-        return safe.replace(/\n/g, "<br>");
+_formatContent(text) {
+    const safe = this._escape(text).replace(/\n/g, "<br>");
+    const mark = "【緊急地震速報】";
+    return safe.replaceAll(mark, `<span style="color:#e63946;">${mark}</span>`);
     }
 }
 
