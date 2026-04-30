@@ -311,11 +311,13 @@ main {
     right: 0;
     z-index: 1000;
     width: min(420px, 92vw);
-    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     transform: translateX(100%);
     transition: transform 0.28s ease;
     pointer-events: none;
 }
+
 
 .settings-panel.is-open {
     transform: translateX(0);
@@ -324,7 +326,7 @@ main {
 
 .settings-panel-inner {
     height: 100%;
-    padding: 24px 20px;
+    padding: 24px 20px calc(56px + env(safe-area-inset-bottom));
     background: linear-gradient(180deg, var(--c-accent-light), var(--c-accent), var(--c-accent-dark));
     color: var(--c-white);
     box-shadow: -12px 0 32px rgba(0, 0, 0, 0.28);
@@ -332,6 +334,7 @@ main {
     flex-direction: column;
     gap: 20px;
     overflow-y: auto;
+   -webkit-overflow-scrolling: touch;
 }
 
 .settings-panel-header,
