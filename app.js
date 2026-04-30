@@ -506,84 +506,31 @@ class SettingsUIHandler {
                 <span class="relay-status">${getStatus.call(this.client, item) ? "●" : "○"}</span>
                 <input type="text" value="${this.ui._escape(item)}" data-idx="${idx}">
                 <button class="btn-delete-relay" type="button">Delete</button>
+                <button class="btn-delete-relay" type="button">削除</button>
             `;
 
             row.querySelector(".btn-delete-relay").onclick = () => {
-                items.splice(idx, 1);
-                saveItemList.call(this.storage, items);
-                updateCallback.call(this);
-            };
-
-            row.querySelector("input").oninput = (e) => {
-                items[idx] = e.target.value.trim();
-                saveItemList.call(this.storage, items);
-            };
-
-            container.appendChild(row);
-        });
-    }
-
-    updateRelayList() {
-        this._updateList({
-            container: this.dom.lists.relays,
-            getItemList: this.storage.getRelays,
-            saveItemList: this.storage.saveRelays,
-            getStatus: this.client.getRelayStatus,
-            updateCallback: this.updateRelayList,
-        });
-    }
-
-    updateNgList() {
-        const container = this.dom.lists.ngWords;
-        if (!container) return;
-        container.innerHTML = "";
-
-        this.storage.defaultNgWords.forEach((word) => {
-            const row = document.createElement("div");
             row.className = "ng-word-item ng-default";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}" disabled>
                 <button type="button" disabled>Built-in</button>
+                <button type="button" disabled>既定</button>
             `;
             container.appendChild(row);
         });
-
-        const words = this.storage.getUserNgWords();
-        words.forEach((word, idx) => {
-            const row = document.createElement("div");
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}">
                 <button class="btn-delete-ng" type="button">Delete</button>
+                <button class="btn-delete-ng" type="button">削除</button>
             `;
 
             row.querySelector("input").oninput = (e) => {
-                words[idx] = e.target.value.trim();
-                this.storage.saveUserNgWords(words.filter(Boolean));
-            };
-
-            row.querySelector(".btn-delete-ng").onclick = () => {
-                words.splice(idx, 1);
-                this.storage.saveUserNgWords(words);
-                this.updateNgList();
-            };
-
-            container.appendChild(row);
-        });
-    }
-
-    updateBlockedPubkeyList() {
-        const container = this.dom.lists.blockedPubkeys;
-        if (!container) return;
-        container.innerHTML = "";
-
-        const pubkeys = this.storage.getBlockedPubkeys();
-        pubkeys.forEach((pubkey, idx) => {
-            const row = document.createElement("div");
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(this.ui._formatNpub(pubkey).short)}" title="${this.ui._escape(pubkey)}" disabled>
                 <button class="btn-delete-blocked" type="button">Delete</button>
+                <button class="btn-delete-blocked" type="button">削除</button>
             `;
 
             row.querySelector(".btn-delete-blocked").onclick = () => {
