@@ -22,21 +22,21 @@ const NOSTR_KINDS = {
 };
 
 const UI_STRINGS = {
-    EMPTY_POST: "Please enter some text.",
-    INVALID_CONTENT: "This note contains an NG word or is too long.",
-    BLOCKED_PUBKEY: "This pubkey is blocked.",
-    NIP07_REQUIRED: "A NIP-07 compatible Nostr extension is required.",
-    NO_RELAY: "No relay is currently connected.",
-    INVALID_WSS: "Please enter a valid wss:// URL.",
-    INVALID_PUBKEY: "Please enter a valid hex pubkey or npub.",
-    SAVE_RELAY_SUCCESS: "Relay settings saved.",
-    SAVE_NG_SUCCESS: "NG words saved.",
-    SAVE_BLOCKED_SUCCESS: "Blocked pubkeys saved.",
-    DUPLICATE_RELAY: "That relay is already in the list.",
-    DUPLICATE_NG: "That NG word is already in the list.",
-    DUPLICATE_BLOCKED_PUBKEY: "That pubkey is already in the block list.",
-    COPY_NPUB_SUCCESS: "Copied npub to clipboard.",
-    COPY_NPUB_FAILED: "Could not copy npub.",
+EMPTY_POST: "本文を入力してください。",
+    INVALID_CONTENT: "禁句を含むか、文字数制限を超えています。",
+    BLOCKED_PUBKEY: "この公開鍵は遮断されています。",
+    NIP07_REQUIRED: "NIP-07対応のNostr拡張機能が必要です。",
+    NO_RELAY: "接続中のリレーがありません。",
+    INVALID_WSS: "有効な wss:// URL を入力してください。",
+    INVALID_PUBKEY: "有効な hex 公開鍵 または npub を入力してください。",
+    SAVE_RELAY_SUCCESS: "接続設定を保存しました。",
+    SAVE_NG_SUCCESS: "禁句を保存しました。",
+    SAVE_BLOCKED_SUCCESS: "遮断公開鍵を保存しました。",
+    DUPLICATE_RELAY: "そのリレーはすでに登録されています。",
+    DUPLICATE_NG: "その禁句はすでに登録されています。",
+    DUPLICATE_BLOCKED_PUBKEY: "その公開鍵はすでに遮断されています。",
+    COPY_NPUB_SUCCESS: "npub をコピーしました。",
+    COPY_NPUB_FAILED: "npub をコピーできませんでした。",
 };
 
 const Bech32 = (() => {
@@ -877,7 +877,7 @@ class UIManager {
                 <span class="time">${new Date(ev.created_at * 1000).toLocaleString()}</span>
                 <button class="author author-copy" type="button" aria-label="Copy npub">${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</button>
             </div>
-            <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
+            <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "済" : "+"}</button>
         `;
 
         el.querySelector(".author-copy").onclick = async () => {
@@ -887,7 +887,7 @@ class UIManager {
         el.querySelector(".btn-reaction").onclick = async (e) => {
             try {
                 await this.client.sendReaction(ev);
-                e.target.textContent = "Sent";
+                e.target.textContent = "済";
                 e.target.disabled = true;
             } catch (err) {
                 alert(err.message);
