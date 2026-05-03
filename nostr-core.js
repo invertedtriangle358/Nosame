@@ -1,3 +1,5 @@
+import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
+
 const Bech32 = (() => {
     const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -89,7 +91,7 @@ const Bech32 = (() => {
     return { encode, decode, convertBits };
 })();
 
-class NostrCodec {
+export class NostrCodec {
     static isHexPubkey(value) {
         return /^[0-9a-f]{64}$/i.test(value);
     }
@@ -137,12 +139,12 @@ class NostrCodec {
         const npub = this.toNpub(pubkeyHex);
         return {
             npub,
-            short: `🔑${npub.slice(5, 11)}...${npub.slice(-6)}`,
+            short: `${npub.slice(0, 10)}...${npub.slice(-6)}`,
         };
     }
 }
 
-class EventValidator {
+export class EventValidator {
     constructor(storage) {
         this.storage = storage;
     }
@@ -161,7 +163,7 @@ class EventValidator {
     }
 }
 
-class StorageManager {
+export class StorageManager {
     constructor() {
         this.defaultNgWords = [];
     }
@@ -223,7 +225,61 @@ class StorageManager {
     }
 }
 
-class NostrClient {
+export class ProfileStore {
+    constructor() {
+        this.metadataByPubkey = new Map();
+    }
+
+    upsertMetadata(event) {
+        if (!event?.pubkey || event.kind !== NOSTR_KINDS.METADATA) return null;
+
+        let parsed = {};
+        try {
+            parsed = JSON.parse(event.content ?? "{}");
+        } catch {
+            parsed = {};
+        }
+
+        const next = {
+            pubkey: event.pubkey,
+            created_at: event.created_at ?? 0,
+            displayName: this._pickDisplayName(parsed, event.pubkey),
+            about: typeof parsed.about === "string" ? parsed.about.trim() : "",
+            picture: typeof parsed.picture === "string" ? parsed.picture.trim() : "",
+        };
+
+        const prev = this.metadataByPubkey.get(event.pubkey);
+        if (prev && (prev.created_at ?? 0) > next.created_at) return prev;
+
+        this.metadataByPubkey.set(event.pubkey, next);
+        return next;
+    }
+
+    getProfile(pubkey) {
+        return this.metadataByPubkey.get(pubkey) ?? {
+            pubkey,
+            displayName: this._fallbackName(pubkey),
+            about: "",
+            picture: "",
+        };
+    }
+
+    _pickDisplayName(parsed, pubkey) {
+        if (typeof parsed.display_name === "string" && parsed.display_name.trim()) {
+            return parsed.display_name.trim();
+        }
+        if (typeof parsed.name === "string" && parsed.name.trim()) {
+            return parsed.name.trim();
+        }
+        return this._fallbackName(pubkey);
+    }
+
+    _fallbackName(pubkey) {
+        return String(pubkey ?? "").slice(0, 8) || "unknown";
+    }
+}
+
+export class NostrClient {
     constructor(storage, validator) {
         this.storage = storage;
         this.validator = validator;
@@ -235,6 +291,7 @@ class NostrClient {
         this.intentionallyClosedRelays = new Set();
 
         this.onEventCallback = null;
+        this.onMetadataCallback = null;
         this.onStatusCallback = null;
     }
 
@@ -338,6 +395,11 @@ class NostrClient {
                 limit: CONFIG.NOSTR_REQ_LIMIT,
                 since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
             },
+            {
+                kinds: [NOSTR_KINDS.METADATA],
+                limit: CONFIG.NOSTR_REQ_LIMIT,
+                since: Math.floor(Date.now() / 1000) - CONFIG.METADATA_LOOKBACK_SECONDS,
+            },
         ]));
     }
 
@@ -346,10 +408,18 @@ class NostrClient {
             const [type, , event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event?.id) return;
             if (this.seenEventIds.has(event.id)) return;
+            this.seenEventIds.add(event.id);
+
             if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+
+            if (event.kind === NOSTR_KINDS.METADATA) {
+                this.onMetadataCallback?.(event);
+                return;
+            }
+
+            if (event.kind !== NOSTR_KINDS.TEXT) return;
             if (this.validator.isContentInvalid(event.content)) return;
 
-            this.seenEventIds.add(event.id);
             this.onEventCallback?.(event);
         } catch (err) {
             console.error("Failed to parse relay message.", err);
@@ -416,501 +486,6 @@ class NostrClient {
             }
         });
 
-        if (sent === 0) {
-            throw new Error(UI_STRINGS.NO_RELAY);
-        }
+        if (sent === 0) throw new Error(UI_STRINGS.NO_RELAY);
     }
 }
-
-// =======================
-// 5. Settings UI Handler
-// =======================
-class SettingsUIHandler {
-    constructor(dom, storage, client, ui) {
-        this.dom = dom;
-        this.storage = storage;
-        this.client = client;
-        this.ui = ui;
-    }
-
-    setupListeners() {
-        const btn = this.dom.buttons;
-
-        btn.addRelay?.addEventListener("click", () => this._addRelay());
-        btn.saveRelays?.addEventListener("click", () => this._saveRelays());
-        btn.addNg?.addEventListener("click", () => this._addNgWord());
-        btn.saveNg?.addEventListener("click", () => this._saveNgWords());
-        btn.addBlockedPubkey?.addEventListener("click", () => this._addBlockedPubkey());
-        btn.saveBlockedPubkeys?.addEventListener("click", () => this._saveBlockedPubkeys());
-    }
-
-    _updateList({ container, getItemList, saveItemList, getStatus, updateCallback }) {
-        if (!container) return;
-        container.innerHTML = "";
-
-        const items = getItemList.call(this.storage);
-        items.forEach((item, idx) => {
-            const row = document.createElement("div");
-            row.className = "relay-row";
-            row.innerHTML = `
-                <span class="relay-status">${getStatus.call(this.client, item) ? "●" : "○"}</span>
-                <input type="text" value="${this.ui._escape(item)}" data-idx="${idx}">
-                <button class="btn-delete-relay" type="button">×</button>
-            `;
-
-            row.querySelector(".btn-delete-relay").onclick = () => {
-                items.splice(idx, 1);
-                saveItemList.call(this.storage, items);
-                updateCallback.call(this);
-            };
-
-            row.querySelector("input").oninput = (e) => {
-                items[idx] = e.target.value.trim();
-                saveItemList.call(this.storage, items);
-            };
-
-            container.appendChild(row);
-        });
-    }
-
-    updateRelayList() {
-        this._updateList({
-            container: this.dom.lists.relays,
-            getItemList: this.storage.getRelays,
-            saveItemList: this.storage.saveRelays,
-            getStatus: this.client.getRelayStatus,
-            updateCallback: this.updateRelayList,
-        });
-    }
-
-    updateNgList() {
-        const container = this.dom.lists.ngWords;
-        if (!container) return;
-        container.innerHTML = "";
-
-        this.storage.defaultNgWords.forEach((word) => {
-            const row = document.createElement("div");
-            row.className = "ng-word-item ng-default";
-            row.innerHTML = `
-                <input type="text" value="${this.ui._escape(word)}" disabled>
-                <button type="button" disabled> - </button>
-            `;
-            container.appendChild(row);
-        });
-
-        const words = this.storage.getUserNgWords();
-        words.forEach((word, idx) => {
-            const row = document.createElement("div");
-            row.className = "ng-word-item";
-            row.innerHTML = `
-                <input type="text" value="${this.ui._escape(word)}">
-                <button class="btn-delete-ng" type="button">×</button>
-            `;
-
-            row.querySelector("input").oninput = (e) => {
-                words[idx] = e.target.value.trim();
-                this.storage.saveUserNgWords(words.filter(Boolean));
-            };
-
-            row.querySelector(".btn-delete-ng").onclick = () => {
-                words.splice(idx, 1);
-                this.storage.saveUserNgWords(words);
-                this.updateNgList();
-            };
-
-            container.appendChild(row);
-        });
-    }
-
-    updateBlockedPubkeyList() {
-        const container = this.dom.lists.blockedPubkeys;
-        if (!container) return;
-        container.innerHTML = "";
-
-        const pubkeys = this.storage.getBlockedPubkeys();
-        pubkeys.forEach((pubkey, idx) => {
-            const row = document.createElement("div");
-            row.className = "ng-word-item";
-            row.innerHTML = `
-                <input type="text" value="${this.ui._escape(this.ui._formatNpub(pubkey).short)}" title="${this.ui._escape(pubkey)}" disabled>
-                <button class="btn-delete-blocked" type="button">×</button>
-            `;
-
-            row.querySelector(".btn-delete-blocked").onclick = () => {
-                pubkeys.splice(idx, 1);
-                this.storage.saveBlockedPubkeys(pubkeys);
-                this.updateBlockedPubkeyList();
-            };
-
-            container.appendChild(row);
-        });
-    }
-
-    _addRelay() {
-        const input = this.dom.inputs.relay;
-        const url = input?.value?.trim();
-        if (!url) return;
-
-        try {
-            const parsed = new URL(url);
-            if (parsed.protocol !== "wss:") throw new Error();
-        } catch {
-            alert(UI_STRINGS.INVALID_WSS);
-            return;
-        }
-
-        const relays = this.storage.getRelays();
-        if (relays.includes(url)) {
-            alert(UI_STRINGS.DUPLICATE_RELAY);
-            return;
-        }
-
-        relays.push(url);
-        this.storage.saveRelays(relays);
-        input.value = "";
-        this.updateRelayList();
-    }
-
-    _saveRelays() {
-        alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
-        this.ui.toggleSettingsPanel(false);
-        this.client.connect();
-        this.client.startSubscription();
-    }
-
-    _addNgWord() {
-        const input = this.dom.inputs.ng;
-        const word = input?.value?.trim();
-        if (!word) return;
-
-        const words = this.storage.getUserNgWords();
-        if (words.includes(word)) {
-            alert(UI_STRINGS.DUPLICATE_NG);
-            return;
-        }
-
-        words.push(word);
-        this.storage.saveUserNgWords(words);
-        input.value = "";
-        this.updateNgList();
-    }
-
-    _saveNgWords() {
-        alert(UI_STRINGS.SAVE_NG_SUCCESS);
-        this.ui.toggleSettingsPanel(false);
-    }
-
-    _addBlockedPubkey() {
-        const input = this.dom.inputs.blockedPubkey;
-        const rawValue = input?.value?.trim();
-        if (!rawValue) return;
-
-        let normalized;
-        try {
-            normalized = NostrCodec.normalizePubkey(rawValue);
-        } catch {
-            alert(UI_STRINGS.INVALID_PUBKEY);
-            return;
-        }
-
-        const pubkeys = this.storage.getBlockedPubkeys();
-        if (pubkeys.includes(normalized)) {
-            alert(UI_STRINGS.DUPLICATE_BLOCKED_PUBKEY);
-            return;
-        }
-
-        pubkeys.push(normalized);
-        this.storage.saveBlockedPubkeys(pubkeys);
-        input.value = "";
-        this.updateBlockedPubkeyList();
-    }
-
-    _saveBlockedPubkeys() {
-        alert(UI_STRINGS.SAVE_BLOCKED_SUCCESS);
-        this.ui.toggleSettingsPanel(false);
-    }
-}
-
-// =======================
-// 6. UI Manager
-// =======================
-class UIManager {
-    constructor(client, storage) {
-        this.client = client;
-        this.storage = storage;
-        this.dom = {};
-
-        this.eventBuffer = [];
-        this.bufferTimer = null;
-        this.settingsHandler = null;
-    }
-
-    init() {
-        this._cacheDom();
-        this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
-
-        this._setupListeners();
-        this.settingsHandler.updateRelayList();
-        this.settingsHandler.updateNgList();
-        this.settingsHandler.updateBlockedPubkeyList();
-    }
-
-    _cacheDom() {
-        const $ = (id) => document.getElementById(id);
-
-        this.dom = {
-            timeline: $("timeline"),
-            panels: {
-                settings: $("settingsPanel"),
-                backdrop: $("menuBackdrop"),
-            },
-            buttons: {
-                publish: $("btnPublish"),
-                openMenu: $("btnMenu"),
-                closeMenu: $("btnCloseMenu"),
-                addRelay: $("btnAddRelay"),
-                saveRelays: $("btnSaveRelays"),
-                addNg: $("btnAddNgWord"),
-                saveNg: $("btnSaveNgWords"),
-                addBlockedPubkey: $("btnAddBlockedPubkey"),
-                saveBlockedPubkeys: $("btnSaveBlockedPubkeys"),
-                scrollLeft: $("scrollLeft"),
-                scrollRight: $("scrollRight"),
-            },
-            inputs: {
-                compose: $("compose"),
-                relay: $("relayInput"),
-                ng: $("ngWordInput"),
-                blockedPubkey: $("blockedPubkeyInput"),
-            },
-            lists: {
-                relays: $("relayList"),
-                ngWords: $("ngWordList"),
-                blockedPubkeys: $("blockedPubkeyList"),
-            },
-            counters: {
-                char: $("charCount"),
-            },
-        };
-    }
-
-    _setupListeners() {
-        const btn = this.dom.buttons;
-
-        btn.openMenu?.addEventListener("click", () => {
-            this.toggleSettingsPanel(true);
-            this.settingsHandler.updateRelayList();
-            this.settingsHandler.updateNgList();
-            this.settingsHandler.updateBlockedPubkeyList();
-        });
-
-        btn.closeMenu?.addEventListener("click", () => {
-            this.toggleSettingsPanel(false);
-        });
-
-        btn.publish?.addEventListener("click", () => this._handlePublish());
-
-        this.settingsHandler.setupListeners();
-
-        btn.scrollLeft?.addEventListener("click", () => {
-            this.dom.timeline?.scrollBy({ left: -300, behavior: "smooth" });
-        });
-
-        btn.scrollRight?.addEventListener("click", () => {
-            this.dom.timeline?.scrollBy({ left: 300, behavior: "smooth" });
-        });
-
-        this.dom.inputs.compose?.addEventListener("input", (e) => {
-            const len = e.target.value.length;
-            const counter = this.dom.counters.char;
-            if (!counter) return;
-
-            counter.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-            counter.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
-        });
-
-        this.dom.inputs.compose?.addEventListener("keydown", (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                this._handlePublish();
-            }
-        });
-
-        this.dom.panels.backdrop?.addEventListener("click", () => {
-            this.toggleSettingsPanel(false);
-        });
-
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") {
-                this.toggleSettingsPanel(false);
-            }
-        });
-    }
-
-    toggleSettingsPanel(open) {
-        const panel = this.dom.panels.settings;
-        const backdrop = this.dom.panels.backdrop;
-        const button = this.dom.buttons.openMenu;
-        if (!panel || !backdrop) return;
-
-        panel.classList.toggle("is-open", open);
-        backdrop.classList.toggle("is-open", open);
-        panel.setAttribute("aria-hidden", String(!open));
-        backdrop.setAttribute("aria-hidden", String(!open));
-        button?.setAttribute("aria-expanded", String(open));
-        document.body.style.overflow = open ? "hidden" : "";
-    }
-
-    async _handlePublish() {
-        const input = this.dom.inputs.compose;
-        const content = input?.value?.trim();
-        if (!content) {
-            alert(UI_STRINGS.EMPTY_POST);
-            return;
-        }
-
-        try {
-            const event = await this.client.publish(content);
-            this.renderEvent(event);
-            input.value = "";
-            this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-            this.dom.counters.char.style.color = "";
-        } catch (err) {
-            alert(err.message);
-        }
-    }
-
-    bufferEvent(event) {
-        this.eventBuffer.push(event);
-        if (this.bufferTimer) return;
-
-        this.bufferTimer = setTimeout(() => this._flushBuffer(), CONFIG.EVENT_BUFFER_FLUSH_TIME_MS);
-    }
-
-    _flushBuffer() {
-        const view = this.dom.timeline;
-        if (!view) return;
-
-        const atRight = view.scrollLeft >= view.scrollWidth - view.clientWidth - 10;
-        const prevWidth = view.scrollWidth;
-
-        this.eventBuffer
-            .sort((a, b) => a.created_at - b.created_at)
-            .forEach((event) => this.renderEvent(event));
-
-        this.eventBuffer = [];
-        this.bufferTimer = null;
-
-        const newWidth = view.scrollWidth;
-        if (atRight) {
-            view.scrollLeft = newWidth - view.clientWidth;
-        } else {
-            view.scrollLeft += newWidth - prevWidth;
-        }
-    }
-
-    renderEvent(ev) {
-        const view = this.dom.timeline;
-        if (!view || !ev?.id || view.querySelector(`[data-id="${CSS.escape(ev.id)}"]`)) {
-            return;
-        }
-
-        const el = document.createElement("div");
-        el.className = "note";
-        el.dataset.id = ev.id;
-        el.dataset.createdAt = String(ev.created_at);
-
-        const reacted = this.client.reactedEventIds.has(ev.id);
-        el.innerHTML = `
-            <div class="content">${this._formatContent(ev.content ?? "")}</div>
-            <div class="meta">
-                <span class="time">${new Date(ev.created_at * 1000).toLocaleString()}</span>
-                <button class="author author-copy" type="button" aria-label="Copy npub">${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</button>
-            </div>
-            <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "済" : "+"}</button>
-        `;
-
-        el.querySelector(".author-copy").onclick = async () => {
-            await this._copyNpub(ev.pubkey ?? "");
-        };
-
-        el.querySelector(".btn-reaction").onclick = async (e) => {
-            try {
-                await this.client.sendReaction(ev);
-                e.target.textContent = "済";
-                e.target.disabled = true;
-            } catch (err) {
-                alert(err.message);
-            }
-        };
-
-        view.appendChild(el);
-    }
-
-    _formatNpub(pubkey) {
-        try {
-            return NostrCodec.formatShortNpub(pubkey);
-        } catch {
-            const value = String(pubkey ?? "");
-            return {
-                npub: value,
-                short: value ? `${value.slice(0, 6)}...${value.slice(-6)}` : "",
-            };
-        }
-    }
-
-    async _copyNpub(pubkey) {
-        try {
-            const { npub } = this._formatNpub(pubkey);
-            if (!npub) throw new Error("Missing npub.");
-            await navigator.clipboard.writeText(npub);
-            alert(UI_STRINGS.COPY_NPUB_SUCCESS);
-        } catch {
-            alert(UI_STRINGS.COPY_NPUB_FAILED);
-        }
-    }
-
-    _escape(str) {
-        if (typeof str !== "string") return "";
-        return str.replace(/[&<>"']/g, (char) => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            "\"": "&quot;",
-            "'": "&#39;",
-        }[char]));
-    }
-
-_formatContent(text) {
-    const safe = this._escape(text).replace(/\n/g, "<br>");
-    const mark = "【緊急地震速報】";
-    return safe.replaceAll(mark, `<span style="color:#e63946;">${mark}</span>`);
-    }
-}
-
-// =======================
-// 7. Main Execution
-// =======================
-window.addEventListener("DOMContentLoaded", async () => {
-    const storage = new StorageManager();
-    await storage.loadDefaultNgWords();
-
-    const validator = new EventValidator(storage);
-    const client = new NostrClient(storage, validator);
-    const ui = new UIManager(client, storage);
-
-    ui.init();
-
-    client.onEventCallback = (event) => ui.bufferEvent(event);
-    client.onStatusCallback = () => ui.settingsHandler.updateRelayList();
-
-    client.connect();
-    client.startSubscription();
-
-    setTimeout(() => {
-        const timeline = ui.dom.timeline;
-        if (timeline) {
-            timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
-        }
-    }, 500);
-});
