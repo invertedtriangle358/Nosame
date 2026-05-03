@@ -1,7 +1,7 @@
 // =======================
 // Constants & Config
 // =======================
-const CONFIG = {
+export const CONFIG = {
     MAX_POST_LENGTH: 108,
     EVENT_BUFFER_FLUSH_TIME_MS: 200,
     NOSTR_REQ_LIMIT: 100,
@@ -16,13 +16,13 @@ const CONFIG = {
     RECONNECT_DELAY_MS: 5000,
 };
 
-const NOSTR_KINDS = {
+export const NOSTR_KINDS = {
     METADATA: 0,
     TEXT: 1,
     REACTION: 7,
 };
 
-const UI_STRINGS = {
+export const UI_STRINGS = {
     EMPTY_POST: "本文を入力してください。",
     INVALID_CONTENT: "禁句を含むか、文字数制限を超えています。",
     BLOCKED_PUBKEY: "この公開鍵は遮断されています。",
