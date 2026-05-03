@@ -12,7 +12,10 @@ window.addEventListener("DOMContentLoaded", async () => {
 
     ui.init();
 
-    client.onEventCallback = (event) => ui.bufferEvent(event);
+    client.onEventCallback = (event) => {
+        client.requestProfiles([event.pubkey]);
+        ui.bufferEvent(event);
+    };
     client.onMetadataCallback = (event) => {
         const profile = profiles.upsertMetadata(event);
         if (profile) ui.refreshProfileData(profile.pubkey);
