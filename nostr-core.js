@@ -290,6 +290,7 @@ export class NostrClient {
         this.sockets = [];
         this.subId = null;
         this.profileSubId = null;
+        this.activeProfileSubId = null;
         this.profileReqSerial = 0;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
@@ -432,7 +433,9 @@ export class NostrClient {
             this.profileSubId = `profile-${this.profileReqSerial += 1}`;
         }
 
-        ws.send(JSON.stringify(["CLOSE", this.profileSubId]));
+        if (this.activeProfileSubId) {
+            ws.send(JSON.stringify(["CLOSE", this.activeProfileSubId]));
+        }
         ws.send(JSON.stringify([
             "REQ",
             this.profileSubId,
@@ -442,6 +445,7 @@ export class NostrClient {
                 limit: Math.max(this.requestedProfilePubkeys.size, CONFIG.NOSTR_REQ_LIMIT),
             },
         ]));
+        this.activeProfileSubId = this.profileSubId;
     }
 
     _handleMessage(ev) {
