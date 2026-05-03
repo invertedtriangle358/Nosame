@@ -23,7 +23,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     client.startSubscription();
 
     setTimeout(() => {
-        const timeline = ui.dom.timeline;
+        const timeline = ui.dom.profilePubkey ? ui.dom.profileTimeline : ui.dom.timeline;
         if (timeline) {
             timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
         }
