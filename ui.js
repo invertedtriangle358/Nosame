@@ -341,6 +341,25 @@ export class UIManager {
         return this.profilePubkey ? this.dom.profileTimeline : this.dom.timeline;
     }
 
+    _captureScrollState(view) {
+        if (!view) return null;
+        return {
+            atRight: view.scrollLeft >= view.scrollWidth - view.clientWidth - 10,
+            prevWidth: view.scrollWidth,
+        };
+    }
+
+    _restoreScrollState(view, state) {
+        if (!view || !state) return;
+        const newWidth = view.scrollWidth;
+
+        if (state.atRight) {
+            view.scrollLeft = newWidth - view.clientWidth;
+        } else {
+            view.scrollLeft += newWidth - state.prevWidth;
+        }
+    }
+
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
         const backdrop = this.dom.panels.backdrop;
@@ -382,11 +401,11 @@ export class UIManager {
     }
 
     _flushBuffer() {
-        const view = this.dom.timeline;
-        if (!view) return;
+        const timelineView = this.dom.timeline;
+        if (!timelineView) return;
 
-        const atRight = view.scrollLeft >= view.scrollWidth - view.clientWidth - 10;
-        const prevWidth = view.scrollWidth;
+        const timelineState = this._captureScrollState(timelineView);
+        const profileState = this.profilePubkey ? this._captureScrollState(this.dom.profileTimeline) : null;
 
         this.eventBuffer
             .sort((a, b) => a.created_at - b.created_at)
@@ -395,9 +414,10 @@ export class UIManager {
         this.eventBuffer = [];
         this.bufferTimer = null;
 
-        const newWidth = view.scrollWidth;
-        if (atRight) view.scrollLeft = newWidth - view.clientWidth;
-        else view.scrollLeft += newWidth - prevWidth;
+        this._restoreScrollState(timelineView, timelineState);
+        if (this.profilePubkey) {
+            this._restoreScrollState(this.dom.profileTimeline, profileState);
+        }
     }
 
     renderEvent(ev) {
@@ -475,6 +495,7 @@ export class UIManager {
         this.profilePubkey = pubkey;
         const profile = this.profiles.getProfile(pubkey);
         const notes = this.events.filter((event) => event.pubkey === pubkey);
+        const fallbackText = (profile.displayName || pubkey.slice(0, 2)).slice(0, 2);
 
         this.dom.timeline.style.display = "none";
         this.dom.profilePage.hidden = false;
@@ -483,6 +504,7 @@ export class UIManager {
         this.dom.profile.name.textContent = (profile.displayName || "").slice(0, 8);
         this.dom.profile.bio.textContent = profile.about || "";
         this.dom.profile.pubkey.textContent = this._formatNpub(pubkey).npub;
+        this.dom.profile.iconFallback.textContent = fallbackText;
 
         if (profile.picture) {
             this.dom.profile.icon.src = profile.picture;
@@ -497,7 +519,6 @@ export class UIManager {
             this.dom.profile.icon.onerror = null;
             this.dom.profile.icon.hidden = true;
             this.dom.profile.iconFallback.hidden = false;
-            this.dom.profile.iconFallback.textContent = (profile.displayName || pubkey.slice(0, 2)).slice(0, 2);
         }
 
         this.dom.profileTimeline.innerHTML = "";
@@ -586,4 +607,3 @@ export class UIManager {
         return safe.replace(/\n/g, "<br>");
     }
 }
-
