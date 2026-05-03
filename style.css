@@ -555,6 +555,107 @@ main {
     margin-left: 5px;
 }
 
+.profile-page {
+    display: none;
+    flex: 1;
+    padding: 20px 18px 24px;
+    background:
+        radial-gradient(circle at top left, rgba(151, 121, 184, 0.28), transparent 35%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(235, 241, 250, 0.98));
+    overflow: hidden;
+}
+
+.profile-page[aria-hidden="false"] {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.profile-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.profile-actions button {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--c-accent-dark);
+    color: var(--c-white);
+    cursor: pointer;
+}
+
+.profile-hero {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 18px;
+    align-items: start;
+    min-height: 180px;
+}
+
+.profile-bio {
+    min-height: 140px;
+    padding: 14px;
+    border-radius: var(--radius-xl);
+    background: rgba(93, 152, 186, 0.12);
+    color: #233245;
+    line-height: 1.8;
+    overflow: auto;
+    white-space: pre-wrap;
+}
+
+.profile-name {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-family: "Sawarabi Mincho", serif;
+    font-size: 30px;
+    line-height: 1.15;
+    color: #324a68;
+    letter-spacing: 0.08em;
+    max-height: 180px;
+}
+
+.profile-icon-shell {
+    position: relative;
+    width: 132px;
+    height: 148px;
+    justify-self: end;
+}
+
+.profile-icon-large,
+.profile-icon-fallback {
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
+    background: linear-gradient(180deg, #7896d0, #4d618a);
+    border: 4px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 16px 32px rgba(49, 64, 96, 0.22);
+}
+
+.profile-icon-large {
+    object-fit: cover;
+}
+
+.profile-icon-fallback {
+    display: grid;
+    place-items: center;
+    color: var(--c-white);
+    font-size: 34px;
+}
+
+.profile-pubkey {
+    color: #5a6480;
+    font-size: 0.9rem;
+    word-break: break-all;
+}
+
+.profile-timeline {
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 10px;
+    border-top: 1px solid rgba(70, 91, 149, 0.2);
+}
+
 /* ==============================
    フッター
 ============================== */
@@ -563,4 +664,18 @@ footer {
     padding: 16px;
     text-align: center;
     background: var(--c-bg-main);
+
+   @media (max-width: 768px) {
+    .profile-hero {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-icon-shell {
+        justify-self: start;
+    }
+
+    .profile-name {
+        writing-mode: horizontal-tb;
+        max-height: none;
+    }
 }
