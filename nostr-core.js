@@ -289,11 +289,13 @@ export class NostrClient {
 
         this.sockets = [];
         this.subId = null;
+        this.profileSubId = null;
         this.profileReqSerial = 0;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
         this.intentionallyClosedRelays = new Set();
         this.requestedProfilePubkeys = new Set();
+
         this.onEventCallback = null;
         this.onMetadataCallback = null;
         this.onStatusCallback = null;
@@ -400,7 +402,7 @@ export class NostrClient {
                 limit: CONFIG.NOSTR_REQ_LIMIT,
                 since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
             },
-            ]));
+        ]));
     }
 
     requestProfiles(pubkeys) {
@@ -419,16 +421,21 @@ export class NostrClient {
         });
 
         if (!changed) return;
+        this.profileSubId = `profile-${this.profileReqSerial += 1}`;
         this.sockets.forEach((ws) => this._sendProfileSubscription(ws));
     }
 
     _sendProfileSubscription(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (this.requestedProfilePubkeys.size === 0) return;
+        if (!this.profileSubId) {
+            this.profileSubId = `profile-${this.profileReqSerial += 1}`;
+        }
 
+        ws.send(JSON.stringify(["CLOSE", this.profileSubId]));
         ws.send(JSON.stringify([
             "REQ",
-            `profile-${this.profileReqSerial += 1}`,
+            this.profileSubId,
             {
                 kinds: [NOSTR_KINDS.METADATA],
                 authors: [...this.requestedProfilePubkeys],
