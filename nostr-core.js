@@ -289,10 +289,11 @@ export class NostrClient {
 
         this.sockets = [];
         this.subId = null;
+        this.profileReqSerial = 0;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
         this.intentionallyClosedRelays = new Set();
-
+        this.requestedProfilePubkeys = new Set();
         this.onEventCallback = null;
         this.onMetadataCallback = null;
         this.onStatusCallback = null;
@@ -310,7 +311,8 @@ export class NostrClient {
             console.log("Relay connected:", ws._relayUrl);
             this.intentionallyClosedRelays.delete(ws._relayUrl);
             this._notifyStatus();
-            if (this.subId) this._sendSubscription(ws);
+            if (this.subId) this._sendTextSubscription(ws);
+            if (this.requestedProfilePubkeys.size > 0) this._sendProfileSubscription(ws);
         };
 
         ws.onclose = () => {
@@ -384,10 +386,10 @@ export class NostrClient {
     startSubscription() {
         this.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
         this.seenEventIds.clear();
-        this.sockets.forEach((ws) => this._sendSubscription(ws));
+        this.sockets.forEach((ws) => this._sendTextSubscription(ws));
     }
 
-    _sendSubscription(ws) {
+    _sendTextSubscription(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
 
         ws.send(JSON.stringify([
@@ -398,9 +400,39 @@ export class NostrClient {
                 limit: CONFIG.NOSTR_REQ_LIMIT,
                 since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
             },
+            ]));
+    }
+
+    requestProfiles(pubkeys) {
+        const normalized = [...new Set(
+            pubkeys
+                .filter((pubkey) => typeof pubkey === "string" && pubkey)
+                .map((pubkey) => pubkey.toLowerCase())
+        )];
+
+        let changed = false;
+        normalized.forEach((pubkey) => {
+            if (!this.requestedProfilePubkeys.has(pubkey)) {
+                this.requestedProfilePubkeys.add(pubkey);
+                changed = true;
+            }
+        });
+
+        if (!changed) return;
+        this.sockets.forEach((ws) => this._sendProfileSubscription(ws));
+    }
+
+    _sendProfileSubscription(ws) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (this.requestedProfilePubkeys.size === 0) return;
+
+        ws.send(JSON.stringify([
+            "REQ",
+            `profile-${this.profileReqSerial += 1}`,
             {
                 kinds: [NOSTR_KINDS.METADATA],
-                limit: CONFIG.NOSTR_REQ_LIMIT * 5,
+                authors: [...this.requestedProfilePubkeys],
+                limit: Math.max(this.requestedProfilePubkeys.size, CONFIG.NOSTR_REQ_LIMIT),
             },
         ]));
     }
