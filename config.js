@@ -17,6 +17,7 @@ const CONFIG = {
 };
 
 const NOSTR_KINDS = {
+    METADATA: 0,
     TEXT: 1,
     REACTION: 7,
 };
