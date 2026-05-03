@@ -486,10 +486,15 @@ export class UIManager {
 
         if (profile.picture) {
             this.dom.profile.icon.src = profile.picture;
+            this.dom.profile.icon.onerror = () => {
+                this.dom.profile.icon.hidden = true;
+                this.dom.profile.iconFallback.hidden = false;
+            };
             this.dom.profile.icon.hidden = false;
             this.dom.profile.iconFallback.hidden = true;
         } else {
             this.dom.profile.icon.removeAttribute("src");
+            this.dom.profile.icon.onerror = null;
             this.dom.profile.icon.hidden = true;
             this.dom.profile.iconFallback.hidden = false;
             this.dom.profile.iconFallback.textContent = (profile.displayName || pubkey.slice(0, 2)).slice(0, 2);
@@ -539,7 +544,7 @@ export class UIManager {
     }
 
     _formatTimestamp(timestamp) {
-        return new Date(timestamp * 1000).toLocaleString();
+        return new Date(timestamp * 1000).toLocaleString("ja-JP");
     }
 
     _formatNpub(pubkey) {
