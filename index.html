@@ -115,6 +115,23 @@
         <button id="scrollRight" type="button" aria-label="右へスクロール">→</button>
       </div>
       <div id="timeline" class="vertical-timeline empty" aria-live="polite"></div>
+      
+      <section id="profilePage" class="profile-page" aria-hidden="true">
+        <div class="profile-actions">
+          <button id="btnBackToTimeline" type="button">Back</button>
+        </div>
+        <div class="profile-hero">
+          <div id="profileBio" class="profile-bio"></div>
+          <div id="profileName" class="profile-name"></div>
+          <div class="profile-icon-shell">
+            <div id="profileIconFallback" class="profile-icon-fallback"></div>
+            <img id="profileIcon" class="profile-icon-large" alt="Profile icon" hidden />
+          </div>
+        </div>
+        <div id="profilePubkey" class="profile-pubkey"></div>
+        <div id="profileTimeline" class="vertical-timeline profile-timeline" aria-live="polite"></div>
+      </section>
+      
     </section>
   </main>
 
