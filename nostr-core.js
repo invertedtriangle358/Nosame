@@ -265,6 +265,9 @@ export class ProfileStore {
     }
 
     _pickDisplayName(parsed, pubkey) {
+        if (typeof parsed.displayName === "string" && parsed.displayName.trim()) {
+            return parsed.displayName.trim();
+        }
         if (typeof parsed.display_name === "string" && parsed.display_name.trim()) {
             return parsed.display_name.trim();
         }
@@ -397,8 +400,7 @@ export class NostrClient {
             },
             {
                 kinds: [NOSTR_KINDS.METADATA],
-                limit: CONFIG.NOSTR_REQ_LIMIT,
-                since: Math.floor(Date.now() / 1000) - CONFIG.METADATA_LOOKBACK_SECONDS,
+                limit: CONFIG.NOSTR_REQ_LIMIT * 5,
             },
         ]));
     }
