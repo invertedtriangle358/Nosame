@@ -341,6 +341,13 @@ export class UIManager {
         return this.profilePubkey ? this.dom.profileTimeline : this.dom.timeline;
     }
 
+    _compareEvents(a, b) {
+        if ((a?.created_at ?? 0) !== (b?.created_at ?? 0)) {
+            return (a?.created_at ?? 0) - (b?.created_at ?? 0);
+        }
+        return String(a?.id ?? "").localeCompare(String(b?.id ?? ""));
+    }
+
     _captureScrollState(view) {
         if (!view) return null;
         return {
@@ -408,7 +415,7 @@ export class UIManager {
         const profileState = this.profilePubkey ? this._captureScrollState(this.dom.profileTimeline) : null;
 
         this.eventBuffer
-            .sort((a, b) => a.created_at - b.created_at)
+            .sort((a, b) => this._compareEvents(a, b))
             .forEach((event) => this.renderEvent(event));
 
         this.eventBuffer = [];
@@ -425,7 +432,7 @@ export class UIManager {
 
         if (!this.events.some((item) => item.id === ev.id)) {
             this.events.push(ev);
-            this.events.sort((a, b) => a.created_at - b.created_at);
+            this.events.sort((a, b) => this._compareEvents(a, b));
         }
 
         this._renderEventInto(this.dom.timeline, ev);
@@ -504,7 +511,9 @@ export class UIManager {
 
         this.profilePubkey = pubkey;
         const profile = this.profiles.getProfile(pubkey);
-        const notes = this.events.filter((event) => event.pubkey === pubkey);
+        const notes = this.events
+            .filter((event) => event.pubkey === pubkey)
+            .sort((a, b) => this._compareEvents(a, b));
         const fallbackText = (profile.displayName || pubkey.slice(0, 2)).slice(0, 2);
 
         this.dom.timeline.style.display = "none";
