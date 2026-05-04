@@ -366,6 +366,25 @@ export class UIManager {
             view.scrollLeft += newWidth - state.prevWidth;
         }
     }
+    
+    _captureScrollState(view) {
+        if (!view) return null;
+        return {
+            atRight: view.scrollLeft >= view.scrollWidth - view.clientWidth - 10,
+            prevWidth: view.scrollWidth,
+        };
+    }
+
+    _restoreScrollState(view, state) {
+        if (!view || !state) return;
+        const newWidth = view.scrollWidth;
+
+        if (state.atRight) {
+            view.scrollLeft = newWidth - view.clientWidth;
+        } else {
+            view.scrollLeft += newWidth - state.prevWidth;
+        }
+    }
 
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
@@ -413,6 +432,7 @@ export class UIManager {
 
         const timelineState = this._captureScrollState(timelineView);
         const profileState = this.profilePubkey ? this._captureScrollState(this.dom.profileTimeline) : null;
+        
 
         this.eventBuffer
             .sort((a, b) => this._compareEvents(a, b))
