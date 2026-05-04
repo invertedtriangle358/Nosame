@@ -450,7 +450,7 @@ export class UIManager {
             <div class="content">${this._formatContent(ev.content ?? "")}</div>
             <div class="meta">
                 <button class="author author-link" type="button">${this._escape(profile.displayName)}</button>
-                <span class="pubkey">${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</span>
+                <span class="pubkey">🔑${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</span>
                 <span class="time">${this._escape(this._formatTimestamp(ev.created_at))}</span>
             </div>
             <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
