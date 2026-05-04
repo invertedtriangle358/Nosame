@@ -297,6 +297,18 @@ export class UIManager {
         btn.publish?.addEventListener("click", () => this._handlePublish());
         btn.backToTimeline?.addEventListener("click", () => this.showTimeline());
 
+        this.dom.profile.icon?.addEventListener("click", async () => {
+            if (this.profilePubkey) {
+                await this._copyNpub(this.profilePubkey);
+            }
+        });
+
+        this.dom.profile.iconFallback?.addEventListener("click", async () => {
+            if (this.profilePubkey) {
+                await this._copyNpub(this.profilePubkey);
+            }
+        });
+        
         this.settingsHandler.setupListeners();
 
         btn.scrollLeft?.addEventListener("click", () => {
