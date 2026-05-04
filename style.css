@@ -249,27 +249,33 @@ main {
 }
 
 .note .meta .author {
-    color: var(--c-accent-dark);
+    color: var(--c-white);
     font-weight: bold;
 }
 
-.note .meta .author-copy {
+.note .meta .author-link {
     border: none;
     padding: 4px 6px;
     border-radius: var(--radius-m);
-    background: rgba(255, 255, 255, 0.18);
-    color: var(--c-accent-dark);
+    background: rgba(255, 255, 255, 0.24);
+    color: var(--c-white);
     cursor: pointer;
     font: inherit;
 }
 
-.note .meta .author-copy:hover {
+.note .meta .author-link:hover {
     background: rgba(255, 255, 255, 0.3);
 }
 
-.note .meta .time {
-    color: #222;
+.note .meta .pubkey {
+    color: rgba(255, 255, 255, 0.88);
+    cursor: copy;
 }
+
+.note .meta .time {
+    color: #eef3ff;
+}
+
 
 .note .btn-reaction {
     width: 30px;
@@ -643,9 +649,8 @@ main {
     box-shadow: 0 16px 32px rgba(49, 64, 96, 0.22);
 }
 
-.profile-icon-large[hidden],
-.profile-icon-fallback[hidden] {
-    display: none !important;
+.profile-icon-large {
+    object-fit: cover;
 }
 
 .profile-icon-fallback {
@@ -654,6 +659,7 @@ main {
     color: var(--c-white);
     font-size: 34px;
 }
+
 
 .profile-pubkey {
     color: #5a6480;
@@ -676,8 +682,9 @@ footer {
     padding: 16px;
     text-align: center;
     background: var(--c-bg-main);
+}
 
-   @media (max-width: 768px) {
+@media (max-width: 768px) {
     .profile-hero {
         grid-template-columns: 132px minmax(0, 1fr);
         grid-template-areas:
