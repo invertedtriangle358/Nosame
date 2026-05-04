@@ -588,12 +588,14 @@ main {
 .profile-hero {
     display: grid;
     grid-template-columns: 1fr auto auto;
+    grid-template-areas: "bio name icon";
     gap: 18px;
     align-items: start;
     min-height: 180px;
 }
 
 .profile-bio {
+    grid-area: bio;
     min-height: 140px;
     padding: 14px;
     border-radius: var(--radius-xl);
@@ -605,6 +607,7 @@ main {
 }
 
 .profile-name {
+    grid-area: name;
     writing-mode: vertical-rl;
     text-orientation: mixed;
     font-family: "Sawarabi Mincho", serif;
@@ -616,6 +619,7 @@ main {
 }
 
 .profile-icon-shell {
+    grid-area: icon;
     position: relative;
     width: 132px;
     height: 148px;
@@ -624,6 +628,8 @@ main {
 
 .profile-icon-large,
 .profile-icon-fallback {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     clip-path: polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%);
@@ -632,8 +638,9 @@ main {
     box-shadow: 0 16px 32px rgba(49, 64, 96, 0.22);
 }
 
-.profile-icon-large {
-    object-fit: cover;
+.profile-icon-large[hidden],
+.profile-icon-fallback[hidden] {
+    display: none !important;
 }
 
 .profile-icon-fallback {
@@ -667,7 +674,12 @@ footer {
 
    @media (max-width: 768px) {
     .profile-hero {
-        grid-template-columns: 1fr;
+        grid-template-columns: 132px minmax(0, 1fr);
+        grid-template-areas:
+            "icon name"
+            "bio bio";
+        gap: 14px;
+        align-items: start;
     }
 
     .profile-icon-shell {
@@ -675,7 +687,24 @@ footer {
     }
 
     .profile-name {
-        writing-mode: horizontal-tb;
-        max-height: none;
+        align-self: center;
+        max-height: 148px;
+    }
+
+    .profile-bio {
+        min-height: 0;
+    }
+
+    .profile-page {
+        gap: 14px;
+    }
+
+    .profile-pubkey {
+        font-size: 0.8rem;
+    }
+
+    .profile-timeline {
+        border-top: none;
+        padding-top: 4px;
     }
 }
