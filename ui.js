@@ -474,7 +474,17 @@ export class UIManager {
             }
         };
 
-        view.appendChild(el);
+        const insertBefore = [...view.querySelectorAll(".note")].find((node) => {
+            const otherCreatedAt = Number(node.dataset.createdAt || 0);
+            if (otherCreatedAt !== ev.created_at) return otherCreatedAt > ev.created_at;
+            return (node.dataset.id || "") > ev.id;
+        });
+
+        if (insertBefore) {
+            view.insertBefore(el, insertBefore);
+        } else {
+            view.appendChild(el);
+        }
     }
 
     showProfile(pubkey) {
@@ -604,6 +614,8 @@ export class UIManager {
 
     _formatContent(text) {
         const safe = this._escape(text);
-        return safe.replace(/\n/g, "<br>");
+        return safe
+            .replace(/【緊急地震速報】/g, '<span class="alert-eew">【緊急地震速報】</span>')
+            .replace(/\n/g, "<br>");
     }
 }
