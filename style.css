@@ -570,9 +570,7 @@ main {
     display: none;
     flex: 1;
     padding: 20px 18px 24px;
-    background:
-        radial-gradient(circle at top left, rgba(151, 121, 184, 0.28), transparent 35%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(235, 241, 250, 0.98));
+    background: #5d98ba;
     overflow: hidden;
 }
 
@@ -598,7 +596,7 @@ main {
 
 .profile-hero {
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: minmax(0, 220px) auto auto;
     grid-template-areas: "bio name icon";
     gap: 18px;
     align-items: start;
@@ -607,7 +605,9 @@ main {
 
 .profile-bio {
     grid-area: bio;
-    min-height: 140px;
+    max-width: 1000px;
+    height: 150px;
+    padding: 14px;
     padding: 14px;
     border-radius: var(--radius-xl);
     background: rgba(93, 152, 186, 0.12);
@@ -671,7 +671,9 @@ main {
     flex: 1;
     min-height: 0;
     padding-bottom: 10px;
-    border-top: 1px solid rgba(70, 91, 149, 0.2);
+    /*border-top: 1px solid rgba(70, 91, 149, 0.2);旧版*/ 
+    padding: 4px 0 28px 7px;
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
 }
 
 /* ==============================
@@ -704,7 +706,9 @@ footer {
     }
 
     .profile-bio {
-        min-height: 0;
+        max-width: none;
+        width: 100%;
+        height: 140px;
     }
 
     .profile-page {
@@ -717,6 +721,6 @@ footer {
 
     .profile-timeline {
         border-top: none;
-        padding-top: 4px;
+        padding: 4px 0 20px 7px;
     }
 }
