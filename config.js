@@ -14,6 +14,7 @@ export const CONFIG = {
     ],
     NG_WORDS_URL: "./ngwords.json",
     RECONNECT_DELAY_MS: 5000,
+    PROFILE_TIMELINE_LIMIT: 20,
 };
 
 export const NOSTR_KINDS = {
