@@ -291,6 +291,9 @@ export class NostrClient {
         this.subId = null;
         this.profileSubId = null;
         this.activeProfileSubId = null;
+        this.profileNotesSubId = null;
+        this.activeProfileNotesSubId = null;
+        this.profileNotesPubkey = null;
         this.profileReqSerial = 0;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
@@ -316,6 +319,7 @@ export class NostrClient {
             this._notifyStatus();
             if (this.subId) this._sendTextSubscription(ws);
             if (this.requestedProfilePubkeys.size > 0) this._sendProfileSubscription(ws);
+            if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
         };
 
         ws.onclose = () => {
@@ -426,6 +430,15 @@ export class NostrClient {
         this.sockets.forEach((ws) => this._sendProfileSubscription(ws));
     }
 
+    requestProfileNotes(pubkey) {
+        if (!pubkey || typeof pubkey !== "string") return;
+
+        const normalized = pubkey.toLowerCase();
+        this.profileNotesPubkey = normalized;
+        this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
+        this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws));
+    }
+    
     _sendProfileSubscription(ws) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (this.requestedProfilePubkeys.size === 0) return;
@@ -448,6 +461,28 @@ export class NostrClient {
         this.activeProfileSubId = this.profileSubId;
     }
 
+    _sendProfileNotesSubscription(ws) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!this.profileNotesPubkey) return;
+        if (!this.profileNotesSubId) {
+            this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
+        }
+
+        if (this.activeProfileNotesSubId) {
+            ws.send(JSON.stringify(["CLOSE", this.activeProfileNotesSubId]));
+        }
+        ws.send(JSON.stringify([
+            "REQ",
+            this.profileNotesSubId,
+            {
+                kinds: [NOSTR_KINDS.TEXT],
+                authors: [this.profileNotesPubkey],
+                limit: CONFIG.PROFILE_TIMELINE_LIMIT,
+            },
+        ]));
+        this.activeProfileNotesSubId = this.profileNotesSubId;
+    }
+    
     _handleMessage(ev) {
         try {
             const [type, , event] = JSON.parse(ev.data);
