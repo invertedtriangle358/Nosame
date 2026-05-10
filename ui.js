@@ -273,7 +273,6 @@ export class UIManager {
             profile: {
                 name: $("profileName"),
                 bio: $("profileBio"),
-                pubkey: $("profilePubkey"),
                 icon: $("profileIcon"),
                 iconFallback: $("profileIconFallback"),
             },
@@ -298,15 +297,11 @@ export class UIManager {
         btn.backToTimeline?.addEventListener("click", () => this.showTimeline());
 
         this.dom.profile.icon?.addEventListener("click", async () => {
-            if (this.profilePubkey) {
-                await this._copyNpub(this.profilePubkey);
-            }
+            if (this.profilePubkey) await this._copyNpub(this.profilePubkey);
         });
 
         this.dom.profile.iconFallback?.addEventListener("click", async () => {
-            if (this.profilePubkey) {
-                await this._copyNpub(this.profilePubkey);
-            }
+           if (this.profilePubkey) await this._copyNpub(this.profilePubkey);
         });
         
         this.settingsHandler.setupListeners();
@@ -542,6 +537,9 @@ export class UIManager {
         if (!pubkey) return;
 
         this.profilePubkey = pubkey;
+        this.client.requestProfiles([pubkey]);
+        this.client.requestProfileNotes(pubkey);
+        
         const profile = this.profiles.getProfile(pubkey);
         const notes = this.events
             .filter((event) => event.pubkey === pubkey)
