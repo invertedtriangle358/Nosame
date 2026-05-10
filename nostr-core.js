@@ -426,8 +426,10 @@ export class NostrClient {
         });
 
         if (!changed) return;
+        const previousSubId = this.activeProfileSubId;
         this.profileSubId = `profile-${this.profileReqSerial += 1}`;
-        this.sockets.forEach((ws) => this._sendProfileSubscription(ws));
+        this.sockets.forEach((ws) => this._sendProfileSubscription(ws, previousSubId));
+        this.activeProfileSubId = this.profileSubId;
     }
 
     requestProfileNotes(pubkey) {
@@ -435,19 +437,21 @@ export class NostrClient {
 
         const normalized = pubkey.toLowerCase();
         this.profileNotesPubkey = normalized;
+        const previousSubId = this.activeProfileNotesSubId;
         this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
-        this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws));
+        this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws, previousSubId));
+        this.activeProfileNotesSubId = this.profileNotesSubId;
     }
     
-    _sendProfileSubscription(ws) {
+    _sendProfileSubscription(ws, previousSubId = null) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (this.requestedProfilePubkeys.size === 0) return;
         if (!this.profileSubId) {
             this.profileSubId = `profile-${this.profileReqSerial += 1}`;
         }
 
-        if (this.activeProfileSubId) {
-            ws.send(JSON.stringify(["CLOSE", this.activeProfileSubId]));
+        if (previousSubId) {
+            ws.send(JSON.stringify(["CLOSE", previousSubId]));
         }
         ws.send(JSON.stringify([
             "REQ",
@@ -458,18 +462,17 @@ export class NostrClient {
                 limit: Math.max(this.requestedProfilePubkeys.size, CONFIG.NOSTR_REQ_LIMIT),
             },
         ]));
-        this.activeProfileSubId = this.profileSubId;
     }
 
-    _sendProfileNotesSubscription(ws) {
+      _sendProfileNotesSubscription(ws, previousSubId = null) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (!this.profileNotesPubkey) return;
         if (!this.profileNotesSubId) {
             this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
         }
 
-        if (this.activeProfileNotesSubId) {
-            ws.send(JSON.stringify(["CLOSE", this.activeProfileNotesSubId]));
+        if (previousSubId) {
+            ws.send(JSON.stringify(["CLOSE", previousSubId]));
         }
         ws.send(JSON.stringify([
             "REQ",
@@ -480,7 +483,6 @@ export class NostrClient {
                 limit: CONFIG.PROFILE_TIMELINE_LIMIT,
             },
         ]));
-        this.activeProfileNotesSubId = this.profileNotesSubId;
     }
     
     _handleMessage(ev) {
