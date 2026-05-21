@@ -273,6 +273,7 @@ export class UIManager {
             profile: {
                 name: $("profileName"),
                 bio: $("profileBio"),
+                pubkey: $("profilePubkey"),
                 icon: $("profileIcon"),
                 iconFallback: $("profileIconFallback"),
             },
@@ -301,9 +302,9 @@ export class UIManager {
         });
 
         this.dom.profile.iconFallback?.addEventListener("click", async () => {
-           if (this.profilePubkey) await this._copyNpub(this.profilePubkey);
+            if (this.profilePubkey) await this._copyNpub(this.profilePubkey);
         });
-        
+
         this.settingsHandler.setupListeners();
 
         btn.scrollLeft?.addEventListener("click", () => {
@@ -373,25 +374,6 @@ export class UIManager {
             view.scrollLeft += newWidth - state.prevWidth;
         }
     }
-    
-    _captureScrollState(view) {
-        if (!view) return null;
-        return {
-            atRight: view.scrollLeft >= view.scrollWidth - view.clientWidth - 10,
-            prevWidth: view.scrollWidth,
-        };
-    }
-
-    _restoreScrollState(view, state) {
-        if (!view || !state) return;
-        const newWidth = view.scrollWidth;
-
-        if (state.atRight) {
-            view.scrollLeft = newWidth - view.clientWidth;
-        } else {
-            view.scrollLeft += newWidth - state.prevWidth;
-        }
-    }
 
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
@@ -419,8 +401,10 @@ export class UIManager {
             const event = await this.client.publish(content);
             this.renderEvent(event);
             input.value = "";
-            this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-            this.dom.counters.char.style.color = "";
+            if (this.dom.counters.char) {
+                this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+                this.dom.counters.char.style.color = "";
+            }
         } catch (err) {
             alert(err.message);
         }
@@ -439,7 +423,6 @@ export class UIManager {
 
         const timelineState = this._captureScrollState(timelineView);
         const profileState = this.profilePubkey ? this._captureScrollState(this.dom.profileTimeline) : null;
-        
 
         this.eventBuffer
             .sort((a, b) => this._compareEvents(a, b))
@@ -539,7 +522,7 @@ export class UIManager {
         this.profilePubkey = pubkey;
         this.client.requestProfiles([pubkey]);
         this.client.requestProfileNotes(pubkey);
-        
+
         const profile = this.profiles.getProfile(pubkey);
         const notes = this.events
             .filter((event) => event.pubkey === pubkey)
@@ -591,7 +574,7 @@ export class UIManager {
         const profile = this.profiles.getProfile(pubkey);
         document.querySelectorAll(`.note[data-pubkey="${CSS.escape(pubkey)}"]`).forEach((note) => {
             const author = note.querySelector(".author-link");
-            if (author) author.textContent = profile.displayName;
+            if (author) author.textContent = profile.displayName || "";
         });
 
         if (this.profilePubkey === pubkey) {
