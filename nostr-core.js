@@ -46,6 +46,8 @@ const Bech32 = (() => {
     };
 
     const decode = (value) => {
+        if (typeof value !== "string") throw new Error("Invalid bech32 string.");
+
         const input = value.toLowerCase();
         const pos = input.lastIndexOf("1");
         if (pos < 1 || pos + 7 > input.length) throw new Error("Invalid bech32 string.");
@@ -109,6 +111,8 @@ export class NostrCodec {
     }
 
     static toNpub(pubkeyHex) {
+        if (typeof pubkeyHex !== "string") throw new Error("Invalid pubkey.");
+
         const normalized = pubkeyHex.toLowerCase();
         if (!this.isHexPubkey(normalized)) throw new Error("Invalid pubkey.");
 
@@ -127,6 +131,8 @@ export class NostrCodec {
     }
 
     static normalizePubkey(value) {
+        if (typeof value !== "string") throw new Error("Unsupported pubkey.");
+
         const trimmed = value.trim();
         if (!trimmed) throw new Error("Empty value.");
 
@@ -221,7 +227,8 @@ export class StorageManager {
     }
 
     getAllNgWords() {
-        return [...new Set([...this.defaultNgWords, ...this.getUserNgWords()])];
+        return [...new Set([...this.defaultNgWords, ...this.getUserNgWords()])]
+            .filter((word) => typeof word === "string" && word.trim());
     }
 }
 
@@ -442,7 +449,7 @@ export class NostrClient {
         this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws, previousSubId));
         this.activeProfileNotesSubId = this.profileNotesSubId;
     }
-    
+
     _sendProfileSubscription(ws, previousSubId = null) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (this.requestedProfilePubkeys.size === 0) return;
@@ -464,7 +471,7 @@ export class NostrClient {
         ]));
     }
 
-      _sendProfileNotesSubscription(ws, previousSubId = null) {
+    _sendProfileNotesSubscription(ws, previousSubId = null) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (!this.profileNotesPubkey) return;
         if (!this.profileNotesSubId) {
@@ -484,7 +491,7 @@ export class NostrClient {
             },
         ]));
     }
-    
+
     _handleMessage(ev) {
         try {
             const [type, , event] = JSON.parse(ev.data);
