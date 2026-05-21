@@ -1,3 +1,4 @@
+
 import { EventValidator, NostrClient, ProfileStore, StorageManager } from "./nostr-core.js";
 import { UIManager } from "./ui.js";
 
@@ -25,11 +26,11 @@ window.addEventListener("DOMContentLoaded", async () => {
     client.connect();
     client.startSubscription();
 
-   setTimeout(() => {
-    const timeline = ui.profilePubkey ? ui.dom.profileTimeline : ui.dom.timeline;
-    if (timeline) {
-        timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
-    }
-　}, 500);
+    setTimeout(() => {
+        const timeline = ui.profilePubkey ? ui.dom.profileTimeline : ui.dom.timeline;
+        if (timeline) {
+            timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
+        }
+    }, 500);
 });
 
