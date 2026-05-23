@@ -617,9 +617,26 @@ main {
 .profile-icon-shell {
     position: relative;
     width: 132px;
-    height: 148px;
-    flex: 0 0 auto;
+    height: 132px;
+    flex: 0 0 132px;
 }
+
+.profile-icon-large,
+.profile-icon-fallback {
+    position: absolute;
+    inset: 0;
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #7896d0, #4d618a);
+    border: 4px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 16px 32px rgba(49, 64, 96, 0.22);
+}
+
+.profile-icon-large {
+    object-fit: cover;
+}
+
 
 .profile-bio {
     max-width: none;
@@ -683,6 +700,13 @@ footer {
     }
 
     .profile-icon-shell {
+        width: 72px;
+        height: 72px;
+        flex-basis: 72px;
+    }
+
+    .profile-icon-large,
+    .profile-icon-fallback {
         width: 72px;
         height: 72px;
     }
