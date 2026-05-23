@@ -243,6 +243,7 @@ export class UIManager {
                 backdrop: $("menuBackdrop"),
             },
             buttons: {
+                titleHome: $("appTitle"),
                 publish: $("btnPublish"),
                 openMenu: $("btnMenu"),
                 closeMenu: $("btnCloseMenu"),
@@ -254,7 +255,6 @@ export class UIManager {
                 saveBlockedPubkeys: $("btnSaveBlockedPubkeys"),
                 scrollLeft: $("scrollLeft"),
                 scrollRight: $("scrollRight"),
-                backToTimeline: $("btnBackToTimeline"),
             },
             inputs: {
                 compose: $("compose"),
@@ -295,8 +295,13 @@ export class UIManager {
         });
 
         btn.publish?.addEventListener("click", () => this._handlePublish());
-        btn.backToTimeline?.addEventListener("click", () => this.showTimeline());
-
+        btn.titleHome?.addEventListener("click", () => this.showTimeline());
+        btn.titleHome?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                this.showTimeline();
+            }
+        });
         this.dom.profile.icon?.addEventListener("click", async () => {
             if (this.profilePubkey) await this._copyNpub(this.profilePubkey);
         });
