@@ -40,6 +40,8 @@ h1 {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    cursor: pointer;
+    outline-offset: 6px;
 }
 
 .title-ruby rt {
@@ -642,6 +644,12 @@ main {
 
 .profile-timeline .note {
     height: 600px;
+}
+
+.profile-pubkey {
+    color: #5a6480;
+    font-size: 0.9rem;
+    word-break: break-all;
 }
 
 
