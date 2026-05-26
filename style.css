@@ -619,7 +619,7 @@ main {
     color: #324a68;
     letter-spacing: 0.08em;
     max-height: 220px;
-    transform: translateX(53px);
+    transform: translate(53px, 40px);
 }
 
 .profile-icon-shell {
@@ -627,7 +627,7 @@ main {
     width: 132px;
     height: 132px;
     flex: 0 0 132px;
-    transform: translateX(-230px);
+    transform: translate(-230px, 50px);
 }
 
 .profile-icon-large,
