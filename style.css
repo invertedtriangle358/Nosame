@@ -744,21 +744,21 @@ footer {
     .profile-timeline {
         display: flex;
         flex-direction: row;
+        align-items: stretch;
         gap: 6px;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 10px 0 8px;
-    }
+}
 
     .profile-timeline .note {
-        flex: 0 0 auto;
-        width: fit-content;
-        max-width: min(240px, 72vw);
-        min-width: 120px;
-        height: auto;
-        min-height: 0;
-        gap: 12px;
+        flex: 0 0 min(220px, 68vw);
+        width: min(220px, 68vw);
+        max-width: min(220px, 68vw);
+        height: 360px;
+        min-height: 360px;
+        max-height: 360px;
         writing-mode: vertical-rl;
-    }
+}
    
 }
