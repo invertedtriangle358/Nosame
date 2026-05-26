@@ -569,7 +569,7 @@ main {
 }
 
 .profile-page {
-    display: grid;
+    display: none;
     flex: 1;
     padding: 20px 18px 24px;
     background: #5d98ba;
@@ -693,20 +693,13 @@ footer {
 
 @media (max-width: 768px) {
     .profile-page[aria-hidden="false"] {
-        display: none;
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px;
-        overflow-y: auto;
-    }
-
-    .profile-page[aria-hidden="false"] {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        align-items: stretch;
-        gap: 20px;
-        min-height: calc(100vh - 130px);
-    }
+       display: flex;
+       flex-direction: column;
+       gap: 10px;
+       padding: 10px;
+       overflow-y: auto;
+       min-height: 0;
+}
 
     .profile-hero {
         gap: 10px;
