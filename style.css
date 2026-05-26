@@ -753,11 +753,11 @@ footer {
 
     .profile-timeline .note {
         flex: 0 0 min(220px, 68vw);
-        width: min(220px, 68vw);
+        min-width: auto;
         max-width: min(500px, 68vw);
-        height: 360px;
-        min-height: 360px;
-        max-height: 360px;
+        height: 300px;
+        min-height: 300px;
+        max-height: 300px;
         writing-mode: vertical-rl;
 }
    
