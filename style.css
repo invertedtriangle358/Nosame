@@ -718,7 +718,7 @@ footer {
         width: 72px;
         height: 72px;
         flex-basis: 72px;
-        transform: translateX(53px);
+        transform: translateX(-53px);
     }
 
     .profile-icon-large,
@@ -731,7 +731,7 @@ footer {
         align-self: center;
         font-size: 24px;
         max-height: 110px;
-        transform: translateX(-70px);
+        transform: translateX(70px);
     }
 
     .profile-bio {
