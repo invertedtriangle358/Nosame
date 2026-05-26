@@ -577,12 +577,13 @@ main {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
     gap: 20px;
+    min-width: 0;
     min-height: calc(100vh - 130px);
 }
 
 .profile-page[aria-hidden="false"] {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 1fr);
     align-items: stretch;
     gap: 20px;
     min-height: calc(100vh - 130px);
