@@ -658,6 +658,7 @@ main {
     line-height: 1.8;
     overflow: auto;
     white-space: pre-wrap;
+    transform: translateY(175px);
 }
 
 .profile-timeline {
@@ -681,6 +682,7 @@ main {
     color: #5a6480;
     font-size: 0.9rem;
     word-break: break-all;
+    transform: translateY(-55px);
 }
 
 
