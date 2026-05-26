@@ -583,7 +583,9 @@ main {
 .profile-page[aria-hidden="false"] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 18px;
+    align-items: stretch;
+    gap: 20px;
+    min-height: calc(100vh - 130px);
 }
 
 .profile-overview {
@@ -691,11 +693,19 @@ footer {
 
 @media (max-width: 768px) {
     .profile-page[aria-hidden="false"] {
-        display: flex;
+        display: none;
         flex-direction: column;
         gap: 10px;
         padding: 10px;
         overflow-y: auto;
+    }
+
+    .profile-page[aria-hidden="false"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: stretch;
+        gap: 20px;
+        min-height: calc(100vh - 130px);
     }
 
     .profile-hero {
@@ -739,7 +749,7 @@ footer {
 
     .profile-timeline {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         gap: 12px;
         overflow-x: auto;
         overflow-y: hidden;
@@ -747,13 +757,12 @@ footer {
     }
 
     .profile-timeline .note {
-        width: 100%;
-        max-width: 100%;
+        flex: 0 0 min(280px, 82vw);
+        width: auto;
+        max-width: min(280px, 82vw);
         height: auto;
         min-height: 220px;
         writing-mode: vertical-rl;
-        flex: 0 0 min(280px, 82vw);
-        max-width: min(280px, 82vw);
     }
    
 }
