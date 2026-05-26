@@ -753,9 +753,10 @@ footer {
         flex: 0 0 min(240px, 72vw);
         width: auto;
         max-width: min(240px, 72vw);
-        min-width: 120px;
+        min-width: 0;
         height: auto;
-        min-height: 180px;
+        min-height: 0;
+        gap: 12px;
         writing-mode: vertical-rl;
     }
    
