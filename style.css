@@ -739,10 +739,12 @@ footer {
         padding: 10px;
         line-height: 1.55;
         font-size: 0.9rem;
+        transform: none;
     }
 
     .profile-pubkey {
         font-size: 0.72rem;
+        transform: none;
     }
 
     .profile-timeline {
