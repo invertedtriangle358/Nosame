@@ -740,7 +740,7 @@ footer {
     .profile-timeline {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 10px 0 8px;
