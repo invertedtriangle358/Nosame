@@ -756,9 +756,9 @@ footer {
         min-width: auto;
         width: min(280px, 78vw);
         max-width: min(280px, 78vw);
-        height: 290px;
-        min-height: 290px;
-        max-height: 290px;
+        height: 320px;
+        min-height: 320px;
+        max-height: 320px;
         writing-mode: vertical-rl;
 }
    
