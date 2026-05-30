@@ -745,9 +745,11 @@ footer {
     }
 
     .profile-name {
+        flex: 0 0 90px;
+        max-width: 90px;
+        overflow: hidden;
         grid-area: auto;
         margin: 0;
-        align-self: flex-start;
         font-size: 24px;
         max-height: 110px;
         max-width: 90px;
