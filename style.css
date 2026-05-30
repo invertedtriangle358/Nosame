@@ -633,15 +633,15 @@ main {
     width: 132px;
     height: 132px;
     flex: 0 0 132px;
-    transform: translate(-230px, 50px);
+    transform: translate(-270px, 20px);
 }
 
 .profile-icon-large,
 .profile-icon-fallback {
     position: absolute;
     inset: 0;
-    width: 132px;
-    height: 132px;
+    width: 256px;
+    height: 256px;
     border-radius: 50%;
     background: linear-gradient(180deg, #7896d0, #4d618a);
     border: 4px solid rgba(255, 255, 255, 0.95);
