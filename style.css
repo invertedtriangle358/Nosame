@@ -597,9 +597,15 @@ main {
 
 .profile-overview {
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+    grid-template-columns: minmax(0, 1fr) 256px;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        "name icon"
+        "bio bio"
+        "pubkey pubkey";
+    gap: 24px 28px;
+    margin-top: -55px;
+    align-items: start;
 }
 
 .profile-hero {
@@ -625,17 +631,20 @@ main {
     color: #324a68;
     letter-spacing: 0.08em;
     max-height: 220px;
-    transform: translate(53px, 40px);
+    padding: 50px;
+    margin-top: 20px; 
 }
 
 .profile-icon-shell {
     position: relative;
+    margin-top: 50px;
     width: 132px;
     height: 132px;
     flex: 0 0 132px;
     transform: translate(-270px, 20px);
 }
 
+.profile-icon-large,
 .profile-icon-large,
 .profile-icon-fallback {
     position: absolute;
@@ -654,17 +663,18 @@ main {
 
 
 .profile-bio {
+    grid-area: bio;
     max-width: none;
     width: 100%;
     height: 270px;
     padding: 14px;
+    margin-top: 130px;
     border-radius: var(--radius-xl);
     background: rgba(255, 255, 255, 0.18);
     color: #233245;
     line-height: 1.8;
     overflow: auto;
     white-space: pre-wrap;
-    transform: translate(10px, 200px);
 }
 
 .profile-timeline {
@@ -688,8 +698,10 @@ main {
     color: #5a6480;
     font-size: 0.9rem;
     word-break: break-all;
-    transform: translateY(-140px);
+    margin-top: -300px;
+    padding: 10px;
 }
+
 
 
 /* ==============================
