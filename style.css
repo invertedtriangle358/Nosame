@@ -270,7 +270,7 @@ main {
 }
 
 .note .meta .pubkey {
-    color: #1d3557;
+    color: #1d357f;
     cursor: copy;
 }
 
@@ -710,30 +710,43 @@ footer {
 }
 
 @media (max-width: 768px) {
-    .profile-page[aria-hidden="false"] {
-       display: flex;
-       flex-direction: column;
-       gap: 10px;
-       padding: 10px;
-       overflow-y: auto;
-       min-height: 0;
-}
+    .profile-overview {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 0;
+    }
 
     .profile-hero {
         display: flex;
+        flex-direction: column;
         gap: 10px;
         min-height: 0;
     }
 
     .profile-heading {
-        gap: 10px;
+        display: flex;
         align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .profile-name {
+        grid-area: auto;
+        margin: 0;
+        align-self: center;
+        font-size: 24px;
+        max-height: 110px;
+        max-width: none;
+        overflow: hidden;
     }
 
     .profile-icon-shell {
+        grid-area: auto;
         width: 72px;
         height: 72px;
-        flex-basis: 72px;
+        flex: 0 0 72px;
+        margin-top: 0;
         transform: none;
     }
 
@@ -743,43 +756,38 @@ footer {
         height: 72px;
     }
 
-    .profile-name {
-        align-self: center;
-        font-size: 24px;
-        max-height: 110px;
-        transform: none;
-    }
-
     .profile-bio {
-        margin-top: 0;
+        grid-area: auto;
         height: 96px;
         padding: 10px;
+        margin-top: 0;
         line-height: 1.55;
         font-size: 0.9rem;
-        transform: none;
     }
 
     .profile-pubkey {
+        grid-area: auto;
         font-size: 0.72rem;
-        transform: none;
+        margin: 0;
+        padding: 0;
     }
 
     .profile-timeline {
         display: flex;
         flex-direction: row;
-        align-items: stretch;
         gap: 6px;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 10px 0 8px;
-}
+    }
 
     .profile-timeline .note {
-        flex: 0 0 min(280px, 68vw);
-        min-width: auto;
-        max-width: min(400px, 78vw);
-        height: 340px;
-        min-height: 340px;
-        max-height: 340px;
+        flex: 0 0 auto;
+        width: fit-content;
+        max-width: min(240px, 72vw);
+        min-width: 120px;
+        height: auto;
+        min-height: 0;
         writing-mode: vertical-rl;
+    }
 }
