@@ -710,34 +710,47 @@ footer {
 }
 
 @media (max-width: 768px) {
-    .profile-overview {
+    .profile-page[aria-hidden="false"] {
         display: flex;
         flex-direction: column;
         gap: 10px;
+        padding: 10px;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .profile-overview {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
         margin-top: 0;
+        width: 100%;
     }
 
     .profile-hero {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
         min-height: 0;
+        width: 100%;
     }
 
     .profile-heading {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-start;
         gap: 10px;
+        width: 100%;
     }
 
     .profile-name {
         grid-area: auto;
         margin: 0;
-        align-self: center;
+        align-self: flex-start;
         font-size: 24px;
         max-height: 110px;
-        max-width: none;
+        max-width: 90px;
         overflow: hidden;
     }
 
@@ -758,15 +771,18 @@ footer {
 
     .profile-bio {
         grid-area: auto;
+        width: min(260px, 78vw);
         height: 96px;
         padding: 10px;
         margin-top: 0;
         line-height: 1.55;
         font-size: 0.9rem;
+        align-self: flex-start;
     }
 
     .profile-pubkey {
         grid-area: auto;
+        width: min(260px, 78vw);
         font-size: 0.72rem;
         margin: 0;
         padding: 0;
@@ -776,6 +792,7 @@ footer {
         display: flex;
         flex-direction: row;
         gap: 6px;
+        width: 100%;
         overflow-x: auto;
         overflow-y: hidden;
         padding: 10px 0 8px;
