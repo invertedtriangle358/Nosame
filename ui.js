@@ -29,9 +29,9 @@ export class SettingsUIHandler {
             const row = document.createElement("div");
             row.className = "relay-row";
             row.innerHTML = `
-                <span class="relay-status">${getStatus.call(this.client, item) ? "On" : "Off"}</span>
+                <span class="relay-status" title="${getStatus.call(this.client, item) ? "接続中" : "未接続"}">${getStatus.call(this.client, item) ? "🔵" : "🔴"}</span>
                 <input type="text" value="${this.ui._escape(item)}" data-idx="${idx}">
-                <button class="btn-delete-relay" type="button">Delete</button>
+                <button class="btn-delete-relay" type="button">削除</button>
             `;
 
             row.querySelector(".btn-delete-relay").onclick = () => {
@@ -69,7 +69,7 @@ export class SettingsUIHandler {
             row.className = "ng-word-item ng-default";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}" disabled>
-                <button type="button" disabled>Fixed</button>
+                <button type="button" disabled>固定</button>
             `;
             container.appendChild(row);
         });
@@ -80,7 +80,7 @@ export class SettingsUIHandler {
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(word)}">
-                <button class="btn-delete-ng" type="button">Delete</button>
+                <button class="btn-delete-ng" type="button">削除</button>
             `;
 
             row.querySelector("input").oninput = (e) => {
@@ -109,7 +109,7 @@ export class SettingsUIHandler {
             row.className = "ng-word-item";
             row.innerHTML = `
                 <input type="text" value="${this.ui._escape(this.ui._formatNpub(pubkey).short)}" title="${this.ui._escape(pubkey)}" disabled>
-                <button class="btn-delete-blocked" type="button">Delete</button>
+                <button class="btn-delete-blocked" type="button">削除</button>
             `;
 
             row.querySelector(".btn-delete-blocked").onclick = () => {
