@@ -597,14 +597,15 @@ main {
 
 .profile-overview {
     min-width: 0;
-    grid-template-columns: minmax(0, 1fr) 256px;
-    grid-template-rows: auto 1fr auto;
+    display: grid;
+    grid-template-columns: 220px 256px minmax(0, 1fr);
+    grid-template-rows: 300px auto 270px;
     grid-template-areas:
         "name icon"
-        "bio bio"
-        "pubkey pubkey";
-    gap: 24px 28px;
-    margin-top: -55px;
+        "pubkey pubkey pubkey"
+        "bio bio bio";
+    gap: 12px 20px;
+    margin-top: -20px;
     align-items: start;
 }
 
@@ -623,6 +624,8 @@ main {
 }
 
 .profile-name {
+    grid-area: name;
+    justify-self: start;
     writing-mode: vertical-rl;
     text-orientation: mixed;
     font-family: "Sawarabi Mincho", serif;
@@ -630,21 +633,23 @@ main {
     line-height: 1.15;
     color: #324a68;
     letter-spacing: 0.08em;
-    max-height: 220px;
-    padding: 50px;
-    margin-top: 20px; 
+    max-height: 300px;
+    max-width: 220px;
+    overflow: hidden;
+    margin: 30px 0 0 20px;
 }
 
 .profile-icon-shell {
+    grid-area: icon;
+    justify-self: start;
     position: relative;
-    margin-top: 50px;
-    width: 132px;
-    height: 132px;
-    flex: 0 0 132px;
-    transform: translate(-270px, 20px);
+    width: 256px;
+    height: 256px;
+    flex: none;
+    margin-top: 30px;
+    transform: none;
 }
 
-.profile-icon-large,
 .profile-icon-large,
 .profile-icon-fallback {
     position: absolute;
@@ -655,12 +660,8 @@ main {
     background: linear-gradient(180deg, #7896d0, #4d618a);
     border: 4px solid rgba(255, 255, 255, 0.95);
     box-shadow: 0 16px 32px rgba(49, 64, 96, 0.22);
-}
-
-.profile-icon-large {
     object-fit: cover;
 }
-
 
 .profile-bio {
     grid-area: bio;
@@ -668,7 +669,7 @@ main {
     width: 100%;
     height: 270px;
     padding: 14px;
-    margin-top: 130px;
+    margin-top: 0;
     border-radius: var(--radius-xl);
     background: rgba(255, 255, 255, 0.18);
     color: #233245;
@@ -695,14 +696,13 @@ main {
 }
 
 .profile-pubkey {
+    grid-area: pubkey;
     color: #5a6480;
     font-size: 0.9rem;
     word-break: break-all;
-    margin-top: -300px;
-    padding: 10px;
+    margin: 0;
+    padding: 4px 10px;
 }
-
-
 
 /* ==============================
    フッター
