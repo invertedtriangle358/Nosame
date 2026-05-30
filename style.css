@@ -421,6 +421,12 @@ main {
     background: var(--c-btn-blue-hover);
 }
 
+.relay-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* ==============================
    リレーリスト
 ============================== */
