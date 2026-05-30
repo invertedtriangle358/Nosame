@@ -620,7 +620,7 @@ main {
     writing-mode: vertical-rl;
     text-orientation: mixed;
     font-family: "Sawarabi Mincho", serif;
-    font-size: 30px;
+    font-size: 40px;
     line-height: 1.15;
     color: #324a68;
     letter-spacing: 0.08em;
@@ -664,7 +664,7 @@ main {
     line-height: 1.8;
     overflow: auto;
     white-space: pre-wrap;
-    transform: translateY(170px);
+    transform: translate(10px, 200px);
 }
 
 .profile-timeline {
