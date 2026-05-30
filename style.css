@@ -270,7 +270,7 @@ main {
 }
 
 .note .meta .pubkey {
-    color: rgba(255, 255, 255, 0.88);
+    color: #1d3557;
     cursor: copy;
 }
 
