@@ -532,7 +532,6 @@ export class UIManager {
         const notes = this.events
             .filter((event) => event.pubkey === pubkey)
             .sort((a, b) => this._compareEvents(a, b));
-        const fallbackText = (profile.displayName || pubkey.slice(0, 2)).slice(0, 2);
 
         this.dom.timeline.style.display = "none";
         this.dom.profilePage.hidden = false;
@@ -541,7 +540,7 @@ export class UIManager {
         this.dom.profile.name.textContent = (profile.displayName || "").slice(0, 8);
         this.dom.profile.bio.textContent = profile.about || "";
         this.dom.profile.pubkey.textContent = this._formatNpub(pubkey).npub;
-        this.dom.profile.iconFallback.textContent = fallbackText;
+        this.dom.profile.iconFallback.textContent = "";
 
         if (profile.picture) {
             this.dom.profile.icon.src = profile.picture;
