@@ -758,8 +758,8 @@ footer {
 
     .profile-icon-shell {
         grid-area: auto;
-        width: 72px;
-        height: 72px;
+        width: 128px;
+        height: 128px;
         flex: 0 0 72px;
         margin-top: -100px;
         margin-left: 50px;
@@ -768,8 +768,8 @@ footer {
 
     .profile-icon-large,
     .profile-icon-fallback {
-        width: 72px;
-        height: 72px;
+        width: 128px;
+        height: 128px;
     }
 
     .profile-bio {
