@@ -805,8 +805,8 @@ footer {
     .profile-timeline .note {
         flex: 0 0 220px;
         width: 220px;
-        min-width: 220px;
-        max-width: 220px;
+        min-width: auto;
+        max-width: 300px;
         height: 360px;
         min-height: 360px;
         max-height: 360px;
