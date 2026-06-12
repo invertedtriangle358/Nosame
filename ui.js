@@ -545,9 +545,13 @@ export class UIManager {
         if (profile.picture) {
             this.dom.profile.icon.src = profile.picture;
             this.dom.profile.icon.onerror = () => {
-                this.dom.profile.icon.hidden = true;
-                this.dom.profile.iconFallback.hidden = false;
-            };
+   　　　　　 　　if (this.dom.profile.iconFallback) {
+       　　　 　　　　this.dom.profile.icon.hidden = true;
+       　　　　　 　　this.dom.profile.iconFallback.hidden = false;
+        　　　　　　　this.dom.profile.iconFallback.textContent = 
+            profile.displayName?.[0]?.toUpperCase() ?? "?";
+    }
+};
             this.dom.profile.icon.hidden = false;
             this.dom.profile.iconFallback.hidden = true;
         } else {
