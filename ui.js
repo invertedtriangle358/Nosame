@@ -610,6 +610,7 @@ export class UIManager {
         this.dom.profilePage.hidden = true;
         this.dom.profilePage.setAttribute("aria-hidden", "true");
         this.dom.timeline.style.display = "flex";
+        this._scrollTimelineToLatest();
 
         if (window.location.hash) {
             history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
