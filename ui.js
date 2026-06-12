@@ -49,73 +49,74 @@ export class SettingsUIHandler {
         });
     }
 
-　　　updateRelayList() {
-   　　　 const container = this.dom.lists.relays;
-   　　　 if (!container) return;
+    // ← 全角スペースを半角スペースに修正
+    updateRelayList() {
+        const container = this.dom.lists.relays;
+        if (!container) return;
 
-   　　　 const currentRelays = this.storage.getRelays();
-    　　　const existingRows = new Map(
-      　　　  [...container.querySelectorAll('[data-relay-url]')]
-         　　　   .map(el => [el.dataset.relayUrl, el])
-    );
+        const currentRelays = this.storage.getRelays();
+        const existingRows = new Map(
+            [...container.querySelectorAll('[data-relay-url]')]
+                .map(el => [el.dataset.relayUrl, el])
+        );
 
-    // 削除されたリレーのDOM削除
-    existingRows.forEach((el, url) => {
-        if (!currentRelays.includes(url)) {
-            el.remove();
-        }
-    });
+        // 削除されたリレーのDOM削除
+        existingRows.forEach((el, url) => {
+            if (!currentRelays.includes(url)) {
+                el.remove();
+            }
+        });
 
-    // 新規追加または更新
-    currentRelays.forEach((url) => {
-        const existingRow = existingRows.get(url);
-        
-        if (existingRow) {
-            // ✅ 既存行：ステータスのみ更新
-            const statusSpan = existingRow.querySelector('.relay-status');
-            const isConnected = this.client.getRelayStatus(url);
-            statusSpan.textContent = isConnected ? '🔵' : '🔴';
-            statusSpan.title = isConnected ? '接続中' : '未接続';
-        } else {
-            // ✅ 新規行：DOMを追加
-            const row = document.createElement('div');
-            row.className = 'relay-row';
-            row.dataset.relayUrl = url;  // URLをキーとして保存
+        // 新規追加または更新
+        currentRelays.forEach((url) => {
+            const existingRow = existingRows.get(url);
             
-            const isConnected = this.client.getRelayStatus(url);
-            row.innerHTML = `
-                <span class="relay-status" title="${isConnected ? '接続中' : '未接続'}">
-                    ${isConnected ? '🔵' : '🔴'}
-                </span>
-                <input type="text" value="${this.ui._escape(url)}" class="relay-url-input">
-                <button class="btn-delete-relay" type="button">×</button>
-            `;
+            if (existingRow) {
+                // ✅ 既存行：ステータスのみ更新
+                const statusSpan = existingRow.querySelector('.relay-status');
+                const isConnected = this.client.getRelayStatus(url);
+                statusSpan.textContent = isConnected ? '🔵' : '🔴';
+                statusSpan.title = isConnected ? '接続中' : '未接続';
+            } else {
+                // ✅ 新規行：DOMを追加
+                const row = document.createElement('div');
+                row.className = 'relay-row';
+                row.dataset.relayUrl = url;
+                
+                const isConnected = this.client.getRelayStatus(url);
+                row.innerHTML = `
+                    <span class="relay-status" title="${isConnected ? '接続中' : '未接続'}">
+                        ${isConnected ? '🔵' : '🔴'}
+                    </span>
+                    <input type="text" value="${this.ui._escape(url)}" class="relay-url-input">
+                    <button class="btn-delete-relay" type="button">×</button>
+                `;
 
-            // 削除ボタン
-            row.querySelector('.btn-delete-relay').onclick = () => {
-                const relays = this.storage.getRelays();
-                const idx = relays.indexOf(url);
-                if (idx > -1) {
-                    relays.splice(idx, 1);
-                    this.storage.saveRelays(relays);
-                    this.updateRelayList();
-                }
-            };
+                // 削除ボタン
+                row.querySelector('.btn-delete-relay').onclick = () => {
+                    const relays = this.storage.getRelays();
+                    const idx = relays.indexOf(url);
+                    if (idx > -1) {
+                        relays.splice(idx, 1);
+                        this.storage.saveRelays(relays);
+                        this.updateRelayList();
+                    }
+                };
 
-            // 入力フィールド（URL変更時）
-            row.querySelector('.relay-url-input').oninput = (e) => {
-                const relays = this.storage.getRelays();
-                const idx = relays.indexOf(url);
-                if (idx > -1) {
-                    relays[idx] = e.target.value.trim();
-                    this.storage.saveRelays(relays);
-                }
-            };
+                // 入力フィールド（URL変更時）
+                row.querySelector('.relay-url-input').oninput = (e) => {
+                    const relays = this.storage.getRelays();
+                    const idx = relays.indexOf(url);
+                    if (idx > -1) {
+                        relays[idx] = e.target.value.trim();
+                        this.storage.saveRelays(relays);
+                    }
+                };
 
-            container.appendChild(row);
-        }
-    });
-}
+                container.appendChild(row);
+            }
+        });
+    }
 
     updateNgList() {
         const container = this.dom.lists.ngWords;
@@ -602,14 +603,15 @@ export class UIManager {
 
         if (profile.picture) {
             this.dom.profile.icon.src = profile.picture;
+            // ✅ 修正：エラーハンドリング改善
             this.dom.profile.icon.onerror = () => {
-   　　　　　 　　if (this.dom.profile.iconFallback) {
-       　　　 　　　　this.dom.profile.icon.hidden = true;
-       　　　　　 　　this.dom.profile.iconFallback.hidden = false;
-        　　　　　　　this.dom.profile.iconFallback.textContent = 
-            profile.displayName?.[0]?.toUpperCase() ?? "?";
-    }
-};
+                if (this.dom.profile.iconFallback) {
+                    this.dom.profile.icon.hidden = true;
+                    this.dom.profile.iconFallback.hidden = false;
+                    this.dom.profile.iconFallback.textContent = 
+                        profile.displayName?.[0]?.toUpperCase() ?? "?";
+                }
+            };
             this.dom.profile.icon.hidden = false;
             this.dom.profile.iconFallback.hidden = true;
         } else {
