@@ -170,14 +170,14 @@ export class EventValidator {
 }
 
 export class StorageManager {
-    constructor(storageAdapter = localStorage) {  // ← 引数を追加
-        this.storage = storageAdapter;             // ← 新しい行
+    constructor(storageAdapter = localStorage) {
+        this.storage = storageAdapter;
         this.defaultNgWords = [];
     }
 
     _load(key, fallback) {
         try {
-            const raw = this.storage.getItem(key);  // ← localStorage → this.storage に変更
+            const raw = this.storage.getItem(key);
             return raw ? JSON.parse(raw) : fallback;
         } catch (err) {
             console.warn(`Failed to parse localStorage key: ${key}`, err);
@@ -186,15 +186,8 @@ export class StorageManager {
     }
 
     _save(key, value) {
-        this.storage.setItem(key, JSON.stringify(value));  // ← localStorage → this.storage に変更
+        this.storage.setItem(key, JSON.stringify(value));
     }
-
-    // 以下、その他のメソッドはそのまま
-    getRelays() {
-        return this._load("relays", [...CONFIG.DEFAULT_RELAYS]);
-    }
-    // ...
-}
 
     getRelays() {
         return this._load("relays", [...CONFIG.DEFAULT_RELAYS]);
