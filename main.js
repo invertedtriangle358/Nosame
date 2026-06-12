@@ -3,8 +3,12 @@ import { EventValidator, NostrClient, ProfileStore, StorageManager } from "./nos
 import { UIManager } from "./ui.js";
 
 window.addEventListener("DOMContentLoaded", async () => {
-    const storage = new StorageManager();
+    const storage = new StorageManager(localStorage);  // ← localStorage を明示的に渡す
     await storage.loadDefaultNgWords();
+
+    const validator = new EventValidator(storage);
+
+});
 
     const validator = new EventValidator(storage);
     const client = new NostrClient(storage, validator);
