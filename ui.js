@@ -410,6 +410,15 @@ export class UIManager {
         }
     }
 
+    _scrollTimelineToLatest() {
+    const timeline = this.dom.timeline;
+    if (!timeline) return;
+
+    requestAnimationFrame(() => {
+        timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
+    });
+}
+    
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
         const backdrop = this.dom.panels.backdrop;
