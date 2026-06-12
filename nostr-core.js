@@ -313,6 +313,43 @@ export class NostrClient {
         this.onStatusCallback = null;
     }
 
+    _handleMessage(ev) {
+        try {
+            const [type, , event] = JSON.parse(ev.data);
+            if (type !== "EVENT" || !event?.id) return;
+            if (this.seenEventIds.has(event.id)) return;
+            
+            // ✅ ここでメモリリーク対策
+            this._trimSeenEventIds();
+            
+            this.seenEventIds.add(event.id);
+
+            if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+
+            if (event.kind === NOSTR_KINDS.METADATA) {
+                this.onMetadataCallback?.(event);
+                return;
+            }
+
+            if (event.kind !== NOSTR_KINDS.TEXT) return;
+            if (this.validator.isContentInvalid(event.content)) return;
+
+            this.onEventCallback?.(event);
+        } catch (err) {
+            console.error("Failed to parse relay message.", err);
+        }
+    }
+
+    // ✅ 新しいメソッド：セット内のイベントIDを制限
+    _trimSeenEventIds() {
+        if (this.seenEventIds.size > 10000) {
+            // 古い1000件のイベントIDを削除
+            const toDelete = [...this.seenEventIds].slice(0, 1000);
+            toDelete.forEach(id => this.seenEventIds.delete(id));
+        }
+    }
+}
+
     _createSocket(url) {
         const ws = new WebSocket(url);
         ws._relayUrl = url;
