@@ -20,35 +20,6 @@ export class SettingsUIHandler {
         btn.saveBlockedPubkeys?.addEventListener("click", () => this._saveBlockedPubkeys());
     }
 
-    _updateList({ container, getItemList, saveItemList, getStatus, updateCallback }) {
-        if (!container) return;
-        container.innerHTML = "";
-
-        const items = getItemList.call(this.storage);
-        items.forEach((item, idx) => {
-            const row = document.createElement("div");
-            row.className = "relay-row";
-            row.innerHTML = `
-                <span class="relay-status" title="${getStatus.call(this.client, item) ? "接続中" : "未接続"}">${getStatus.call(this.client, item) ? "🔵" : "🔴"}</span>
-                <input type="text" value="${this.ui._escape(item)}" data-idx="${idx}">
-                <button class="btn-delete-relay" type="button">×</button>
-            `;
-
-            row.querySelector(".btn-delete-relay").onclick = () => {
-                items.splice(idx, 1);
-                saveItemList.call(this.storage, items);
-                updateCallback.call(this);
-            };
-
-            row.querySelector("input").oninput = (e) => {
-                items[idx] = e.target.value.trim();
-                saveItemList.call(this.storage, items);
-            };
-
-            container.appendChild(row);
-        });
-    }
-
     // ← 全角スペースを半角スペースに修正
     updateRelayList() {
         const container = this.dom.lists.relays;
