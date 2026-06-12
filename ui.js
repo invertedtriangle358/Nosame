@@ -411,13 +411,13 @@ export class UIManager {
     }
 
     _scrollTimelineToLatest() {
-    const timeline = this.dom.timeline;
-    if (!timeline) return;
+        const timeline = this.dom.timeline;
+        if (!timeline) return;
 
-    requestAnimationFrame(() => {
-        timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
-    });
-}
+        requestAnimationFrame(() => {
+            timeline.scrollLeft = timeline.scrollWidth - timeline.clientWidth;
+        });
+    }
     
     toggleSettingsPanel(open) {
         const panel = this.dom.panels.settings;
@@ -588,7 +588,7 @@ export class UIManager {
                 if (this.dom.profile.iconFallback) {
                     this.dom.profile.icon.hidden = true;
                     this.dom.profile.iconFallback.hidden = false;
-                    this.dom.profile.iconFallback.textContent = 
+                    this.dom.profile.iconFallback.textContent = "";
                         profile.displayName?.[0]?.toUpperCase() ?? "?";
                 }
             };
