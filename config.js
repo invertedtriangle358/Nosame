@@ -12,7 +12,6 @@ export const CONFIG = {
         "wss://r.kojira.io",
         "wss://nostr.compile-error.net",
     ],
-    NG_WORDS_URL: "./ngwords.json",
     RECONNECT_DELAY_MS: 5000,
     PROFILE_TIMELINE_LIMIT: 20,
 };
