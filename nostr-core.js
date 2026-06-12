@@ -313,19 +313,289 @@ export class NostrClient {
         this.onStatusCallback = null;
     }
 
+    _createSocket(url) {
+        const ws = new WebSocket(url);
+        ws._relayUrl = url;
+        this._attachSocketListeners(ws);
+        return ws;
+    }
+
+    _attachSocketListeners(ws) {
+        ws.onopen = () => {
+            console.log("Relay connected:", ws._relayUrl);
+            this.intentionallyClosedRelays.delete(ws._relayUrl);
+            this._notifyStatus();
+            if (this.subId) this._sendTextSubscription(ws);
+            if (this.requestedProfilePubkeys.size > 0) this._sendProfileSubscription(ws);
+            if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
+        };
+
+        ws.onclose = () => {
+            console.log("Relay disconnected:", ws._relayUrl);
+            this._notifyStatus();
+
+            if (this.intentionallyClosedRelays.has(ws._relayUrl)) {
+                this.intentionallyClosedRelays.delete(ws._relayUrl);
+                return;
+            }
+
+            setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS);
+        };
+
+        ws.onerror = (err) => {
+            console.error("Relay error:", ws._relayUrl, err);
+            ws.close();
+        };
+
+        ws.onmessage = (ev) => this._handleMessage(ev);
+    }
+
+    _notifyStatus() {
+        this.onStatusCallback?.();
+    }
+
+    connect() {
+        this.sockets.forEach((ws) => {
+            this.intentionallyClosedRelays.add(ws._relayUrl);
+            ws.close();
+        });
+        this.sockets = [];
+
+        this.storage.getRelays().forEach((url) => {
+            try {
+                this.sockets.push(this._createSocket(url));
+            } catch (err) {
+                console.error("Failed to create relay socket:", url, err);
+            }
+        });
+
+        this._notifyStatus();
+    }
+
+    _reconnect(url) {
+        if (!this.storage.getRelays().includes(url)) return;
+
+        const alreadyOpen = this.sockets.some(
+            (socket) =>
+                socket._relayUrl === url &&
+                (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)
+        );
+        if (alreadyOpen) return;
+
+        this.sockets = this.sockets.filter((socket) => socket._relayUrl !== url);
+        console.log("Reconnecting relay:", url);
+
+        try {
+            this.sockets.push(this._createSocket(url));
+        } catch (err) {
+            console.error("Failed to reconnect relay:", url, err);
+        }
+    }
+
+    getRelayStatus(url) {
+        const normalize = (value) => value.replace(/\/+$/, "");
+        const ws = this.sockets.find((socket) => normalize(socket._relayUrl) === normalize(url));
+        return ws?.readyState === WebSocket.OPEN;
+    }
+
+    startSubscription() {
+        this.subId = `sub-${Math.random().toString(36).slice(2, 8)}`;
+        this.seenEventIds.clear();
+        this.sockets.forEach((ws) => this._sendTextSubscription(ws));
+    }
+
+    _sendTextSubscription(ws) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        ws.send(JSON.stringify([
+            "REQ",
+            this.subId,
+            {
+                kinds: [NOSTR_KINDS.TEXT],
+                limit: CONFIG.NOSTR_REQ_LIMIT,
+                since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
+            },
+        ]));
+    }
+
+    requestProfiles(pubkeys) {
+        const normalized = [...new Set(
+            pubkeys
+                .filter((pubkey) => typeof pubkey === "string" && pubkey)
+                .map((pubkey) => pubkey.toLowerCase())
+        )];
+
+        let changed = false;
+        normalized.forEach((pubkey) => {
+            if (!this.requestedProfilePubkeys.has(pubkey)) {
+                this.requestedProfilePubkeys.add(pubkey);
+                changed = true;
+            }
+        });
+
+        if (!changed) return;
+        const previousSubId = this.activeProfileSubId;
+        this.profileSubId = `profile-${this.profileReqSerial += 1}`;
+        this.sockets.forEach((ws) => this._sendProfileSubscription(ws, previousSubId));
+        this.activeProfileSubId = this.profileSubId;
+    }
+
+    requestProfileNotes(pubkey) {
+        if (!pubkey || typeof pubkey !== "string") return;
+
+        const normalized = pubkey.toLowerCase();
+        this.profileNotesPubkey = normalized;
+        const previousSubId = this.activeProfileNotesSubId;
+        this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
+        this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws, previousSubId));
+        this.activeProfileNotesSubId = this.profileNotesSubId;
+    }
+
+    _sendProfileSubscription(ws, previousSubId = null) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (this.requestedProfilePubkeys.size === 0) return;
+        if (!this.profileSubId) {
+            this.profileSubId = `profile-${this.profileReqSerial += 1}`;
+        }
+
+        if (previousSubId) {
+            ws.send(JSON.stringify(["CLOSE", previousSubId]));
+        }
+        ws.send(JSON.stringify([
+            "REQ",
+            this.profileSubId,
+            {
+                kinds: [NOSTR_KINDS.METADATA],
+                authors: [...this.requestedProfilePubkeys],
+                limit: Math.max(this.requestedProfilePubkeys.size, CONFIG.NOSTR_REQ_LIMIT),
+            },
+        ]));
+    }
+
+    _sendProfileNotesSubscription(ws, previousSubId = null) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!this.profileNotesPubkey) return;
+        if (!this.profileNotesSubId) {
+            this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
+        }
+
+        if (previousSubId) {
+            ws.send(JSON.stringify(["CLOSE", previousSubId]));
+        }
+        ws.send(JSON.stringify([
+            "REQ",
+            this.profileNotesSubId,
+            {
+                kinds: [NOSTR_KINDS.TEXT],
+                authors: [this.profileNotesPubkey],
+                limit: CONFIG.PROFILE_TIMELINE_LIMIT,
+            },
+        ]));
+    }
+
     _handleMessage(ev) {
         try {
             const [type, , event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event?.id) return;
             if (this.seenEventIds.has(event.id)) return;
-            
-            // ✅ ここでメモリリーク対策
+
+            // ✅ メモリリーク対策：イベント数が上限を超えたら古いものを削除
             this._trimSeenEventIds();
-            
+
             this.seenEventIds.add(event.id);
 
             if (this.validator.isPubkeyBlocked(event.pubkey)) return;
 
+            if (event.kind === NOSTR_KINDS.METADATA) {
+                this.onMetadataCallback?.(event);
+                return;
+            }
+
+            if (event.kind !== NOSTR_KINDS.TEXT) return;
+            if (this.validator.isContentInvalid(event.content)) return;
+
+            this.onEventCallback?.(event);
+        } catch (err) {
+            console.error("Failed to parse relay message.", err);
+        }
+    }
+
+    // ✅ メモリリーク対策メソッド
+    _trimSeenEventIds() {
+        const MAX_EVENTS = 10000;
+        const CLEANUP_SIZE = 1000;
+
+        if (this.seenEventIds.size > MAX_EVENTS) {
+            const toDelete = [...this.seenEventIds].slice(0, CLEANUP_SIZE);
+            toDelete.forEach(id => this.seenEventIds.delete(id));
+            console.log(`Trimmed seenEventIds: ${this.seenEventIds.size} remaining`);
+        }
+    }
+
+    async publish(content) {
+        if (this.validator.isContentInvalid(content)) {
+            throw new Error(UI_STRINGS.INVALID_CONTENT);
+        }
+
+        if (!window.nostr) {
+            throw new Error(UI_STRINGS.NIP07_REQUIRED);
+        }
+
+        const pubkey = await window.nostr.getPublicKey();
+        if (this.validator.isPubkeyBlocked(pubkey)) {
+            throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
+        }
+
+        const event = {
+            kind: NOSTR_KINDS.TEXT,
+            content,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            pubkey,
+        };
+
+        const signed = await window.nostr.signEvent(event);
+        this._broadcast(signed);
+        return signed;
+    }
+
+    async sendReaction(target) {
+        if (this.reactedEventIds.has(target.id)) return;
+        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
+
+        const pubkey = await window.nostr.getPublicKey();
+        if (this.validator.isPubkeyBlocked(pubkey)) {
+            throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
+        }
+
+        const event = {
+            kind: NOSTR_KINDS.REACTION,
+            content: "+",
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [["e", target.id], ["p", target.pubkey]],
+            pubkey,
+        };
+
+        const signed = await window.nostr.signEvent(event);
+        this._broadcast(signed);
+        this.reactedEventIds.add(target.id);
+    }
+
+    _broadcast(event) {
+        const data = JSON.stringify(["EVENT", event]);
+        let sent = 0;
+
+        this.sockets.forEach((ws) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(data);
+                sent += 1;
+            }
+        });
+
+        if (sent === 0) throw new Error(UI_STRINGS.NO_RELAY);
+    }
+}
+            
             if (event.kind === NOSTR_KINDS.METADATA) {
                 this.onMetadataCallback?.(event);
                 return;
