@@ -627,7 +627,7 @@ export class UIManager {
                 if (this.dom.profile.iconFallback) {
                     this.dom.profile.icon.hidden = true;
                     this.dom.profile.iconFallback.hidden = false;
-                    this.dom.profile.iconFallback.textContent = "";
+                    this.dom.profile.iconFallback.textContent = 
                         profile.displayName?.[0]?.toUpperCase() ?? "?";
                 }
             };
