@@ -18,8 +18,18 @@ export class SettingsUIHandler {
         btn.saveNg?.addEventListener("click", () => this._saveNgWords());
         btn.addBlockedPubkey?.addEventListener("click", () => this._addBlockedPubkey());
         btn.saveBlockedPubkeys?.addEventListener("click", () => this._saveBlockedPubkeys());
+
+        this.dom.inputs.hideContentWarnings?.addEventListener("change", (e) => {
+            this.storage.saveHideContentWarnings(e.target.checked);
+            this.ui.rerenderTimelines();
+        });
     }
 
+    syncContentWarningToggle() {
+        if (!this.dom.inputs.hideContentWarnings) return;
+        this.dom.inputs.hideContentWarnings.checked = this.storage.getHideContentWarnings();
+    }
+    
     // ← 全角スペースを半角スペースに修正
     updateRelayList() {
         const container = this.dom.lists.relays;
@@ -291,6 +301,7 @@ export class UIManager {
                 relay: $("relayInput"),
                 ng: $("ngWordInput"),
                 blockedPubkey: $("blockedPubkeyInput"),
+                hideContentWarnings: $("hideContentWarningsInput"),
             },
             lists: {
                 relays: $("relayList"),
@@ -318,6 +329,8 @@ export class UIManager {
             this.settingsHandler.updateRelayList();
             this.settingsHandler.updateNgList();
             this.settingsHandler.updateBlockedPubkeyList();
+            this.settingsHandler.syncContentWarningToggle();
+            this.settingsHandler.syncContentWarningToggle();
         });
 
         btn.closeMenu?.addEventListener("click", () => {
@@ -489,6 +502,8 @@ export class UIManager {
             this.events.sort((a, b) => this._compareEvents(a, b));
         }
 
+        if (this._shouldHideEvent(ev)) return;
+        
         this._renderEventInto(this.dom.timeline, ev);
 
         if (this.profilePubkey && ev.pubkey === this.profilePubkey) {
@@ -496,6 +511,30 @@ export class UIManager {
         }
     }
 
+    rerenderTimelines() {
+        if (this.dom.timeline) {
+            this.dom.timeline.innerHTML = "";
+        }
+        if (this.dom.profileTimeline) {
+            this.dom.profileTimeline.innerHTML = "";
+        }
+
+        this.events
+            .filter((event) => !this._shouldHideEvent(event))
+            .forEach((event) => {
+                this._renderEventInto(this.dom.timeline, event);
+                if (this.profilePubkey && event.pubkey === this.profilePubkey) {
+                    this._renderEventInto(this.dom.profileTimeline, event);
+                }
+            });
+
+        this._scrollTimelineToLatest();
+    }
+
+    _shouldHideEvent(event) {
+        return this.storage.getHideContentWarnings() && this.client.validator?.isContentWarning(event);
+    }
+    
     _renderEventInto(view, ev) {
         if (!view || view.querySelector(`[data-id="${CSS.escape(ev.id)}"]`)) return;
 
@@ -602,7 +641,9 @@ export class UIManager {
         }
 
         this.dom.profileTimeline.innerHTML = "";
-        notes.forEach((event) => this._renderEventInto(this.dom.profileTimeline, event));
+        notes
+            .filter((event) => !this._shouldHideEvent(event))
+            .forEach((event) => this._renderEventInto(this.dom.profileTimeline, event));
     }
 
     showTimeline() {
