@@ -440,6 +440,49 @@ main {
     border: 1px solid var(--c-gray);
     border-radius: var(--radius-m);
 }
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.settings-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.settings-toggle-slider {
+    position: relative;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 24px;
+    border-radius: 999px;
+    background: #b8b8b8;
+    transition: background 0.2s ease;
+}
+
+.settings-toggle-slider::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s ease;
+}
+
+.settings-toggle input:checked + .settings-toggle-slider {
+    background: #465b95;
+}
+
+.settings-toggle input:checked + .settings-toggle-slider::before {
+    transform: translateX(22px);
+}
 
 .relay-row {
     display: flex;
