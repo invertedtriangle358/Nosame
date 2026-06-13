@@ -758,19 +758,12 @@ footer {
         min-height: 0;
 }
 
-    .profile-overview {
+    .profile-info {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
         margin-top: 0;
-        width: 100%;
-}
-
-    .profile-hero {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
         min-height: 0;
         width: 100%;
 }
