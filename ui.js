@@ -100,19 +100,9 @@ export class SettingsUIHandler {
     }
 
     updateNgList() {
-        const container = this.dom.lists.ngWords;
-        if (!container) return;
-        container.innerHTML = "";
-
-        this.storage.defaultNgWords.forEach((word) => {
-            const row = document.createElement("div");
-            row.className = "ng-word-item ng-default";
-            row.innerHTML = `
-                <input type="text" value="${this.ui._escape(word)}" disabled>
-                <button type="button" disabled>▼</button>
-            `;
-            container.appendChild(row);
-        });
+            const container = this.dom.lists.ngWords;
+            if (!container) return;
+            container.innerHTML = "";
 
         const words = this.storage.getUserNgWords();
         words.forEach((word, idx) => {
