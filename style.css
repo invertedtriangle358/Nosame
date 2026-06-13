@@ -639,21 +639,27 @@ main {
 }
 
 .profile-info {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 220px 256px minmax(0, 1fr);
-    grid-template-rows: 300px auto 270px;
+    min-width:0;
+    display:grid;
+    grid-template-columns:220px 256px;
+    grid-template-rows:auto auto auto;
     grid-template-areas:
-        "name icon ."
-        "pubkey pubkey pubkey"
-        "bio bio bio";
-    gap: 12px 20px;
-    margin-top: -20px;
-    align-items: start;
+        "heading heading"
+        "bio bio"
+        "pubkey pubkey";
+    gap:12px 20px;
+    margin-top:-20px;
+    align-items:start;
+}
+
+.profile-heading {
+    grid-area: heading;
+    display:flex;
+    align-items:flex-start;
+    gap:20px;
 }
 
 .profile-name {
-    grid-area: name;
     justify-self: start;
     writing-mode: vertical-rl;
     text-orientation: mixed;
@@ -669,7 +675,6 @@ main {
 }
 
 .profile-icon-shell {
-    grid-area: icon;
     justify-self: start;
     position: relative;
     width: 256px;
