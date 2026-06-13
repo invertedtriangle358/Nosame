@@ -652,10 +652,6 @@ main {
     align-items: start;
 }
 
-.profile-heading {
-    display: contents;
-}
-
 .profile-name {
     grid-area: name;
     justify-self: start;
@@ -678,7 +674,6 @@ main {
     position: relative;
     width: 256px;
     height: 256px;
-    margin: -50px;
     flex: none;
     margin-top: 30px;
     transform: none;
