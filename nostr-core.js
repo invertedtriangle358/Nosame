@@ -235,25 +235,11 @@ export class StorageManager {
     saveHideContentWarnings(hidden) {
         this._save("hideContentWarnings", Boolean(hidden));
     }
-    
-    async loadDefaultNgWords() {
-        try {
-            const res = await fetch(`${CONFIG.NG_WORDS_URL}?${Date.now()}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-            const data = await res.json();
-            this.defaultNgWords = Array.isArray(data)
-                ? data.filter((word) => typeof word === "string" && word.trim())
-                : [];
-        } catch (err) {
-            console.warn("Failed to load default NG words.", err);
-        }
-    }
 
     getAllNgWords() {
-        return [...new Set([...this.defaultNgWords, ...this.getUserNgWords()])]
+        return this.getUserNgWords()
             .filter((word) => typeof word === "string" && word.trim());
-    }
+     }
 }
 
 export class ProfileStore {
