@@ -172,7 +172,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: var(--c-white);
+    background: var( --c-bg-main);
     overflow: hidden;
 }
 
