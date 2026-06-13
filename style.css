@@ -237,6 +237,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     flex: 1;
     font-size: 16px;
     line-height: 1.5;
+    padding: 2px;
     color: var(--c-white);
     word-break: break-word;
     overflow: hidden;
