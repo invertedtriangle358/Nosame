@@ -167,7 +167,21 @@ export class EventValidator {
         if (!pubkey) return false;
         return this.storage.getBlockedPubkeys().includes(pubkey.toLowerCase());
     }
-}
+
+    isContentWarning(event) {
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        const hasContentWarningTag = tags.some((tag) =>
+            Array.isArray(tag) &&
+            tag.some((value) => String(value ?? "").toLowerCase() === "content-warning")
+        );
+        const hasNsfwTag = tags.some((tag) =>
+            Array.isArray(tag) &&
+            tag.some((value) => String(value ?? "").toLowerCase() === "nsfw")
+        );
+        const hasNsfwText = /(^|\s)#nsfw(\s|$)/i.test(String(event?.content ?? ""));
+
+        return hasContentWarningTag || hasNsfwTag || hasNsfwText;
+    }
 
 export class StorageManager {
     constructor(storageAdapter = localStorage) {
@@ -213,6 +227,14 @@ export class StorageManager {
         this._save("blockedPubkeys", pubkeys);
     }
 
+    getHideContentWarnings() {
+        return this._load("hideContentWarnings", true) === true;
+    }
+
+    saveHideContentWarnings(hidden) {
+        this._save("hideContentWarnings", Boolean(hidden));
+    }
+    
     async loadDefaultNgWords() {
         try {
             const res = await fetch(`${CONFIG.NG_WORDS_URL}?${Date.now()}`);
