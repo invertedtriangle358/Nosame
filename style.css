@@ -638,7 +638,7 @@ main {
     min-height: calc(100vh - 130px);
 }
 
-.profile-overview {
+.profile-info {
     min-width: 0;
     display: grid;
     grid-template-columns: 220px 256px minmax(0, 1fr);
@@ -650,10 +650,6 @@ main {
     gap: 12px 20px;
     margin-top: -20px;
     align-items: start;
-}
-
-.profile-hero {
-    display: contents;
 }
 
 .profile-heading {
