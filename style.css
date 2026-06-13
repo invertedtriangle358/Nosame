@@ -760,7 +760,7 @@ footer {
         padding: 10px;
         overflow-y: auto;
         min-height: 0;
-    }
+}
 
     .profile-overview {
         display: flex;
@@ -769,7 +769,7 @@ footer {
         gap: 8px;
         margin-top: 0;
         width: 100%;
-    }
+}
 
     .profile-hero {
         display: flex;
@@ -777,7 +777,7 @@ footer {
         gap: 8px;
         min-height: 0;
         width: 100%;
-    }
+}
 
     .profile-heading {
         display: flex;
@@ -785,7 +785,7 @@ footer {
         justify-content: flex-start;
         gap: 10px;
         width: 100%;
-    }
+}
 
     .profile-name {
         flex: 0 0 90px;
@@ -799,7 +799,7 @@ footer {
         max-height: 110px;
         max-width: 90px;
         overflow: hidden;
-    }
+}
 
     .profile-icon-shell {
         grid-area: auto;
@@ -809,13 +809,13 @@ footer {
         margin-top: -80px;
         margin-left: 50px;
         transform: none;
-    }
+}
 
     .profile-icon-large,
     .profile-icon-fallback {
         width: 96px;
         height: 96px;
-    }
+}
 
     .profile-bio {
         grid-area: auto;
@@ -826,7 +826,7 @@ footer {
         line-height: 1.55;
         font-size: 0.9rem;
         align-self: flex-start;
-    }
+}
 
     .profile-pubkey {
         grid-area: auto;
@@ -834,7 +834,7 @@ footer {
         font-size: 0.72rem;
         margin: 0;
         padding: 0;
-    }
+}
 
     .profile-timeline {
         display: flex;
@@ -845,7 +845,7 @@ footer {
         overflow-x: auto;
         overflow-y: hidden;
         padding: 10px 0 8px;
-    }
+}
 
     .profile-timeline .note {
         flex: 0 0 auto;
@@ -855,5 +855,4 @@ footer {
         min-height: 360px;
         max-height: 360px;
         writing-mode: vertical-rl;
-    }
 }
