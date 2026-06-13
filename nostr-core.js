@@ -182,6 +182,7 @@ export class EventValidator {
 
         return hasContentWarningTag || hasNsfwTag || hasNsfwText;
     }
+}
 
 export class StorageManager {
     constructor(storageAdapter = localStorage) {
