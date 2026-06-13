@@ -228,7 +228,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     padding: 14px;
     border: 1px solid #242733;
     border-radius: var(--radius-xl);
-    background: var(--c-bg-card);
+    background: rgba(255, 255, 255, 0.05);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
     overflow: hidden;
 }
@@ -704,7 +704,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
 .profile-bio {
     grid-area: bio;
     max-width: none;
-    width: 100%;
+    width: 115%;
     height: 270px;
     padding: 14px;
     margin-top: 0;
