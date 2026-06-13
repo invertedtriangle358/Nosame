@@ -4,7 +4,6 @@ import { UIManager } from "./ui.js";
 window.addEventListener("DOMContentLoaded", async () => {
     // ステップ1：StorageManager を初期化
     const storage = new StorageManager(localStorage);  // テスト可能性向上
-    await storage.loadDefaultNgWords();
 
     // ステップ2：各コンポーネントを初期化
     const validator = new EventValidator(storage);
