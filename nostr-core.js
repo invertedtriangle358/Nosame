@@ -541,6 +541,26 @@ export class NostrClient {
         }
     }
 
+    buildPostTags(content) {
+    const tags = [];
+
+    tags.push([
+        "client",
+        "Nosame"
+    ]);
+
+    const hashtags = content.match(/#[\w]+/g) || [];
+
+    hashtags.forEach(tag => {
+        tags.push([
+            "t",
+            tag.substring(1)
+        ]);
+    });
+
+    return tags;
+    }
+    
     async publish(content) {
         if (this.validator.isContentInvalid(content)) {
             throw new Error(UI_STRINGS.INVALID_CONTENT);
@@ -559,9 +579,7 @@ export class NostrClient {
             kind: NOSTR_KINDS.TEXT,
             content,
             created_at: Math.floor(Date.now() / 1000),
-            tags: [
-                 ["client", "Nosame"]
-            ],
+            tags: this.buildPostTags(content),
             pubkey,
         };
 
