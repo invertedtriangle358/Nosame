@@ -559,7 +559,9 @@ export class NostrClient {
             kind: NOSTR_KINDS.TEXT,
             content,
             created_at: Math.floor(Date.now() / 1000),
-            tags: [],
+            tags: [
+                 ["client", "Nosame"]
+            ],
             pubkey,
         };
 
