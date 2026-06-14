@@ -542,23 +542,19 @@ export class NostrClient {
     }
 
     buildPostTags(content) {
-    const tags = [];
-
-    tags.push([
-        "client",
-        "Nosame"
-    ]);
-
-    const hashtags = content.match(/#[\w]+/g) || [];
-
-    hashtags.forEach(tag => {
+        const tags = [];
         tags.push([
-            "t",
-            tag.substring(1)
+            "client",
+            "Nosame"
         ]);
-    });
-
-    return tags;
+        const hashtags = content.match(/#[^\s#]+/g) || [];
+        hashtags.forEach(tag => {
+            tags.push([
+                "t",
+                tag.substring(1)
+            ]);
+        });
+        return tags;
     }
     
     async publish(content) {
