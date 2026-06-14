@@ -554,6 +554,13 @@ export class NostrClient {
                 tag.substring(1)
             ]);
         });
+        const urls = content.match(/https?:\/\/[^\s)\]}>,]+/g) || [];
+        urls.forEach(url => {
+        tags.push([
+            "r",
+            url
+            ]);
+        });
         return tags;
     }
     
