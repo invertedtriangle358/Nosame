@@ -288,6 +288,8 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     width: 30px;
     height: 30px;
     margin-top: 4px;
+    margin-right: 7px;
+    padding-left: 3px;
     border: none;
     border-radius: 50px;
     font-size: 1.2rem;
