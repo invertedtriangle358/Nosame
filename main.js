@@ -20,6 +20,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         ui.bufferEvent(event);
     };
     
+   client.onReferencedEventCallback = (event) => {
+        client.requestProfiles([event.pubkey]);
+        ui.storeReferencedEvent(event);
+    }; 
+    
     client.onMetadataCallback = (event) => {
         const profile = profiles.upsertMetadata(event);
         if (profile) ui.refreshProfileData(profile.pubkey);
