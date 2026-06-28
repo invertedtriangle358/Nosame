@@ -248,6 +248,7 @@ export class UIManager {
         this.bufferTimer = null;
         this.settingsHandler = null;
         this.events = [];
+        this.referencedEvents = new Map();
         this.profilePubkey = null;
     }
 
@@ -445,7 +446,9 @@ export class UIManager {
         }
 
         try {
-            const event = await this.client.publish(content);
+            const quoteRefs = this._extractEventReferences(content);
+            const quoteTags = quoteRefs.map((ref) => ["q", ref.id, ref.relays?.[0] ?? "", ref.author ?? ""]);
+            const event = await this.client.publish(content, quoteTags);
             this.renderEvent(event);
             input.value = "";
             if (this.dom.counters.char) {
@@ -501,6 +504,13 @@ export class UIManager {
         }
     }
 
+    storeReferencedEvent(event) {
+        if (!event?.id) return;
+        this.referencedEvents.set(event.id, event);
+        this.client.requestProfiles([event.pubkey]);
+        this.rerenderTimelines();
+    }
+    
     rerenderTimelines() {
         if (this.dom.timeline) {
             this.dom.timeline.innerHTML = "";
@@ -536,14 +546,22 @@ export class UIManager {
 
         const reacted = this.client.reactedEventIds.has(ev.id);
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
+        const embeddedEvent = this._getEmbeddedEvent(ev);
+        const quoteRefs = this._getQuoteReferences(ev);
+        if (!embeddedEvent && quoteRefs.length > 0) {
+            this.client.requestEvents(quoteRefs.map((ref) => ref.id));
+        }
         el.innerHTML = `
-            <div class="content">${this._formatContent(ev.content ?? "")}</div>
+            <div class="content">${this._formatContent(ev.content ?? "", { stripReferences: Boolean(embeddedEvent) })}</div>
+            ${embeddedEvent ? this._renderEmbeddedEvent(embeddedEvent) : ""}
             <div class="meta">
                 <button class="author author-link" type="button">${this._escape(profile.displayName)}</button>
                 <span class="pubkey">🔑${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</span>
                 <span class="time">${this._escape(this._formatTimestamp(ev.created_at))}</span>
             </div>
             <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
+            <button class="btn-quote" type="button">引用</button>
+            <button class="btn-repost" type="button">Re</button>
         `;
 
         el.querySelector(".author-link").onclick = () => {
@@ -563,7 +581,21 @@ export class UIManager {
                 alert(err.message);
             }
         };
+        
+        el.querySelector(".btn-quote").onclick = () => {
+            this._insertQuoteReference(ev);
+        };
 
+        el.querySelector(".btn-repost").onclick = async (e) => {
+            try {
+                await this.client.sendRepost(ev);
+                e.target.textContent = "済";
+                e.target.disabled = true;
+            } catch (err) {
+                alert(err.message);
+            }
+        };
+        
         const insertBefore = [...view.querySelectorAll(".note")].find((node) => {
             const otherCreatedAt = Number(node.dataset.createdAt || 0);
             if (otherCreatedAt !== ev.created_at) return otherCreatedAt > ev.created_at;
@@ -575,6 +607,105 @@ export class UIManager {
         } else {
             view.appendChild(el);
         }
+    }
+
+    _insertQuoteReference(event) {
+        const input = this.dom.inputs.compose;
+        if (!input || !event?.id) return;
+
+        const nevent = NostrCodec.toNevent({
+            id: event.id,
+            relays: event._relayUrl ? [event._relayUrl] : [],
+            author: event.pubkey ?? "",
+            kind: event.kind ?? 1,
+        });
+        const reference = `nostr:${nevent}`;
+        const separator = input.value.trim() ? "\n" : "";
+
+        input.value = `${input.value}${separator}${reference}`;
+        input.focus();
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    _extractEventReferences(text) {
+        const refs = [];
+        const pattern = /(?:nostr:)?(?:nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi;
+
+        String(text ?? "").replace(pattern, (value) => {
+            try {
+                const ref = NostrCodec.fromNevent(value);
+                if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
+            } catch {
+                // Ignore malformed user-pasted references.
+            }
+            return value;
+        });
+
+        return refs;
+    }
+
+    _getQuoteReferences(event) {
+        const refs = [];
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+
+        tags
+            .filter((tag) => Array.isArray(tag) && tag[0] === "q" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
+            .forEach((tag) => {
+                refs.push({
+                    id: tag[1].toLowerCase(),
+                    relays: tag[2] ? [tag[2]] : [],
+                    author: tag[3] ?? "",
+                    kind: 1,
+                });
+            });
+
+        if (event?.kind === 6) {
+            tags
+                .filter((tag) => Array.isArray(tag) && tag[0] === "e" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
+                .forEach((tag) => {
+                    if (!refs.some((item) => item.id === tag[1].toLowerCase())) {
+                        refs.push({
+                            id: tag[1].toLowerCase(),
+                            relays: tag[2] ? [tag[2]] : [],
+                            author: "",
+                            kind: 1,
+                        });
+                    }
+                });
+        }
+
+        this._extractEventReferences(event?.content ?? "").forEach((ref) => {
+            if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
+        });
+
+        return refs;
+    }
+
+    _getEmbeddedEvent(event) {
+        if (event?.kind === 6) {
+            try {
+                const reposted = JSON.parse(event.content ?? "{}");
+                if (reposted?.id) return reposted;
+            } catch {
+                return null;
+            }
+        }
+
+        const [ref] = this._getQuoteReferences(event);
+        return ref ? this.events.find((item) => item.id === ref.id) ?? this.referencedEvents.get(ref.id) ?? null : null;
+    }
+
+    _renderEmbeddedEvent(event) {
+        const profile = this.profiles.getProfile(event.pubkey ?? "");
+        return `
+            <div class="embedded-note" data-embedded-id="${this._escape(event.id ?? "")}">
+                <div class="embedded-content">${this._formatContent(event.content ?? "", { stripReferences: true })}</div>
+                <div class="embedded-meta">
+                    <span>${this._escape(profile.displayName)}</span>
+                    <span>${this._escape(this._formatTimestamp(event.created_at))}</span>
+                </div>
+            </div>
+        `;
     }
 
     showProfile(pubkey) {
@@ -714,8 +845,11 @@ export class UIManager {
         }[char]));
     }
 
-    _formatContent(text) {
-        const safe = this._escape(text);
+    _formatContent(text, { stripReferences = false } = {}) {
+        const value = stripReferences
+            ? String(text ?? "").replace(/(?:nostr:)?(?:nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "").trim()
+            : text;
+        const safe = this._escape(value);
         return safe
             .replace(/【緊急地震速報】/g, '<span class="alert-eew">【緊急地震速報】</span>')
             .replace(/\n/g, "<br>");
