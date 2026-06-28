@@ -626,13 +626,17 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
 
 .btn-quote,
 .btn-repost {
-    margin-top: 8px;
-    border: 1px solid #d7cec1;
-    border-radius: 6px;
-    background: #fffdf8;
-    color: #221f1c;
+    width: 30px;
+    height: 30px;
+    margin-top: 4px;
+    margin-right: 7px;
+    padding-left: 3px;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    background: var(--c-accent-light);
     cursor: pointer;
-}
+    transition: transform 0.2s ease;
 
 .btn-quote:disabled,
 .btn-repost:disabled {
