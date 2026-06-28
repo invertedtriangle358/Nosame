@@ -110,6 +110,27 @@ export class NostrCodec {
         return bytes.map((value) => value.toString(16).padStart(2, "0")).join("");
     }
 
+    static numberToBytes(value) {
+        return [
+            (value >>> 24) & 0xff,
+            (value >>> 16) & 0xff,
+            (value >>> 8) & 0xff,
+            value & 0xff,
+        ];
+    }
+
+    static bytesToNumber(bytes) {
+        return bytes.reduce((result, value) => (result << 8) | value, 0) >>> 0;
+    }
+
+    static textToBytes(text) {
+        return [...new TextEncoder().encode(text)];
+    }
+
+    static bytesToText(bytes) {
+        return new TextDecoder().decode(new Uint8Array(bytes));
+    }
+    
     static toNpub(pubkeyHex) {
         if (typeof pubkeyHex !== "string") throw new Error("Invalid pubkey.");
 
@@ -147,6 +168,65 @@ export class NostrCodec {
             npub,
             short: `${npub.slice(0, 10)}...${npub.slice(-6)}`,
         };
+    }
+    
+    static toNevent({ id, relays = [], author = "", kind = NOSTR_KINDS.TEXT } = {}) {
+        if (!/^[0-9a-f]{64}$/i.test(id ?? "")) throw new Error("Invalid event id.");
+
+        const tlv = [
+            0,
+            32,
+            ...this.hexToBytes(id.toLowerCase()),
+        ];
+
+        relays
+            .filter((relay) => typeof relay === "string" && relay)
+            .forEach((relay) => {
+                const bytes = this.textToBytes(relay);
+                tlv.push(1, bytes.length, ...bytes);
+            });
+
+        if (this.isHexPubkey(author)) {
+            tlv.push(2, 32, ...this.hexToBytes(author.toLowerCase()));
+        }
+
+        if (Number.isInteger(kind)) {
+            tlv.push(3, 4, ...this.numberToBytes(kind));
+        }
+
+        return Bech32.encode("nevent", Bech32.convertBits(tlv, 8, 5, true));
+    }
+
+    static fromNevent(value) {
+        const raw = String(value ?? "").replace(/^nostr:/i, "");
+        const { hrp, data } = Bech32.decode(raw);
+        if (hrp !== "nevent" && hrp !== "note") throw new Error("Unsupported event reference.");
+
+        if (hrp === "note") {
+            const bytes = Bech32.convertBits(data, 5, 8, false);
+            const id = this.bytesToHex(bytes);
+            if (!/^[0-9a-f]{64}$/i.test(id)) throw new Error("Invalid note id.");
+            return { id, relays: [], author: "", kind: NOSTR_KINDS.TEXT };
+        }
+
+        const bytes = Bech32.convertBits(data, 5, 8, false);
+        const result = { id: "", relays: [], author: "", kind: undefined };
+
+        for (let i = 0; i < bytes.length;) {
+            const type = bytes[i];
+            const length = bytes[i + 1];
+            const valueBytes = bytes.slice(i + 2, i + 2 + length);
+
+            if (type === 0 && length === 32) result.id = this.bytesToHex(valueBytes);
+            if (type === 1) result.relays.push(this.bytesToText(valueBytes));
+            if (type === 2 && length === 32) result.author = this.bytesToHex(valueBytes);
+            if (type === 3 && length === 4) result.kind = this.bytesToNumber(valueBytes);
+
+            i += 2 + length;
+        }
+
+        if (!/^[0-9a-f]{64}$/i.test(result.id)) throw new Error("Invalid nevent id.");
+        return result;
     }
 }
 
@@ -311,6 +391,7 @@ export class NostrClient {
         this.profileNotesSubId = null;
         this.activeProfileNotesSubId = null;
         this.profileNotesPubkey = null;
+        this.referencedEventsSubId = null;
         this.profileReqSerial = 0;
         this.seenEventIds = new Set();
         this.reactedEventIds = new Set();
@@ -318,6 +399,7 @@ export class NostrClient {
         this.requestedProfilePubkeys = new Set();
 
         this.onEventCallback = null;
+        this.onReferencedEventCallback = null;
         this.onMetadataCallback = null;
         this.onStatusCallback = null;
     }
@@ -356,7 +438,7 @@ export class NostrClient {
             ws.close();
         };
 
-        ws.onmessage = (ev) => this._handleMessage(ev);
+        ws.onmessage = (ev) => this._handleMessage(ev, ws);
     }
 
     _notifyStatus() {
@@ -460,6 +542,18 @@ export class NostrClient {
         this.activeProfileNotesSubId = this.profileNotesSubId;
     }
 
+    requestEvents(ids) {
+        const normalized = [...new Set(
+            ids
+                .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
+                .map((id) => id.toLowerCase())
+        )];
+        if (normalized.length === 0) return;
+
+        this.referencedEventsSubId = `refs-${this.profileReqSerial += 1}`;
+        this.sockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, normalized));
+    }
+
     _sendProfileSubscription(ws, previousSubId = null) {
         if (ws.readyState !== WebSocket.OPEN) return;
         if (this.requestedProfilePubkeys.size === 0) return;
@@ -502,10 +596,31 @@ export class NostrClient {
         ]));
     }
 
-    _handleMessage(ev) {
+    _sendReferencedEventsSubscription(ws, ids) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+
+        ws.send(JSON.stringify([
+            "REQ",
+            this.referencedEventsSubId,
+            {
+                ids,
+                kinds: [NOSTR_KINDS.TEXT],
+                limit: ids.length,
+            },
+        ]));
+    }
+
+    _handleMessage(ev, ws = null) {
         try {
-            const [type, , event] = JSON.parse(ev.data);
+            const [type, subId, event] = JSON.parse(ev.data);
             if (type !== "EVENT" || !event?.id) return;
+            event._relayUrl = ws?._relayUrl ?? "";
+
+            if (typeof subId === "string" && subId.startsWith("refs-")) {
+                this.onReferencedEventCallback?.(event);
+                return;
+            }
+            
             if (this.seenEventIds.has(event.id)) return;
 
             // ✅ メモリリーク対策：イベント数が上限を超えたら古いものを削除
@@ -520,7 +635,7 @@ export class NostrClient {
                 return;
             }
 
-            if (event.kind !== NOSTR_KINDS.TEXT) return;
+            if (event.kind !== NOSTR_KINDS.TEXT && event.kind !== 6) return;
             if (this.validator.isContentInvalid(event.content)) return;
 
             this.onEventCallback?.(event);
@@ -564,7 +679,7 @@ export class NostrClient {
         return tags;
     }
     
-    async publish(content) {
+    async publish(content, extraTags = []) {
         if (this.validator.isContentInvalid(content)) {
             throw new Error(UI_STRINGS.INVALID_CONTENT);
         }
@@ -604,7 +719,32 @@ export class NostrClient {
             kind: NOSTR_KINDS.REACTION,
             content: "+",
             created_at: Math.floor(Date.now() / 1000),
-            tags: [["e", target.id], ["p", target.pubkey]],
+            tags: extraTags,
+            pubkey,
+        };
+
+        const signed = await window.nostr.signEvent(event);
+        this._broadcast(signed);
+        return signed;
+    }
+
+    async sendRepost(target) {
+        if (!target?.id) return;
+        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
+
+        const pubkey = await window.nostr.getPublicKey();
+        if (this.validator.isPubkeyBlocked(pubkey)) {
+            throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
+        }
+
+        const event = {
+            kind: 6,
+            content: JSON.stringify(target),
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+                ["e", target.id, target._relayUrl ?? ""],
+                ["p", target.pubkey ?? ""],
+            ],
             pubkey,
         };
 
