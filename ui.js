@@ -559,9 +559,11 @@ export class UIManager {
                 <span class="pubkey">🔑${this._escape(this._formatNpub(ev.pubkey ?? "").short)}</span>
                 <span class="time">${this._escape(this._formatTimestamp(ev.created_at))}</span>
             </div>
-            <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
-            <button class="btn-quote" type="button">💬</button>
-            <button class="btn-repost" type="button">🔁</button>
+            <div class="note-actions">
+                <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
+                <button class="btn-quote" type="button">💬</button>
+                <button class="btn-repost" type="button">🔁</button>
+            </div>
         `;
 
         el.querySelector(".author-link").onclick = () => {
