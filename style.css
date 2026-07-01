@@ -694,7 +694,7 @@ main {
 
 .profile-page[aria-hidden="false"] {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(540px, 0.9fr) minmax(0, 1.1fr);
     align-items: stretch;
     gap: 20px;
     min-height: calc(100vh - 130px);
@@ -703,15 +703,16 @@ main {
 .profile-info {
     min-width:0;
     display:grid;
-    grid-template-columns:220px 256px;
+    grid-template-columns: minmax(160px, 220px) 256px;
     grid-template-rows:auto auto auto;
     grid-template-areas:
-        "heading heading"
-        "bio bio"
-        "pubkey pubkey";
+        "name icon"
+        "pubkey pubkey"
+        "bio bio";
     gap:12px 20px;
     margin-top:-20px;
     align-items:start;
+    overflow: hidden;
 }
 
 .profile-heading {
@@ -785,6 +786,7 @@ main {
     align-content: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
+    padding-left: 0;
 }
 
 .profile-timeline .note {
