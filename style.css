@@ -701,12 +701,10 @@ main {
 }
 
 .profile-info {
-    min-width:0;
-    display:grid;
+    display: grid;
     grid-template-columns: minmax(160px, 220px) 256px;
-    grid-template-rows:auto auto auto;
     grid-template-areas:
-        "name icon"
+        "heading heading"
         "pubkey pubkey"
         "bio bio";
     gap:12px 20px;
@@ -717,9 +715,9 @@ main {
 
 .profile-heading {
     grid-area: heading;
-    display:flex;
-    align-items:flex-start;
-    gap:20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
 }
 
 .profile-name {
@@ -763,7 +761,7 @@ main {
 .profile-bio {
     grid-area: bio;
     max-width: none;
-    width: 115%;
+    width: 100%;
     height: 270px;
     padding: 14px;
     margin-top: 0;
