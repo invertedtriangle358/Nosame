@@ -113,10 +113,6 @@ main {
     overflow: hidden;
 }
 
-main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
-    display:none;
-}
-
 /* ==============================
    サイドバー
 ============================== */
@@ -287,7 +283,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
 .note .btn-reaction {
     width: 30px;
     height: 30px;
-    margin-top: 4px;
+    margin-top: 0;
     margin-right: 7px;
     padding-left: 3px;
     border: none;
@@ -296,6 +292,18 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     background: var(--c-accent-light);
     cursor: pointer;
     transition: transform 0.2s ease;
+}
+
+.note-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.note-actions button {
+    width: fit-content;
 }
 
 .note .btn-reaction:hover:not(:disabled) {
@@ -628,7 +636,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
 .btn-repost {
     width: 30px;
     height: 30px;
-    margin-top: 4px;
+    margin-top: 0;
     margin-right: 7px;
     padding-left: 3px;
     border: none;
@@ -637,6 +645,7 @@ main:has(#profilePage[aria-hidden="false"]) .timeline-wrap {
     background: var(--c-accent-light);
     cursor: pointer;
     transition: transform 0.2s ease;
+}
 
 .btn-quote:disabled,
 .btn-repost:disabled {
@@ -898,4 +907,5 @@ footer {
         min-height: 360px;
         max-height: 360px;
         writing-mode: vertical-rl;
+}
 }
