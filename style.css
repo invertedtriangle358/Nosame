@@ -300,6 +300,8 @@ main {
     align-items: flex-start;
     gap: 8px;
     margin-top: 12px;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
 }
 
 .note-actions button {
