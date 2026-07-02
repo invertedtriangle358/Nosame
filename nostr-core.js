@@ -542,7 +542,7 @@ export class NostrClient {
             "REQ",
             this.subId,
             {
-                kinds: [NOSTR_KINDS.TEXT],
+                kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.REPOST],
                 limit: CONFIG.NOSTR_REQ_LIMIT,
                 since: Math.floor(Date.now() / 1000) - CONFIG.NOSTR_REQ_SINCE_SECONDS_AGO,
             },
