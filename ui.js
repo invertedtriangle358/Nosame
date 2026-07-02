@@ -321,7 +321,6 @@ export class UIManager {
             this.settingsHandler.updateNgList();
             this.settingsHandler.updateBlockedPubkeyList();
             this.settingsHandler.syncContentWarningToggle();
-            this.settingsHandler.syncContentWarningToggle();
         });
 
         btn.closeMenu?.addEventListener("click", () => {
@@ -438,31 +437,33 @@ export class UIManager {
     }
 
     async _handlePublish() {
-        const input = this.dom.inputs.compose;
-        const content = input?.value?.trim();
-        if (!content) {
-            alert(UI_STRINGS.EMPTY_POST);
-            return;
-        if (this._getVisibleContentLength(content) > CONFIG.MAX_POST_LENGTH) {
-            alert(UI_STRINGS.INVALID_CONTENT);
-        return;
-}
-        }
+    const input = this.dom.inputs.compose;
+    const content = input?.value?.trim();
 
-        try {
-            const quoteRefs = this._extractEventReferences(content);
-            const quoteTags = quoteRefs.map((ref) => ["q", ref.id, ref.relays?.[0] ?? "", ref.author ?? ""]);
-            const event = await this.client.publish(content, quoteTags);
-            this.renderEvent(event);
-            input.value = "";
-            if (this.dom.counters.char) {
-                this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-                this.dom.counters.char.style.color = "";
-            }
-        } catch (err) {
-            alert(err.message);
-        }
+    if (!content) {
+        alert(UI_STRINGS.EMPTY_POST);
+        return;
     }
+
+    if (this._getVisibleContentLength(content) > CONFIG.MAX_POST_LENGTH) {
+        alert(UI_STRINGS.INVALID_CONTENT);
+        return;
+    }
+
+    try {
+        const quoteRefs = this._extractEventReferences(content);
+        const quoteTags = quoteRefs.map((ref) => ["q", ref.id, ref.relays?.[0] ?? "", ref.author ?? ""]);
+        const event = await this.client.publish(content, quoteTags);
+        this.renderEvent(event);
+        input.value = "";
+        if (this.dom.counters.char) {
+            this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+            this.dom.counters.char.style.color = "";
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+}
 
     bufferEvent(event) {
         this.eventBuffer.push(event);
@@ -651,15 +652,15 @@ export class UIManager {
     }
 
     _stripEventReferences(text) {
-        return String(text ?? "")
-            .replace(/nostr:(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-            .replace(/\b(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-            .trim();
-}
+    return String(text ?? "")
+        .replace(/nostr:(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
+        .replace(/\b(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
+        .trim();
+    }
 
     _getVisibleContentLength(text) {
-        return this._stripEventReferences(text).length;
-}
+    return this._stripEventReferences(text).length;
+    }
     
     _getQuoteReferences(event) {
         const refs = [];
