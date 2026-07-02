@@ -1,6 +1,5 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 import { validateEvent, verifyEvent, getEventHash } from "https://esm.sh/nostr-tools@2";
-import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 
 const Bech32 = (() => {
     const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -710,34 +709,35 @@ export class NostrClient {
     }
     
     async publish(content, extraTags = []) {
-        if (this.validator.isContentInvalid(content)) {
-            throw new Error(UI_STRINGS.INVALID_CONTENT);
-        }
+    if (this.validator.isContentInvalid(content)) {
+        throw new Error(UI_STRINGS.INVALID_CONTENT);
+    }
 
-        if (!window.nostr) {
-            throw new Error(UI_STRINGS.NIP07_REQUIRED);
-        }
+    if (!window.nostr) {
+        throw new Error(UI_STRINGS.NIP07_REQUIRED);
+    }
 
-        const pubkey = await window.nostr.getPublicKey();
-        if (this.validator.isPubkeyBlocked(pubkey)) {
-            throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
-        }
+    const pubkey = await window.nostr.getPublicKey();
+    if (this.validator.isPubkeyBlocked(pubkey)) {
+        throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
+    }
 
-        const event = {
-            kind: NOSTR_KINDS.TEXT,
-            content,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: this.buildPostTags(content),
-            pubkey,
-        };
+    const event = {
+        kind: NOSTR_KINDS.TEXT,
+        content,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [...this.buildPostTags(content), ...extraTags],
+        pubkey,
+    };
 
-        const signed = await window.nostr.signEvent(event);
-        if (!this.validator.isEventAuthentic(signed)) {
+    const signed = await window.nostr.signEvent(event);
+    if (!this.validator.isEventAuthentic(signed)) {
         throw new Error("Invalid signed event.");
-        }
-        this._broadcast(signed);
-        return signed;
-        }
+    }
+
+    this._broadcast(signed);
+    return signed;
+}
 
     async sendReaction(target) {
         if (this.reactedEventIds.has(target.id)) return;
@@ -752,7 +752,7 @@ export class NostrClient {
             kind: NOSTR_KINDS.REACTION,
             content: "+",
             created_at: Math.floor(Date.now() / 1000),
-            tags: extraTags,
+            tags: [["e", target.id], ["p", target.pubkey]],
             pubkey,
         };
 
