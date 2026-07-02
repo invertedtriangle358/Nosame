@@ -355,7 +355,7 @@ export class UIManager {
         });
 
         this.dom.inputs.compose?.addEventListener("input", (e) => {
-            const len = e.target.value.length;
+            const len = this._getVisibleContentLength(e.target.value);
             const counter = this.dom.counters.char;
             if (!counter) return;
 
@@ -443,6 +443,10 @@ export class UIManager {
         if (!content) {
             alert(UI_STRINGS.EMPTY_POST);
             return;
+        if (this._getVisibleContentLength(content) > CONFIG.MAX_POST_LENGTH) {
+            alert(UI_STRINGS.INVALID_CONTENT);
+        return;
+}
         }
 
         try {
