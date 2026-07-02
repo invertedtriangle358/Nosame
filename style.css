@@ -244,7 +244,7 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
 }
 
 .note .content .alert-eew {
-    color: #ff4d4f;
+    color: #df4d4f;
     font-weight: 700;
 }
 
