@@ -19,6 +19,7 @@ export const CONFIG = {
 export const NOSTR_KINDS = {
     METADATA: 0,
     TEXT: 1,
+    REPOST: 6,
     REACTION: 7,
 };
 
