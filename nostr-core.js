@@ -1,4 +1,6 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
+import { validateEvent, verifyEvent, getEventHash } from "https://esm.sh/nostr-tools@2";
+import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 
 const Bech32 = (() => {
     const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -233,6 +235,36 @@ export class NostrCodec {
 export class EventValidator {
     constructor(storage) {
         this.storage = storage;
+    }
+
+    isHex(value, length) {
+        return typeof value === "string" && new RegExp(`^[0-9a-f]{${length}}$`).test(value);
+    }
+
+    isKindValid(kind) {
+        return Number.isInteger(kind) && kind >= 0 && kind <= 65535;
+    }
+
+    isEventShapeValid(event) {
+        return Boolean(
+            validateEvent(event) &&
+            this.isHex(event.id, 64) &&
+            this.isHex(event.pubkey, 64) &&
+            this.isHex(event.sig, 128) &&
+            this.isKindValid(event.kind)
+        );
+    }
+
+    isEventAuthentic(event) {
+        if (!this.isEventShapeValid(event)) return false;
+
+        try {
+            if (event.id !== getEventHash(event)) return false;
+            return verifyEvent(event);
+        } catch (err) {
+            console.warn("Failed to validate event signature.", err);
+            return false;
+        }
     }
 
     isContentInvalid(text) {
@@ -611,38 +643,36 @@ export class NostrClient {
     }
 
     _handleMessage(ev, ws = null) {
-        try {
-            const [type, subId, event] = JSON.parse(ev.data);
-            if (type !== "EVENT" || !event?.id) return;
-            event._relayUrl = ws?._relayUrl ?? "";
+    try {
+        const [type, subId, event] = JSON.parse(ev.data);
+        if (type !== "EVENT" || !event?.id) return;
+        event._relayUrl = ws?._relayUrl ?? "";
 
-            if (typeof subId === "string" && subId.startsWith("refs-")) {
-                this.onReferencedEventCallback?.(event);
-                return;
-            }
-            
-            if (this.seenEventIds.has(event.id)) return;
+        if (!this.validator.isEventAuthentic(event)) return;
 
-            // ✅ メモリリーク対策：イベント数が上限を超えたら古いものを削除
-            this._trimSeenEventIds();
-
-            this.seenEventIds.add(event.id);
-
-            if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-
-            if (event.kind === NOSTR_KINDS.METADATA) {
-                this.onMetadataCallback?.(event);
-                return;
-            }
-
-            if (event.kind !== NOSTR_KINDS.TEXT && event.kind !== 6) return;
-            if (this.validator.isContentInvalid(event.content)) return;
-
-            this.onEventCallback?.(event);
-        } catch (err) {
-            console.error("Failed to parse relay message.", err);
+        if (typeof subId === "string" && subId.startsWith("refs-")) {
+            this.onReferencedEventCallback?.(event);
+            return;
         }
+
+        if (this.seenEventIds.has(event.id)) return;
+        this.seenEventIds.add(event.id);
+
+        if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+
+        if (event.kind === NOSTR_KINDS.METADATA) {
+            this.onMetadataCallback?.(event);
+            return;
+        }
+
+        if (event.kind !== NOSTR_KINDS.TEXT && event.kind !== 6) return;
+        if (this.validator.isContentInvalid(event.content)) return;
+
+        this.onEventCallback?.(event);
+    } catch (err) {
+        console.error("Failed to parse relay message.", err);
     }
+}
 
     // ✅ メモリリーク対策メソッド
     _trimSeenEventIds() {
@@ -702,9 +732,12 @@ export class NostrClient {
         };
 
         const signed = await window.nostr.signEvent(event);
+        if (!this.validator.isEventAuthentic(signed)) {
+        throw new Error("Invalid signed event.");
+        }
         this._broadcast(signed);
         return signed;
-    }
+        }
 
     async sendReaction(target) {
         if (this.reactedEventIds.has(target.id)) return;
