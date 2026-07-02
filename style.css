@@ -113,6 +113,10 @@ main {
     overflow: hidden;
 }
 
+main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
+    display: none;
+}
+
 /* ==============================
    サイドバー
 ============================== */
