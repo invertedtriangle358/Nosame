@@ -524,14 +524,19 @@ export class UIManager {
             this.dom.profileTimeline.innerHTML = "";
         }
 
-        this.events
-            .filter((event) => !this._shouldHideEvent(event))
+        const visibleEvents = this.events.filter((event) => !this._shouldHideEvent(event));
+
+        visibleEvents
+            .filter((event) => this.timelineEventIds.has(event.id))
             .forEach((event) => {
                 this._renderEventInto(this.dom.timeline, event);
-                if (this.profilePubkey && event.pubkey === this.profilePubkey) {
-                    this._renderEventInto(this.dom.profileTimeline, event);
-                }
             });
+
+        if (this.profilePubkey) {
+            visibleEvents
+                .filter((event) => event.pubkey === this.profilePubkey)
+                .forEach((event) => this._renderEventInto(this.dom.profileTimeline, event));
+        }
 
         this._scrollTimelineToLatest();
     }
