@@ -549,6 +549,7 @@ export class UIManager {
         el.dataset.pubkey = ev.pubkey ?? "";
         el.dataset.createdAt = String(ev.created_at);
 
+        
         const reacted = this.client.reactedEventIds.has(ev.id);
         const reposted = this.client.repostedEventIds.has(ev.id);
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
