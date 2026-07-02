@@ -646,6 +646,17 @@ export class UIManager {
         return refs;
     }
 
+    _stripEventReferences(text) {
+        return String(text ?? "")
+            .replace(/nostr:(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
+            .replace(/\b(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
+            .trim();
+}
+
+    _getVisibleContentLength(text) {
+        return this._stripEventReferences(text).length;
+}
+    
     _getQuoteReferences(event) {
         const refs = [];
         const tags = Array.isArray(event?.tags) ? event.tags : [];
