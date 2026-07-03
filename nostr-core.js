@@ -434,11 +434,14 @@ export class NostrClient {
         this.referencedEventsSubId = null;
         this.profileReqSerial = 0;
         this.seenEventIds = new Set();
+        this.seenProfileEventIds = new Set();
         this.reactedEventIds = new Set();
+        this.repostedEventIds = new Set();
         this.intentionallyClosedRelays = new Set();
         this.requestedProfilePubkeys = new Set();
 
         this.onEventCallback = null;
+        this.onProfileEventCallback = null;
         this.onReferencedEventCallback = null;
         this.onMetadataCallback = null;
         this.onStatusCallback = null;
@@ -575,11 +578,30 @@ export class NostrClient {
         if (!pubkey || typeof pubkey !== "string") return;
 
         const normalized = pubkey.toLowerCase();
+        if (this.profileNotesPubkey === normalized && this.activeProfileNotesSubId) return;
+
         this.profileNotesPubkey = normalized;
+        this.seenProfileEventIds.clear();
         const previousSubId = this.activeProfileNotesSubId;
         this.profileNotesSubId = `profile-notes-${this.profileReqSerial += 1}`;
         this.sockets.forEach((ws) => this._sendProfileNotesSubscription(ws, previousSubId));
         this.activeProfileNotesSubId = this.profileNotesSubId;
+    }
+
+    stopProfileNotes() {
+        const subId = this.activeProfileNotesSubId ?? this.profileNotesSubId;
+        if (subId) {
+            this.sockets.forEach((ws) => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify(["CLOSE", subId]));
+                }
+            });
+        }
+
+        this.profileNotesPubkey = null;
+        this.profileNotesSubId = null;
+        this.activeProfileNotesSubId = null;
+        this.seenProfileEventIds.clear();
     }
 
     requestEvents(ids) {
@@ -629,7 +651,7 @@ export class NostrClient {
             "REQ",
             this.profileNotesSubId,
             {
-                kinds: [NOSTR_KINDS.TEXT],
+                kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.REPOST],
                 authors: [this.profileNotesPubkey],
                 limit: CONFIG.PROFILE_TIMELINE_LIMIT,
             },
@@ -644,10 +666,59 @@ export class NostrClient {
             this.referencedEventsSubId,
             {
                 ids,
-                kinds: [NOSTR_KINDS.TEXT],
+                kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.REPOST],
                 limit: ids.length,
             },
         ]));
+    }
+
+    _getRepostTargetId(event) {
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        const targetTag = tags.find((tag) =>
+            Array.isArray(tag) &&
+            tag[0] === "e" &&
+            /^[0-9a-f]{64}$/i.test(tag[1] ?? "")
+        );
+
+        return targetTag ? targetTag[1].toLowerCase() : "";
+    }
+
+    _parseVerifiedRepostContent(event) {
+        const content = String(event?.content ?? "").trim();
+        if (!content) return null;
+
+        let reposted;
+        try {
+            reposted = JSON.parse(content);
+        } catch {
+            return null;
+        }
+
+        if (!this.validator.isEventAuthentic(reposted)) return null;
+
+        const targetId = this._getRepostTargetId(event);
+        if (targetId && reposted.id.toLowerCase() !== targetId) return null;
+
+        return reposted;
+    }
+
+    _isTextEventAllowed(event) {
+        return event.kind === NOSTR_KINDS.TEXT && !this.validator.isContentInvalid(event.content);
+    }
+
+    _isRepostEventAllowed(event) {
+        if (event.kind !== NOSTR_KINDS.REPOST) return false;
+        if (!this._getRepostTargetId(event)) return false;
+
+        const content = String(event.content ?? "").trim();
+        if (!content) return true;
+
+        const reposted = this._parseVerifiedRepostContent(event);
+        if (!reposted) return false;
+        if (this.validator.isPubkeyBlocked(reposted.pubkey)) return false;
+        if (reposted.kind === NOSTR_KINDS.TEXT && this.validator.isContentInvalid(reposted.content)) return false;
+
+        return true;
     }
 
     _handleMessage(ev, ws = null) {
@@ -659,12 +730,25 @@ export class NostrClient {
         if (!this.validator.isEventAuthentic(event)) return;
 
         if (typeof subId === "string" && subId.startsWith("refs-")) {
+            if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+            if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
             this.onReferencedEventCallback?.(event);
+            return;
+        }
+
+        if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
+            if (subId !== this.activeProfileNotesSubId) return;
+            if (this.seenProfileEventIds.has(event.id)) return;
+            this.seenProfileEventIds.add(event.id);
+            if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+            if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+            this.onProfileEventCallback?.(event);
             return;
         }
 
         if (this.seenEventIds.has(event.id)) return;
         this.seenEventIds.add(event.id);
+        this._trimSeenEventIds();
 
         if (this.validator.isPubkeyBlocked(event.pubkey)) return;
 
@@ -673,8 +757,7 @@ export class NostrClient {
             return;
         }
 
-        if (event.kind !== NOSTR_KINDS.TEXT && event.kind !== 6) return;
-        if (this.validator.isContentInvalid(event.content)) return;
+        if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
 
         this.onEventCallback?.(event);
     } catch (err) {
@@ -766,13 +849,22 @@ export class NostrClient {
         };
 
         const signed = await window.nostr.signEvent(event);
+        if (!this.validator.isEventAuthentic(signed)) {
+            throw new Error("Invalid signed event.");
+        }
+
         this._broadcast(signed);
+        this.reactedEventIds.add(target.id);
         return signed;
     }
 
     async sendRepost(target) {
         if (!target?.id) return;
+        if (this.repostedEventIds.has(target.id)) return;
         if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
+        if (!this.validator.isEventAuthentic(target)) {
+            throw new Error("Invalid repost target.");
+        }
 
         const pubkey = await window.nostr.getPublicKey();
         if (this.validator.isPubkeyBlocked(pubkey)) {
@@ -780,8 +872,8 @@ export class NostrClient {
         }
 
         const event = {
-            kind: 6,
-            content: JSON.stringify(target),
+            kind: NOSTR_KINDS.REPOST,
+            content: JSON.stringify(this._toRepostContentEvent(target)),
             created_at: Math.floor(Date.now() / 1000),
             tags: [
                 ["e", target.id, target._relayUrl ?? ""],
@@ -791,8 +883,25 @@ export class NostrClient {
         };
 
         const signed = await window.nostr.signEvent(event);
+        if (!this.validator.isEventAuthentic(signed)) {
+            throw new Error("Invalid signed event.");
+        }
+
         this._broadcast(signed);
-        this.reactedEventIds.add(target.id);
+        this.repostedEventIds.add(target.id);
+        return signed;
+    }
+
+    _toRepostContentEvent(event) {
+        return {
+            id: event.id,
+            pubkey: event.pubkey,
+            created_at: event.created_at,
+            kind: event.kind,
+            tags: Array.isArray(event.tags) ? event.tags : [],
+            content: event.content ?? "",
+            sig: event.sig,
+        };
     }
 
     _broadcast(event) {
