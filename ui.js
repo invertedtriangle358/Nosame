@@ -1,4 +1,4 @@
-import { CONFIG, UI_STRINGS } from "./config.js";
+import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 import { NostrCodec } from "./nostr-core.js";
 
 export class SettingsUIHandler {
@@ -248,6 +248,7 @@ export class UIManager {
         this.bufferTimer = null;
         this.settingsHandler = null;
         this.events = [];
+        this.timelineEventIds = new Set();
         this.referencedEvents = new Map();
         this.profilePubkey = null;
     }
@@ -492,9 +493,21 @@ export class UIManager {
         }
     }
 
+        _storeEvent(ev) {
+        if (!ev?.id) return;
+
+        if (!this.events.some((item) => item.id === ev.id)) {
+            this.events.push(ev);
+            this.events.sort((a, b) => this._compareEvents(a, b));
+        }
+    }
+
     renderEvent(ev) {
         if (!ev?.id) return;
 
+        this._storeEvent(ev);
+        this.timelineEventIds.add(ev.id);
+        
         if (!this.events.some((item) => item.id === ev.id)) {
             this.events.push(ev);
             this.events.sort((a, b) => this._compareEvents(a, b));
@@ -514,6 +527,17 @@ export class UIManager {
         this.referencedEvents.set(event.id, event);
         this.client.requestProfiles([event.pubkey]);
         this.rerenderTimelines();
+    }
+
+        storeProfileEvent(ev) {
+        if (!ev?.id) return;
+
+        this._storeEvent(ev);
+        this.client.requestProfiles([ev.pubkey]);
+
+        if (this.profilePubkey && ev.pubkey === this.profilePubkey && !this._shouldHideEvent(ev)) {
+            this._renderEventInto(this.dom.profileTimeline, ev);
+        }
     }
     
     rerenderTimelines() {
@@ -564,7 +588,7 @@ export class UIManager {
             this.client.requestEvents(quoteRefs.map((ref) => ref.id));
         }
         el.innerHTML = `
-            <div class="content">${this._formatContent(ev.content ?? "", { stripReferences: Boolean(embeddedEvent) })}</div>
+            <div class="content">${this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}</div>
             ${embeddedEvent ? this._renderEmbeddedEvent(embeddedEvent) : ""}
             <div class="meta">
                 <button class="author author-link" type="button">${this._escape(profile.displayName)}</button>
@@ -574,7 +598,7 @@ export class UIManager {
             <div class="note-actions">
                 <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
                 <button class="btn-quote" type="button">💬</button>
-                <button class="btn-repost" type="button">🔁</button>
+                <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? : "🔁"}</button>
             </div>
         `;
 
@@ -602,7 +626,8 @@ export class UIManager {
 
         el.querySelector(".btn-repost").onclick = async (e) => {
             try {
-                await this.client.sendRepost(ev);
+                const repostEvent = await this.client.sendRepost(ev);
+                if (repostEvent) this.renderEvent(repostEvent);
                 e.target.textContent = "済";
                 e.target.disabled = true;
             } catch (err) {
@@ -680,11 +705,11 @@ export class UIManager {
                     id: tag[1].toLowerCase(),
                     relays: tag[2] ? [tag[2]] : [],
                     author: tag[3] ?? "",
-                    kind: 1,
+                    kind: NOSTR_KINDS.TEXT,
                 });
             });
 
-        if (event?.kind === 6) {
+            if (event?.kind === NOSTR_KINDS.REPOST) { {
             tags
                 .filter((tag) => Array.isArray(tag) && tag[0] === "e" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
                 .forEach((tag) => {
@@ -693,7 +718,7 @@ export class UIManager {
                             id: tag[1].toLowerCase(),
                             relays: tag[2] ? [tag[2]] : [],
                             author: "",
-                            kind: 1,
+                            kind: NOSTR_KINDS.TEXT,
                         });
                     }
                 });
@@ -706,25 +731,66 @@ export class UIManager {
         return refs;
     }
 
-    _getEmbeddedEvent(event) {
-        if (event?.kind === 6) {
-            try {
-                const reposted = JSON.parse(event.content ?? "{}");
-                if (reposted?.id) return reposted;
-            } catch {
-                return null;
-            }
+        _getRepostTargetId(event) {
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        const targetTag = tags.find((tag) =>
+            Array.isArray(tag) &&
+            tag[0] === "e" &&
+            /^[0-9a-f]{64}$/i.test(tag[1] ?? "")
+        );
+
+        return targetTag ? targetTag[1].toLowerCase() : "";
+    }
+
+    _getVerifiedRepostContent(event) {
+        if (event?.kind !== NOSTR_KINDS.REPOST) return null;
+
+        let reposted;
+        try {
+            reposted = JSON.parse(event.content ?? "{}");
+        } catch {
+            return null;
+        }
+
+        if (!this.client.validator?.isEventAuthentic(reposted)) return null;
+
+        const targetId = this._getRepostTargetId(event);
+        if (targetId && reposted.id.toLowerCase() !== targetId) return null;
+
+        return reposted;
+    }
+
+    _shouldHideEmbeddedEvent(event) {
+        if (!event) return true;
+        if (this.client.validator?.isPubkeyBlocked(event.pubkey)) return true;
+        if (event.kind === NOSTR_KINDS.TEXT && this.client.validator?.isContentInvalid(event.content)) return true;
+        return this._shouldHideEvent(event);
+    }
+
+    _getDisplayContent(event) {
+        if (event?.kind === NOSTR_KINDS.REPOST) {
+            return "再";
+        }
+
+        return event?.content ?? "";
+    }
+
+        _getEmbeddedEvent(event) {
+        if (event?.kind === NOSTR_KINDS.REPOST) {
+            const reposted = this._getVerifiedRepostContent(event);
+            if (reposted && !this._shouldHideEmbeddedEvent(reposted)) return reposted;
         }
 
         const [ref] = this._getQuoteReferences(event);
-        return ref ? this.events.find((item) => item.id === ref.id) ?? this.referencedEvents.get(ref.id) ?? null : null;
+        const embedded = ref ? this.events.find((item) => item.id === ref.id) ?? this.referencedEvents.get(ref.id) ?? null : null;
+        return embedded && !this._shouldHideEmbeddedEvent(embedded) ? embedded : null;
     }
 
     _renderEmbeddedEvent(event) {
         const profile = this.profiles.getProfile(event.pubkey ?? "");
         return `
             <div class="embedded-note" data-embedded-id="${this._escape(event.id ?? "")}">
-                <div class="embedded-content">${this._formatContent(event.content ?? "", { stripReferences: true })}</div>
+                <div class="embedded-content">${this._formatContent(this._getDisplayContent(event), { stripReferences: true })}</div>
                 <div class="embedded-meta">
                     <span>${this._escape(profile.displayName)}</span>
                     <span>${this._escape(this._formatTimestamp(event.created_at))}</span>
@@ -793,6 +859,7 @@ export class UIManager {
     }
 
     showTimeline() {
+        this.client.stopProfileNotes();
         this.profilePubkey = null;
         this.dom.profilePage.hidden = true;
         this.dom.profilePage.setAttribute("aria-hidden", "true");
