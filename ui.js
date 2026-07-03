@@ -493,7 +493,7 @@ export class UIManager {
         }
     }
 
-        _storeEvent(ev) {
+    _storeEvent(ev) {
         if (!ev?.id) return;
 
         if (!this.events.some((item) => item.id === ev.id)) {
@@ -507,11 +507,6 @@ export class UIManager {
 
         this._storeEvent(ev);
         this.timelineEventIds.add(ev.id);
-        
-        if (!this.events.some((item) => item.id === ev.id)) {
-            this.events.push(ev);
-            this.events.sort((a, b) => this._compareEvents(a, b));
-        }
 
         if (this._shouldHideEvent(ev)) return;
         
@@ -522,14 +517,7 @@ export class UIManager {
         }
     }
 
-    storeReferencedEvent(event) {
-        if (!event?.id) return;
-        this.referencedEvents.set(event.id, event);
-        this.client.requestProfiles([event.pubkey]);
-        this.rerenderTimelines();
-    }
-
-        storeProfileEvent(ev) {
+    storeProfileEvent(ev) {
         if (!ev?.id) return;
 
         this._storeEvent(ev);
@@ -538,6 +526,13 @@ export class UIManager {
         if (this.profilePubkey && ev.pubkey === this.profilePubkey && !this._shouldHideEvent(ev)) {
             this._renderEventInto(this.dom.profileTimeline, ev);
         }
+    }
+
+    storeReferencedEvent(event) {
+        if (!event?.id) return;
+        this.referencedEvents.set(event.id, event);
+        this.client.requestProfiles([event.pubkey]);
+        this.rerenderTimelines();
     }
     
     rerenderTimelines() {
@@ -578,7 +573,6 @@ export class UIManager {
         el.dataset.pubkey = ev.pubkey ?? "";
         el.dataset.createdAt = String(ev.created_at);
 
-        
         const reacted = this.client.reactedEventIds.has(ev.id);
         const reposted = this.client.repostedEventIds.has(ev.id);
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
@@ -598,7 +592,7 @@ export class UIManager {
             <div class="note-actions">
                 <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
                 <button class="btn-quote" type="button">💬</button>
-                <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? : "🔁"}</button>
+                <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? "済" : "🔁"}</button>
             </div>
         `;
 
@@ -709,7 +703,7 @@ export class UIManager {
                 });
             });
 
-            if (event?.kind === NOSTR_KINDS.REPOST) { {
+        if (event?.kind === NOSTR_KINDS.REPOST) {
             tags
                 .filter((tag) => Array.isArray(tag) && tag[0] === "e" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
                 .forEach((tag) => {
@@ -724,14 +718,16 @@ export class UIManager {
                 });
         }
 
-        this._extractEventReferences(event?.content ?? "").forEach((ref) => {
-            if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
-        });
+        if (event?.kind !== NOSTR_KINDS.REPOST) {
+            this._extractEventReferences(event?.content ?? "").forEach((ref) => {
+                if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
+            });
+        }
 
         return refs;
     }
 
-        _getRepostTargetId(event) {
+    _getRepostTargetId(event) {
         const tags = Array.isArray(event?.tags) ? event.tags : [];
         const targetTag = tags.find((tag) =>
             Array.isArray(tag) &&
@@ -769,13 +765,13 @@ export class UIManager {
 
     _getDisplayContent(event) {
         if (event?.kind === NOSTR_KINDS.REPOST) {
-            return "再";
+            return "再投稿";
         }
 
         return event?.content ?? "";
     }
 
-        _getEmbeddedEvent(event) {
+    _getEmbeddedEvent(event) {
         if (event?.kind === NOSTR_KINDS.REPOST) {
             const reposted = this._getVerifiedRepostContent(event);
             if (reposted && !this._shouldHideEmbeddedEvent(reposted)) return reposted;
