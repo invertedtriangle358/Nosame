@@ -747,10 +747,6 @@ export class NostrClient {
             return;
         }
 
-        if (this.seenEventIds.has(event.id)) return;
-        this.seenEventIds.add(event.id);
-        this._trimSeenEventIds();
-
         if (this.validator.isPubkeyBlocked(event.pubkey)) return;
 
         if (event.kind === NOSTR_KINDS.METADATA) {
@@ -761,16 +757,22 @@ export class NostrClient {
         if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
 
         if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
-                this.onProfileNoteCallback?.(event);
-                return;
-            }
-        
-        this.onEventCallback?.(event);
-    } catch (err) {
-        console.error("Failed to parse relay message.", err);
-    }
-}
+            this.onProfileNoteCallback?.(event);
+            return;
+        }
 
+        if (typeof subId === "string" && subId.startsWith("refs-")) {
+            this.onReferencedEventCallback?.(event);
+            return;
+        }
+
+        if (this.seenEventIds.has(event.id)) return;
+        this.seenEventIds.add(event.id);
+        this._trimSeenEventIds();
+        this.onEventCallback?.(event);
+        }
+    }
+        
     // ✅ メモリリーク対策メソッド
     _trimSeenEventIds() {
         const MAX_EVENTS = 10000;
