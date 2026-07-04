@@ -670,7 +670,7 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
 }
 
 .embedded-content {
-    max-height: 11em;
+    max-height: 100%;
     overflow: hidden;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
