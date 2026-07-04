@@ -14,6 +14,9 @@ export const CONFIG = {
     MAX_QUOTE_REFERENCES_PER_EVENT: 3,
     MAX_EVENT_REFERENCE_REQUEST_IDS: 20,
     MAX_ONE_SHOT_SUBSCRIPTIONS: 10,
+    MAX_STORED_EVENTS: 500,
+    MAX_REFERENCED_EVENTS: 200,
+    MAX_PROFILE_CACHE: 1000,
     DEFAULT_RELAYS: [
         "wss://relay-jp.nostr.wirednet.jp",
         "wss://yabu.me",
@@ -22,7 +25,7 @@ export const CONFIG = {
     ],
     RECONNECT_BASE_DELAY_MS: 5000,
     RECONNECT_MAX_DELAY_MS: 60000,
-    PROFILE_TIMELINE_LIMIT: 15,
+    PROFILE_TIMELINE_LIMIT: 20,
 };
 
 export const NOSTR_KINDS = {
