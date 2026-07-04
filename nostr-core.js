@@ -441,6 +441,7 @@ export class NostrClient {
         this.requestedProfilePubkeys = new Set();
 
         this.onEventCallback = null;
+        this.onProfileNoteCallback = null;
         this.onProfileEventCallback = null;
         this.onReferencedEventCallback = null;
         this.onMetadataCallback = null;
@@ -759,6 +760,11 @@ export class NostrClient {
 
         if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
 
+        if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
+                this.onProfileNoteCallback?.(event);
+                return;
+            }
+        
         this.onEventCallback?.(event);
     } catch (err) {
         console.error("Failed to parse relay message.", err);
