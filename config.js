@@ -20,7 +20,8 @@ export const CONFIG = {
         "wss://r.kojira.io",
         "wss://nostr.compile-error.net",
     ],
-    RECONNECT_DELAY_MS: 5000,
+    RECONNECT_BASE_DELAY_MS: 5000,
+    RECONNECT_MAX_DELAY_MS: 60000,
     PROFILE_TIMELINE_LIMIT: 20,
 };
 
