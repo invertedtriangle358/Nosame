@@ -426,22 +426,20 @@ export class NostrClient {
 
         this.sockets = [];
         this.subId = null;
-        this.profileSubId = null;
-        this.activeProfileSubId = null;
         this.profileNotesSubId = null;
         this.activeProfileNotesSubId = null;
         this.profileNotesPubkey = null;
-        this.referencedEventsSubId = null;
         this.profileReqSerial = 0;
+        this.oneShotSubscriptionTimers = new Map();
         this.seenEventIds = new Set();
         this.seenProfileEventIds = new Set();
         this.reactedEventIds = new Set();
         this.repostedEventIds = new Set();
         this.intentionallyClosedRelays = new Set();
         this.requestedProfilePubkeys = new Set();
+        this.requestedReferencedEventIds = new Set();
 
         this.onEventCallback = null;
-        this.onProfileNoteCallback = null;
         this.onProfileEventCallback = null;
         this.onReferencedEventCallback = null;
         this.onMetadataCallback = null;
@@ -461,7 +459,6 @@ export class NostrClient {
             this.intentionallyClosedRelays.delete(ws._relayUrl);
             this._notifyStatus();
             if (this.subId) this._sendTextSubscription(ws);
-            if (this.requestedProfilePubkeys.size > 0) this._sendProfileSubscription(ws);
             if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
         };
 
@@ -490,6 +487,8 @@ export class NostrClient {
     }
 
     connect() {
+        this._clearOneShotSubscriptions();
+
         this.sockets.forEach((ws) => {
             this.intentionallyClosedRelays.add(ws._relayUrl);
             ws.close();
@@ -505,6 +504,11 @@ export class NostrClient {
         });
 
         this._notifyStatus();
+    }
+
+    _clearOneShotSubscriptions() {
+        this.oneShotSubscriptionTimers.forEach((timer) => clearTimeout(timer));
+        this.oneShotSubscriptionTimers.clear();
     }
 
     _reconnect(url) {
@@ -558,21 +562,59 @@ export class NostrClient {
             pubkeys
                 .filter((pubkey) => typeof pubkey === "string" && pubkey)
                 .map((pubkey) => pubkey.toLowerCase())
+                .filter((pubkey) => !this.requestedProfilePubkeys.has(pubkey))
         )];
+        if (normalized.length === 0) return;
 
-        let changed = false;
-        normalized.forEach((pubkey) => {
-            if (!this.requestedProfilePubkeys.has(pubkey)) {
-                this.requestedProfilePubkeys.add(pubkey);
-                changed = true;
+        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
+        if (openSockets.length === 0) return;
+
+        normalized.forEach((pubkey) => this.requestedProfilePubkeys.add(pubkey));
+        this._trimCacheSet(this.requestedProfilePubkeys, CONFIG.PROFILE_REQUEST_CACHE_LIMIT);
+
+        this._chunk(normalized, CONFIG.PROFILE_REQUEST_CHUNK_SIZE).forEach((authors) => {
+            const subId = this._registerOneShotSubscription("profile");
+            openSockets.forEach((ws) => this._sendProfileSubscription(ws, subId, authors));
+        });
+    }
+
+    _chunk(values, size) {
+        const chunks = [];
+        for (let i = 0; i < values.length; i += size) {
+            chunks.push(values.slice(i, i + size));
+        }
+        return chunks;
+    }
+
+    _trimCacheSet(set, limit) {
+        while (set.size > limit) {
+            set.delete(set.values().next().value);
+        }
+    }
+
+    _registerOneShotSubscription(prefix) {
+        const subId = `${prefix}-${this.profileReqSerial += 1}`;
+        const timer = setTimeout(() => {
+            this._closeOneShotSubscription(subId);
+        }, CONFIG.ONE_SHOT_SUBSCRIPTION_TIMEOUT_MS);
+        this.oneShotSubscriptionTimers.set(subId, timer);
+        return subId;
+    }
+
+    _closeOneShotSubscription(subId, ws = null) {
+        if (!this.oneShotSubscriptionTimers.has(subId)) return;
+
+        const sockets = ws ? [ws] : this.sockets;
+        sockets.forEach((socket) => {
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(["CLOSE", subId]));
             }
         });
 
-        if (!changed) return;
-        const previousSubId = this.activeProfileSubId;
-        this.profileSubId = `profile-${this.profileReqSerial += 1}`;
-        this.sockets.forEach((ws) => this._sendProfileSubscription(ws, previousSubId));
-        this.activeProfileSubId = this.profileSubId;
+        if (!ws) {
+            clearTimeout(this.oneShotSubscriptionTimers.get(subId));
+            this.oneShotSubscriptionTimers.delete(subId);
+        }
     }
 
     requestProfileNotes(pubkey) {
@@ -610,30 +652,33 @@ export class NostrClient {
             ids
                 .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
                 .map((id) => id.toLowerCase())
+                .filter((id) => !this.requestedReferencedEventIds.has(id))
         )];
         if (normalized.length === 0) return;
 
-        this.referencedEventsSubId = `refs-${this.profileReqSerial += 1}`;
-        this.sockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, normalized));
+        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
+        if (openSockets.length === 0) return;
+
+        normalized.forEach((id) => this.requestedReferencedEventIds.add(id));
+        this._trimCacheSet(this.requestedReferencedEventIds, CONFIG.REFERENCED_EVENT_REQUEST_CACHE_LIMIT);
+
+        this._chunk(normalized, CONFIG.REFERENCED_EVENT_REQUEST_CHUNK_SIZE).forEach((chunk) => {
+            const subId = this._registerOneShotSubscription("refs");
+            openSockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, subId, chunk));
+        });
     }
 
-    _sendProfileSubscription(ws, previousSubId = null) {
+    _sendProfileSubscription(ws, subId, authors) {
         if (ws.readyState !== WebSocket.OPEN) return;
-        if (this.requestedProfilePubkeys.size === 0) return;
-        if (!this.profileSubId) {
-            this.profileSubId = `profile-${this.profileReqSerial += 1}`;
-        }
+        if (!subId || !Array.isArray(authors) || authors.length === 0) return;
 
-        if (previousSubId) {
-            ws.send(JSON.stringify(["CLOSE", previousSubId]));
-        }
         ws.send(JSON.stringify([
             "REQ",
-            this.profileSubId,
+            subId,
             {
                 kinds: [NOSTR_KINDS.METADATA],
-                authors: [...this.requestedProfilePubkeys],
-                limit: Math.max(this.requestedProfilePubkeys.size, CONFIG.NOSTR_REQ_LIMIT),
+                authors,
+                limit: authors.length,
             },
         ]));
     }
@@ -659,12 +704,13 @@ export class NostrClient {
         ]));
     }
 
-    _sendReferencedEventsSubscription(ws, ids) {
+    _sendReferencedEventsSubscription(ws, subId, ids) {
         if (ws.readyState !== WebSocket.OPEN) return;
+        if (!subId || !Array.isArray(ids) || ids.length === 0) return;
 
         ws.send(JSON.stringify([
             "REQ",
-            this.referencedEventsSubId,
+            subId,
             {
                 ids,
                 kinds: [NOSTR_KINDS.TEXT, NOSTR_KINDS.REPOST],
@@ -723,43 +769,57 @@ export class NostrClient {
     }
 
     _handleMessage(ev, ws = null) {
-    try {
-        const [type, subId, event] = JSON.parse(ev.data);
-        if (type !== "EVENT" || !event?.id) return;
-        event._relayUrl = ws?._relayUrl ?? "";
+        try {
+            const [type, subId, event] = JSON.parse(ev.data);
 
-        if (!this.validator.isEventAuthentic(event)) return;
+            if (type === "EOSE") {
+                this._closeOneShotSubscription(subId, ws);
+                return;
+            }
 
-        if (event.kind === NOSTR_KINDS.METADATA) {
+            if (type !== "EVENT" || !event?.id) return;
+            event._relayUrl = ws?._relayUrl ?? "";
+
+            if (!this.validator.isEventAuthentic(event)) return;
+
+            if (this.oneShotSubscriptionTimers.has(subId) && subId.startsWith("profile-")) {
+                if (event.kind !== NOSTR_KINDS.METADATA) return;
+                if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+                this.onMetadataCallback?.(event);
+                return;
+            }
+
+            if (this.oneShotSubscriptionTimers.has(subId) && subId.startsWith("refs-")) {
+                if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+                if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+                this.onReferencedEventCallback?.(event);
+                return;
+            }
+
+            if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
+                if (subId !== this.activeProfileNotesSubId) return;
+                if (this.seenProfileEventIds.has(event.id)) return;
+                this.seenProfileEventIds.add(event.id);
+                if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+                if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+                this.onProfileEventCallback?.(event);
+                return;
+            }
+
+            if (subId !== this.subId) return;
+            if (this.seenEventIds.has(event.id)) return;
+            this.seenEventIds.add(event.id);
+            this._trimSeenEventIds();
+
             if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-            this.onMetadataCallback?.(event);
-            return;
+            if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+
+            this.onEventCallback?.(event);
+        } catch (err) {
+            console.error("Failed to parse relay message.", err);
         }
-
-        if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-        if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
-
-        if (typeof subId === "string" && subId.startsWith("refs-")) {
-            this.onReferencedEventCallback?.(event);
-            return;
-        }
-
-        if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
-            if (subId !== this.activeProfileNotesSubId) return;
-            this.onProfileNoteCallback?.(event);
-            return;
-        }
-
-        if (this.seenEventIds.has(event.id)) return;
-        this.seenEventIds.add(event.id);
-        this._trimSeenEventIds();
-
-        this.onEventCallback?.(event);
-    } catch (err) {
-        console.error("Failed to parse relay message.", err);
     }
-}
-        
+
     // ✅ メモリリーク対策メソッド
     _trimSeenEventIds() {
         const MAX_EVENTS = 10000;
