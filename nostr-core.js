@@ -436,6 +436,7 @@ export class NostrClient {
         this.reactedEventIds = new Set();
         this.repostedEventIds = new Set();
         this.intentionallyClosedRelays = new Set();
+        this.reconnectAttempts = new Map();
         this.requestedProfilePubkeys = new Set();
         this.requestedReferencedEventIds = new Set();
 
@@ -457,6 +458,7 @@ export class NostrClient {
         ws.onopen = () => {
             console.log("Relay connected:", ws._relayUrl);
             this.intentionallyClosedRelays.delete(ws._relayUrl);
+            this.reconnectAttempts.delete(ws._relayUrl);
             this._notifyStatus();
             if (this.subId) this._sendTextSubscription(ws);
             if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
@@ -471,7 +473,7 @@ export class NostrClient {
                 return;
             }
 
-            setTimeout(() => this._reconnect(ws._relayUrl), CONFIG.RECONNECT_DELAY_MS);
+            this._scheduleReconnect(ws._relayUrl);
         };
 
         ws.onerror = (err) => {
@@ -511,6 +513,17 @@ export class NostrClient {
         this.oneShotSubscriptionTimers.clear();
     }
 
+    _scheduleReconnect(url) {
+        const attempts = this.reconnectAttempts.get(url) ?? 0;
+        const delay = Math.min(
+              CONFIG.RECONNECT_BASE_DELAY_MS * (2 ** attempts),
+              CONFIG.RECONNECT_MAX_DELAY_MS
+        );
+
+        this.reconnectAttempts.set(url, attempts + 1);
+        setTimeout(() => this._reconnect(url), delay);
+    }
+    
     _reconnect(url) {
         if (!this.storage.getRelays().includes(url)) return;
 
