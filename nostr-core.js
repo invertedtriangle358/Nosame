@@ -560,8 +560,9 @@ export class NostrClient {
     requestProfiles(pubkeys) {
         const normalized = [...new Set(
             pubkeys
-                .filter((pubkey) => typeof pubkey === "string" && pubkey)
+                .filter((pubkey) => typeof pubkey === "string")
                 .map((pubkey) => pubkey.toLowerCase())
+                .filter((pubkey) => /^[0-9a-f]{64}$/i.test(pubkey))
                 .filter((pubkey) => !this.requestedProfilePubkeys.has(pubkey))
         )];
         if (normalized.length === 0) return;
