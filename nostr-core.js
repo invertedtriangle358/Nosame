@@ -730,48 +730,35 @@ export class NostrClient {
 
         if (!this.validator.isEventAuthentic(event)) return;
 
-        if (typeof subId === "string" && subId.startsWith("refs-")) {
+        if (event.kind === NOSTR_KINDS.METADATA) {
             if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-            if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+            this.onMetadataCallback?.(event);
+            return;
+        }
+
+        if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+        if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+
+        if (typeof subId === "string" && subId.startsWith("refs-")) {
             this.onReferencedEventCallback?.(event);
             return;
         }
 
         if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
             if (subId !== this.activeProfileNotesSubId) return;
-            if (this.seenProfileEventIds.has(event.id)) return;
-            this.seenProfileEventIds.add(event.id);
-            if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-            if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
-            this.onProfileEventCallback?.(event);
-            return;
-        }
-
-        if (this.validator.isPubkeyBlocked(event.pubkey)) return;
-
-        if (event.kind === NOSTR_KINDS.METADATA) {
-            this.onMetadataCallback?.(event);
-            return;
-        }
-
-        if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
-
-        if (typeof subId === "string" && subId.startsWith("profile-notes-")) {
             this.onProfileNoteCallback?.(event);
-            return;
-        }
-
-        if (typeof subId === "string" && subId.startsWith("refs-")) {
-            this.onReferencedEventCallback?.(event);
             return;
         }
 
         if (this.seenEventIds.has(event.id)) return;
         this.seenEventIds.add(event.id);
         this._trimSeenEventIds();
+
         this.onEventCallback?.(event);
-        }
+    } catch (err) {
+        console.error("Failed to parse relay message.", err);
     }
+}
         
     // ✅ メモリリーク対策メソッド
     _trimSeenEventIds() {
