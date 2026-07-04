@@ -619,9 +619,10 @@ export class NostrClient {
     }
 
     requestProfileNotes(pubkey) {
-        if (!pubkey || typeof pubkey !== "string") return;
+        if (typeof pubkey !== "string") return;
 
         const normalized = pubkey.toLowerCase();
+        if (!/^[0-9a-f]{64}$/i.test(normalized)) return;
         if (this.profileNotesPubkey === normalized && this.activeProfileNotesSubId) return;
 
         this.profileNotesPubkey = normalized;
