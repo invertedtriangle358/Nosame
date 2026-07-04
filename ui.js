@@ -528,6 +528,21 @@ export class UIManager {
         }
     }
 
+    renderProfileEvent(ev) {
+        if (!ev?.id) return;
+
+        if (!this.events.some((item) => item.id === ev.id)) {
+            this.events.push(ev);
+            this.events.sort((a, b) => this._compareEvents(a, b));
+        }
+
+        if (this._shouldHideEvent(ev)) return;
+
+        if (this.profilePubkey && ev.pubkey === this.profilePubkey) {
+            this._renderEventInto(this.dom.profileTimeline, ev);
+        }
+    }
+
     storeReferencedEvent(event) {
         if (!event?.id) return;
         this.referencedEvents.set(event.id, event);
