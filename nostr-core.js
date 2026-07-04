@@ -557,12 +557,16 @@ export class NostrClient {
         ]));
     }
 
+    _isHexPubkey(value) {
+        return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value);
+    }
+
     requestProfiles(pubkeys) {
         const normalized = [...new Set(
             pubkeys
                 .filter((pubkey) => typeof pubkey === "string")
                 .map((pubkey) => pubkey.toLowerCase())
-                .filter((pubkey) => /^[0-9a-f]{64}$/i.test(pubkey))
+                .filter((pubkey) => this._isHexPubkey(pubkey))
                 .filter((pubkey) => !this.requestedProfilePubkeys.has(pubkey))
         )];
         if (normalized.length === 0) return;
