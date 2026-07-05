@@ -594,7 +594,7 @@ export class UIManager {
         const embeddedEvent = this._getEmbeddedEvent(ev);
         const quoteRefs = this._getQuoteReferences(ev);
         const requestedRefs = quoteRefs.slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
-            if (!embeddedEvent && requestedRefs.length > 0) {
+        if (!embeddedEvent && requestedRefs.length > 0) {
         this.client.requestEvents(requestedRefs.map((ref) => ref.id));
     }
         el.innerHTML = `
@@ -710,35 +710,43 @@ export class UIManager {
     return this._stripEventReferences(text).length;
     }
     
-    _getQuoteReferences(event) {
+        _getQuoteReferences(event) {
         const refs = [];
         const tags = Array.isArray(event?.tags) ? event.tags : [];
+        const limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT;
 
         tags
             .filter((tag) => Array.isArray(tag) && tag[0] === "q" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
             .forEach((tag) => {
-                refs.push({
+                this._addQuoteReference(refs, {
                     id: tag[1].toLowerCase(),
                     relays: tag[2] ? [tag[2]] : [],
                     author: tag[3] ?? "",
                     kind: NOSTR_KINDS.TEXT,
-                });
+                }, limit);
             });
 
         if (event?.kind === NOSTR_KINDS.REPOST) {
             tags
                 .filter((tag) => Array.isArray(tag) && tag[0] === "e" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
                 .forEach((tag) => {
-                    if (!refs.some((item) => item.id === tag[1].toLowerCase())) {
-                        refs.push({
-                            id: tag[1].toLowerCase(),
-                            relays: tag[2] ? [tag[2]] : [],
-                            author: "",
-                            kind: NOSTR_KINDS.TEXT,
-                        });
-                    }
+                    this._addQuoteReference(refs, {
+                        id: tag[1].toLowerCase(),
+                        relays: tag[2] ? [tag[2]] : [],
+                        author: "",
+                        kind: NOSTR_KINDS.TEXT,
+                    }, limit);
                 });
         }
+
+        if (event?.kind !== NOSTR_KINDS.REPOST) {
+            this._extractEventReferences(event?.content ?? "", limit - refs.length).forEach((ref) => {
+                this._addQuoteReference(refs, ref, limit);
+            });
+        }
+
+        return refs;
+    }
 
         if (event?.kind !== NOSTR_KINDS.REPOST) {
             this._extractEventReferences(event?.content ?? "").forEach((ref) => {
