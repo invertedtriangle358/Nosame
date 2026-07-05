@@ -593,9 +593,10 @@ export class UIManager {
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
         const embeddedEvent = this._getEmbeddedEvent(ev);
         const quoteRefs = this._getQuoteReferences(ev);
-        if (!embeddedEvent && quoteRefs.length > 0) {
-            this.client.requestEvents(quoteRefs.map((ref) => ref.id));
-        }
+        const requestedRefs = quoteRefs.slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
+            if (!embeddedEvent && requestedRefs.length > 0) {
+        this.client.requestEvents(requestedRefs.map((ref) => ref.id));
+    }
         el.innerHTML = `
             <div class="content">${this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}</div>
             ${embeddedEvent ? this._renderEmbeddedEvent(embeddedEvent) : ""}
@@ -675,19 +676,25 @@ export class UIManager {
         input.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
-    _extractEventReferences(text) {
+    _addQuoteReference(refs, ref, limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT) {
+        if (!ref?.id || refs.length >= limit) return;
+        if (refs.some((item) => item.id === ref.id)) return;
+        refs.push(ref);
+    }
+
+    _extractEventReferences(text, limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT) {
         const refs = [];
         const pattern = /(?:nostr:)?(?:nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi;
 
-        String(text ?? "").replace(pattern, (value) => {
+        for (const match of String(text ?? "").matchAll(pattern)) {
+            if (refs.length >= limit) break;
+
             try {
-                const ref = NostrCodec.fromNevent(value);
-                if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
+                this._addQuoteReference(refs, NostrCodec.fromNevent(match[0]), limit);
             } catch {
-                // Ignore malformed user-pasted references.
+            // Ignore malformed user-pasted references.
             }
-            return value;
-        });
+        }
 
         return refs;
     }
