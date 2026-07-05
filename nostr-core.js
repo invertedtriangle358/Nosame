@@ -611,13 +611,15 @@ export class NostrClient {
     }
 
     _registerOneShotSubscription(prefix) {
-        const subId = `${prefix}-${this.profileReqSerial += 1}`;
-        const timer = setTimeout(() => {
-            this._closeOneShotSubscription(subId);
-        }, CONFIG.ONE_SHOT_SUBSCRIPTION_TIMEOUT_MS);
-        this.oneShotSubscriptionTimers.set(subId, timer);
-        return subId;
-    }
+    if (this.oneShotSubscriptionTimers.size >= CONFIG.MAX_ONE_SHOT_SUBSCRIPTIONS) return null;
+
+    const subId = `${prefix}-${this.profileReqSerial += 1}`;
+    const timer = setTimeout(() => {
+        this._closeOneShotSubscription(subId);
+    }, CONFIG.ONE_SHOT_SUBSCRIPTION_TIMEOUT_MS);
+    this.oneShotSubscriptionTimers.set(subId, timer);
+    return subId;
+}
 
     _closeOneShotSubscription(subId, ws = null) {
         if (!this.oneShotSubscriptionTimers.has(subId)) return;
@@ -667,25 +669,28 @@ export class NostrClient {
     }
 
     requestEvents(ids) {
-        const normalized = [...new Set(
-            ids
-                .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
-                .map((id) => id.toLowerCase())
-                .filter((id) => !this.requestedReferencedEventIds.has(id))
-        )];
-        if (normalized.length === 0) return;
+    if (!Array.isArray(ids)) return;
 
-        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
-        if (openSockets.length === 0) return;
+    const normalized = [...new Set(
+        ids
+            .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
+            .map((id) => id.toLowerCase())
+            .filter((id) => !this.requestedReferencedEventIds.has(id))
+    )].slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
+    if (normalized.length === 0) return;
 
-        normalized.forEach((id) => this.requestedReferencedEventIds.add(id));
-        this._trimCacheSet(this.requestedReferencedEventIds, CONFIG.REFERENCED_EVENT_REQUEST_CACHE_LIMIT);
+    const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
+    if (openSockets.length === 0) return;
 
-        this._chunk(normalized, CONFIG.REFERENCED_EVENT_REQUEST_CHUNK_SIZE).forEach((chunk) => {
-            const subId = this._registerOneShotSubscription("refs");
-            openSockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, subId, chunk));
-        });
-    }
+    this._chunk(normalized, CONFIG.REFERENCED_EVENT_REQUEST_CHUNK_SIZE).forEach((chunk) => {
+        const subId = this._registerOneShotSubscription("refs");
+        if (!subId) return;
+
+        chunk.forEach((id) => this.requestedReferencedEventIds.add(id));
+        openSockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, subId, chunk));
+    });
+    this._trimCacheSet(this.requestedReferencedEventIds, CONFIG.REFERENCED_EVENT_REQUEST_CACHE_LIMIT);
+}
 
     _sendProfileSubscription(ws, subId, authors) {
         if (ws.readyState !== WebSocket.OPEN) return;
