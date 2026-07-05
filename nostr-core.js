@@ -447,7 +447,7 @@ export class NostrClient {
         this.onStatusCallback = null;
     }
 
-        _createSocket(url) {
+    _createSocket(url) {
         const ws = new WebSocket(url);
         ws._relayUrl = url;
         ws._intentionalClose = false;
@@ -472,18 +472,6 @@ export class NostrClient {
             if (ws._intentionalClose) {
                 this.reconnectAttempts.delete(ws._relayUrl);
                 this._clearReconnectTimer(ws._relayUrl);
-                return;
-            }
-
-            this._scheduleReconnect(ws._relayUrl);
-        };
-
-        ws.onclose = () => {
-            console.log("Relay disconnected:", ws._relayUrl);
-            this._notifyStatus();
-
-            if (this.intentionallyClosedRelays.has(ws._relayUrl)) {
-                this.intentionallyClosedRelays.delete(ws._relayUrl);
                 return;
             }
 
