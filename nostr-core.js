@@ -587,13 +587,14 @@ export class NostrClient {
         const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
         if (openSockets.length === 0) return;
 
-        normalized.forEach((pubkey) => this.requestedProfilePubkeys.add(pubkey));
-        this._trimCacheSet(this.requestedProfilePubkeys, CONFIG.PROFILE_REQUEST_CACHE_LIMIT);
-
         this._chunk(normalized, CONFIG.PROFILE_REQUEST_CHUNK_SIZE).forEach((authors) => {
-            const subId = this._registerOneShotSubscription("profile");
-            openSockets.forEach((ws) => this._sendProfileSubscription(ws, subId, authors));
+        const subId = this._registerOneShotSubscription("profile");
+        if (!subId) return;
+
+        authors.forEach((pubkey) => this.requestedProfilePubkeys.add(pubkey));
+        openSockets.forEach((ws) => this._sendProfileSubscription(ws, subId, authors));
         });
+        this._trimCacheSet(this.requestedProfilePubkeys, CONFIG.PROFILE_REQUEST_CACHE_LIMIT);
     }
 
     _chunk(values, size) {
