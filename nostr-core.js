@@ -792,6 +792,12 @@ export class NostrClient {
         return true;
     }
 
+    _isKnownEventSubscription(subId) {
+        if (subId === this.subId) return true;
+        if (subId === this.activeProfileNotesSubId) return true;
+        return typeof subId === "string" && this.oneShotSubscriptionTimers.has(subId);
+    }
+    
     _handleMessage(ev, ws = null) {
         try {
             const [type, subId, event] = JSON.parse(ev.data);
@@ -802,6 +808,8 @@ export class NostrClient {
             }
 
             if (type !== "EVENT" || !event?.id) return;
+            if (!this._isKnownEventSubscription(subId)) return;
+
             event._relayUrl = ws?._relayUrl ?? "";
 
             if (!this.validator.isEventAuthentic(event)) return;
