@@ -435,8 +435,8 @@ export class NostrClient {
         this.seenProfileEventIds = new Set();
         this.reactedEventIds = new Set();
         this.repostedEventIds = new Set();
-        this.intentionallyClosedRelays = new Set();
         this.reconnectAttempts = new Map();
+        this.reconnectTimers = new Map();
         this.requestedProfilePubkeys = new Set();
         this.requestedReferencedEventIds = new Set();
 
@@ -447,9 +447,10 @@ export class NostrClient {
         this.onStatusCallback = null;
     }
 
-    _createSocket(url) {
+        _createSocket(url) {
         const ws = new WebSocket(url);
         ws._relayUrl = url;
+        ws._intentionalClose = false;
         this._attachSocketListeners(ws);
         return ws;
     }
@@ -457,11 +458,24 @@ export class NostrClient {
     _attachSocketListeners(ws) {
         ws.onopen = () => {
             console.log("Relay connected:", ws._relayUrl);
-            this.intentionallyClosedRelays.delete(ws._relayUrl);
             this.reconnectAttempts.delete(ws._relayUrl);
+            this._clearReconnectTimer(ws._relayUrl);
             this._notifyStatus();
             if (this.subId) this._sendTextSubscription(ws);
             if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
+        };
+
+        ws.onclose = () => {
+            console.log("Relay disconnected:", ws._relayUrl);
+            this._notifyStatus();
+
+            if (ws._intentionalClose) {
+                this.reconnectAttempts.delete(ws._relayUrl);
+                this._clearReconnectTimer(ws._relayUrl);
+                return;
+            }
+
+            this._scheduleReconnect(ws._relayUrl);
         };
 
         ws.onclose = () => {
@@ -490,9 +504,11 @@ export class NostrClient {
 
     connect() {
         this._clearOneShotSubscriptions();
+        this._clearReconnectTimers();
+        this.reconnectAttempts.clear();
 
         this.sockets.forEach((ws) => {
-            this.intentionallyClosedRelays.add(ws._relayUrl);
+            ws._intentionalClose = true;
             ws.close();
         });
         this.sockets = [];
@@ -513,17 +529,37 @@ export class NostrClient {
         this.oneShotSubscriptionTimers.clear();
     }
 
+    _clearReconnectTimer(url) {
+        const timer = this.reconnectTimers.get(url);
+        if (!timer) return;
+
+        clearTimeout(timer);
+        this.reconnectTimers.delete(url);
+    }
+
+    _clearReconnectTimers() {
+        this.reconnectTimers.forEach((timer) => clearTimeout(timer));
+        this.reconnectTimers.clear();
+    }
+
     _scheduleReconnect(url) {
+        if (!this.storage.getRelays().includes(url)) return;
+        if (this.reconnectTimers.has(url)) return;
+
         const attempts = this.reconnectAttempts.get(url) ?? 0;
         const delay = Math.min(
-              CONFIG.RECONNECT_BASE_DELAY_MS * (2 ** attempts),
-              CONFIG.RECONNECT_MAX_DELAY_MS
+            CONFIG.RECONNECT_BASE_DELAY_MS * (2 ** attempts),
+            CONFIG.RECONNECT_MAX_DELAY_MS
         );
 
         this.reconnectAttempts.set(url, attempts + 1);
-        setTimeout(() => this._reconnect(url), delay);
+        const timer = setTimeout(() => {
+            this.reconnectTimers.delete(url);
+            this._reconnect(url);
+        }, delay);
+        this.reconnectTimers.set(url, timer);
     }
-    
+
     _reconnect(url) {
         if (!this.storage.getRelays().includes(url)) return;
 
