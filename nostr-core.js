@@ -386,9 +386,14 @@ export class ProfileStore {
         };
 
         const prev = this.metadataByPubkey.get(event.pubkey);
-        if (prev && (prev.created_at ?? 0) > next.created_at) return prev;
+        if (prev && (prev.created_at ?? 0) > next.created_at) {
+            this._trimMetadataCache();
+            return prev;
+        }
 
+        this.metadataByPubkey.delete(event.pubkey);
         this.metadataByPubkey.set(event.pubkey, next);
+        this._trimMetadataCache();
         return next;
     }
 
@@ -416,6 +421,12 @@ export class ProfileStore {
 
     _fallbackName(pubkey) {
         return String(pubkey ?? "").slice(0, 8) || "unknown";
+    }
+
+    _trimMetadataCache() {
+        while (this.metadataByPubkey.size > CONFIG.MAX_PROFILE_CACHE) {
+            this.metadataByPubkey.delete(this.metadataByPubkey.keys().next().value);
+        }
     }
 }
 
