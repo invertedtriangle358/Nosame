@@ -494,22 +494,42 @@ export class UIManager {
     }
 
     _storeEvent(ev) {
-        if (!ev?.id) return;
+        if (!ev?.id) return false;
 
         if (!this.events.some((item) => item.id === ev.id)) {
             this.events.push(ev);
             this.events.sort((a, b) => this._compareEvents(a, b));
+            this._trimStoredEvents();
         }
+
+        return this.events.some((item) => item.id === ev.id);
+    }
+
+    _trimStoredEvents() {
+        if (this.events.length <= CONFIG.MAX_STORED_EVENTS) return;
+
+        const removedEvents = this.events.splice(0, this.events.length - CONFIG.MAX_STORED_EVENTS);
+        removedEvents.forEach((event) => {
+            this.timelineEventIds.delete(event.id);
+            this._removeRenderedEvent(event.id);
+        });
+    }
+
+    _removeRenderedEvent(id) {
+        if (!id) return;
+
+        [this.dom.timeline, this.dom.profileTimeline].forEach((view) => {
+            view?.querySelector(`[data-id="${CSS.escape(id)}"]`)?.remove();
+        });
     }
 
     renderEvent(ev) {
         if (!ev?.id) return;
 
-        this._storeEvent(ev);
+        if (!this._storeEvent(ev)) return;
         this.timelineEventIds.add(ev.id);
 
         if (this._shouldHideEvent(ev)) return;
-        
         this._renderEventInto(this.dom.timeline, ev);
 
         if (this.profilePubkey && ev.pubkey === this.profilePubkey) {
@@ -520,7 +540,7 @@ export class UIManager {
     storeProfileEvent(ev) {
         if (!ev?.id) return;
 
-        this._storeEvent(ev);
+        if (!this._storeEvent(ev)) return;
         this.client.requestProfiles([ev.pubkey]);
 
         if (this.profilePubkey && ev.pubkey === this.profilePubkey && !this._shouldHideEvent(ev)) {
@@ -529,25 +549,25 @@ export class UIManager {
     }
 
     renderProfileEvent(ev) {
-        if (!ev?.id) return;
-
-        if (!this.events.some((item) => item.id === ev.id)) {
-            this.events.push(ev);
-            this.events.sort((a, b) => this._compareEvents(a, b));
-        }
-
-        if (this._shouldHideEvent(ev)) return;
-
-        if (this.profilePubkey && ev.pubkey === this.profilePubkey) {
-            this._renderEventInto(this.dom.profileTimeline, ev);
-        }
+        this.storeProfileEvent(ev);
     }
 
     storeReferencedEvent(event) {
         if (!event?.id) return;
+        if (this.referencedEvents.has(event.id)) {
+            this.referencedEvents.delete(event.id);
+        }
+
         this.referencedEvents.set(event.id, event);
+        this._trimReferencedEvents();
         this.client.requestProfiles([event.pubkey]);
         this.rerenderTimelines();
+    }
+
+    _trimReferencedEvents() {
+        while (this.referencedEvents.size > CONFIG.MAX_REFERENCED_EVENTS) {
+            this.referencedEvents.delete(this.referencedEvents.keys().next().value);
+        }
     }
     
     rerenderTimelines() {
