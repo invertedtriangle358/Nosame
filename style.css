@@ -321,8 +321,13 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
     cursor: default;
 }
 
+.repost-alert {
+    color: #004567;
+    border-right: 1.5px solid #004567;
+}
+
 /* ==============================
-   Settings Panel
+   設定パネル
 ============================== */
 .menu-backdrop {
     position: fixed;
