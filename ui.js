@@ -768,15 +768,6 @@ export class UIManager {
         return refs;
     }
 
-        if (event?.kind !== NOSTR_KINDS.REPOST) {
-            this._extractEventReferences(event?.content ?? "").forEach((ref) => {
-                if (!refs.some((item) => item.id === ref.id)) refs.push(ref);
-            });
-        }
-
-        return refs;
-    }
-
     _getRepostTargetId(event) {
         const tags = Array.isArray(event?.tags) ? event.tags : [];
         const targetTag = tags.find((tag) =>
