@@ -1,3 +1,5 @@
+import { NOSTR_KINDS } from "./config.js";
+
 const Bech32 = (() => {
     const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
