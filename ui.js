@@ -267,6 +267,7 @@ export class UIManager {
         const $ = (id) => document.getElementById(id);
 
         this.dom = {
+            composerResizeHandle: $("composerResizeHandle"),
             timeline: $("timeline"),
             profilePage: $("profilePage"),
             profileTimeline: $("profileTimeline"),
