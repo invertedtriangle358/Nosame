@@ -22,6 +22,8 @@ export class SettingsUIHandler {
         this.dom.inputs.hideContentWarnings?.addEventListener("change", (e) => {
             this.storage.saveHideContentWarnings(e.target.checked);
             this.ui.rerenderTimelines();
+            this.settingsHandler.setupListeners();
+        　　this._setupComposerResize();
         });
     }
 
@@ -986,5 +988,46 @@ export class UIManager {
         return safe
             .replace(/【緊急地震速報】/g, '<span class="alert-eew">【緊急地震速報】</span>')
             .replace(/\n/g, "<br>");
+    }
+
+　　_setupComposerResize() {
+        const handle = this.dom.composerResizeHandle;
+        const sidebar = handle?.closest(".sidebar");
+        if (!handle || !sidebar) return;
+
+        const minWidth = 75;
+        const maxWidth = 260;
+        const savedWidth = Number(localStorage.getItem("composerWidth") || 0);
+
+        if (savedWidth) {
+            sidebar.style.width = `${Math.min(Math.max(savedWidth, minWidth), maxWidth)}px`;
+        }
+
+        handle.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            handle.setPointerCapture(e.pointerId);
+
+            const startX = e.clientX;
+            const startWidth = sidebar.getBoundingClientRect().width;
+
+            const onMove = (moveEvent) => {
+                const nextWidth = Math.min(
+                    Math.max(startWidth + startX - moveEvent.clientX, minWidth),
+                    maxWidth
+                );
+                sidebar.style.width = `${nextWidth}px`;
+            };
+
+            const onUp = () => {
+                localStorage.setItem("composerWidth", String(Math.round(sidebar.getBoundingClientRect().width)));
+                handle.removeEventListener("pointermove", onMove);
+                handle.removeEventListener("pointerup", onUp);
+                handle.removeEventListener("pointercancel", onUp);
+            };
+
+            handle.addEventListener("pointermove", onMove);
+            handle.addEventListener("pointerup", onUp);
+            handle.addEventListener("pointercancel", onUp);
+        });
     }
 }
