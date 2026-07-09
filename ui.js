@@ -613,12 +613,15 @@ export class UIManager {
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
         const embeddedEvent = this._getEmbeddedEvent(ev);
         const quoteRefs = this._getQuoteReferences(ev);
+        const isRepost = ev.kind === NOSTR_KINDS.REPOST;
         const requestedRefs = quoteRefs.slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
         if (!embeddedEvent && requestedRefs.length > 0) {
         this.client.requestEvents(requestedRefs.map((ref) => ref.id));
     }
         el.innerHTML = `
-            <div class="content">${this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}</div>
+            <div class="content">
+            ${isRepost ? '<span class="repost-alert">再投稿</span>' : this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}
+            </div>
             ${embeddedEvent ? this._renderEmbeddedEvent(embeddedEvent) : ""}
             <div class="meta">
                 <button class="author author-link" type="button">${this._escape(profile.displayName)}</button>
@@ -730,7 +733,7 @@ export class UIManager {
     return this._stripEventReferences(text).length;
     }
     
-        _getQuoteReferences(event) {
+    _getQuoteReferences(event) {
         const refs = [];
         const tags = Array.isArray(event?.tags) ? event.tags : [];
         const limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT;
