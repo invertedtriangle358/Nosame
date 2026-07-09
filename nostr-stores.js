@@ -1,3 +1,5 @@
+import { CONFIG, NOSTR_KINDS } from "./config.js";
+
 export class StorageManager {
     constructor(storageAdapter = localStorage) {
         this.storage = storageAdapter;
