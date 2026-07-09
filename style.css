@@ -121,13 +121,21 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
    サイドバー
 ============================== */
 .sidebar {
+    position: relative;
     width: 75px;
+    min-width: 75px;
+    max-width: 260px;
     flex-shrink: 0;
-    border-right: 1px solid var(--c-gray);
-    background: var(--c-bg-main);
-    display: flex;
-    flex-direction: column;
-    padding: 16px;
+}
+
+.composer-resize-handle {
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 10px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 5;
 }
 
 .sidebar-header button {
