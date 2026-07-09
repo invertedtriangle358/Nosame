@@ -14,6 +14,16 @@ export class EventValidator {
         return Number.isInteger(kind) && kind >= 0 && kind <= 65535;
     }
 
+        isEventShapeValid(event) {
+        return Boolean(
+            validateEvent(event) &&
+            this.isHex(event.id, 64) &&
+            this.isHex(event.pubkey, 64) &&
+            this.isHex(event.sig, 128) &&
+            this.isKindValid(event.kind)
+        );
+    }
+    
     isEventAuthentic(event) {
         if (!this.isEventShapeValid(event)) return false;
 
