@@ -5,29 +5,6 @@ export { EventValidator } from "./nostr-validator.js";
 export { StorageManager, ProfileStore } from "./nostr-stores.js";
 export { NostrClient } from "./nostr-client.js";
 
-export class EventValidator {
-    constructor(storage) {
-        this.storage = storage;
-    }
-
-    isHex(value, length) {
-        return typeof value === "string" && new RegExp(`^[0-9a-f]{${length}}$`).test(value);
-    }
-
-    isKindValid(kind) {
-        return Number.isInteger(kind) && kind >= 0 && kind <= 65535;
-    }
-
-    isEventShapeValid(event) {
-        return Boolean(
-            validateEvent(event) &&
-            this.isHex(event.id, 64) &&
-            this.isHex(event.pubkey, 64) &&
-            this.isHex(event.sig, 128) &&
-            this.isKindValid(event.kind)
-        );
-    }
-
     isEventAuthentic(event) {
         if (!this.isEventShapeValid(event)) return false;
 
