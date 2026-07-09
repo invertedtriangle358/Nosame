@@ -1,3 +1,5 @@
+import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
+
 export class NostrClient {
     constructor(storage, validator) {
         this.storage = storage;
