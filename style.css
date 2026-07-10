@@ -128,7 +128,6 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
     max-width: 320px;
     flex: 0 0 auto;
     flex-shrink: 0;
-    border-right: 1px solid var(--c-gray);
     background: var(--c-bg-main);
     display: flex;
     flex-direction: column;
@@ -139,7 +138,7 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
     position: absolute;
     top: 0;
     left: -8px;
-    width: 16px;
+    width: 10px;
     height: 100%;
     cursor: ew-resize;
     touch-action: none;
