@@ -393,7 +393,7 @@ export class UIManager {
         const sidebar = handle?.closest(".sidebar");
         if (!handle || !sidebar) return;
 
-        const minWidth = 75;
+        const minWidth = 60;
         const maxWidth = 320;
 
         handle.addEventListener("pointerdown", (e) => {
