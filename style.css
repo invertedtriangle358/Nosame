@@ -123,8 +123,8 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
 .sidebar {
     position: relative;
     margin: 10px;
-    width: 50px;
-    min-width: 50px;
+    width: 60px;
+    min-width: 60px;
     max-width: 320px;
     flex: 0 0 auto;
     flex-shrink: 0;
