@@ -122,21 +122,39 @@ main:has(> #profilePage[aria-hidden="false"]) > .timeline-wrap {
 ============================== */
 .sidebar {
     position: relative;
+    margin: 10px;
     width: 50px;
-    nargin: 10px;
     min-width: 50px;
-    max-width: 200px;
+    max-width: 320px;
+    flex: 0 0 auto;
     flex-shrink: 0;
+    border-right: 1px solid var(--c-gray);
+    background: var(--c-bg-main);
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
 }
 
 .composer-resize-handle {
     position: absolute;
     top: 0;
-    left: -5px;
-    width: 10px;
+    left: -8px;
+    width: 16px;
     height: 100%;
     cursor: ew-resize;
-    z-index: 5;
+    touch-action: none;
+    user-select: none;
+    z-index: 20;
+}
+
+.composer-resize-handle:hover,
+body.is-resizing-composer .composer-resize-handle {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+body.is-resizing-composer {
+    cursor: ew-resize;
+    user-select: none;
 }
 
 .sidebar-header button {
