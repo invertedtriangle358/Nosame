@@ -348,6 +348,7 @@ export class UIManager {
         });
 
         this.settingsHandler.setupListeners();
+        this._setupComposerResize();
 
         btn.scrollLeft?.addEventListener("click", () => {
             this._getActiveTimeline()?.scrollBy({ left: -300, behavior: "smooth" });
@@ -385,6 +386,43 @@ export class UIManager {
 
         window.addEventListener("hashchange", () => this._syncRoute());
         this._syncRoute();
+    }
+
+        _setupComposerResize() {
+        const handle = this.dom.composerResizeHandle;
+        const sidebar = handle?.closest(".sidebar");
+        if (!handle || !sidebar) return;
+
+        const minWidth = 75;
+        const maxWidth = 320;
+
+        handle.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+
+            const startX = e.clientX;
+            const startWidth = sidebar.getBoundingClientRect().width;
+            document.body.classList.add("is-resizing-composer");
+
+            const onMove = (moveEvent) => {
+                moveEvent.preventDefault();
+                const nextWidth = Math.min(
+                    Math.max(startWidth + startX - moveEvent.clientX, minWidth),
+                    maxWidth
+                );
+                sidebar.style.width = `${nextWidth}px`;
+            };
+
+            const onUp = () => {
+                window.removeEventListener("pointermove", onMove);
+                window.removeEventListener("pointerup", onUp);
+                window.removeEventListener("pointercancel", onUp);
+                document.body.classList.remove("is-resizing-composer");
+            };
+
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+            window.addEventListener("pointercancel", onUp);
+        });
     }
 
     _getActiveTimeline() {
@@ -988,46 +1026,5 @@ export class UIManager {
         return safe
             .replace(/【緊急地震速報】/g, '<span class="alert-eew">【緊急地震速報】</span>')
             .replace(/\n/g, "<br>");
-    }
-
-　　_setupComposerResize() {
-        const handle = this.dom.composerResizeHandle;
-        const sidebar = handle?.closest(".sidebar");
-        if (!handle || !sidebar) return;
-
-        const minWidth = 75;
-        const maxWidth = 260;
-        const savedWidth = Number(localStorage.getItem("composerWidth") || 0);
-
-        if (savedWidth) {
-            sidebar.style.width = `${Math.min(Math.max(savedWidth, minWidth), maxWidth)}px`;
-        }
-
-        handle.addEventListener("pointerdown", (e) => {
-            e.preventDefault();
-            handle.setPointerCapture(e.pointerId);
-
-            const startX = e.clientX;
-            const startWidth = sidebar.getBoundingClientRect().width;
-
-            const onMove = (moveEvent) => {
-                const nextWidth = Math.min(
-                    Math.max(startWidth + startX - moveEvent.clientX, minWidth),
-                    maxWidth
-                );
-                sidebar.style.width = `${nextWidth}px`;
-            };
-
-            const onUp = () => {
-                localStorage.setItem("composerWidth", String(Math.round(sidebar.getBoundingClientRect().width)));
-                handle.removeEventListener("pointermove", onMove);
-                handle.removeEventListener("pointerup", onUp);
-                handle.removeEventListener("pointercancel", onUp);
-            };
-
-            handle.addEventListener("pointermove", onMove);
-            handle.addEventListener("pointerup", onUp);
-            handle.addEventListener("pointercancel", onUp);
-        });
     }
 }
