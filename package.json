@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --input-type=module < tests/run-tests.mjs"
+  }
+}
