@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { validateEvent, verifyEvent, getEventHash } from "https://esm.sh/nostr-tools@2.23.10";
+import { validateEvent, verifyEvent, getEventHash } from "https://esm.sh/nostr-tools@2";
 
 export class EventValidator {
     constructor(storage) {
