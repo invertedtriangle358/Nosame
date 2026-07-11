@@ -3,6 +3,9 @@
 // =======================
 export const CONFIG = {
     MAX_POST_LENGTH: 108,
+    MAX_EVENT_CONTENT_BYTES: 8192,
+    MAX_METADATA_CONTENT_BYTES: 16384,
+    MAX_RELAY_MESSAGE_BYTES: 262144,
     PROFILE_TIMELINE_LIMIT: 20,
 
     EVENT_BUFFER_FLUSH_TIME_MS: 200,
@@ -21,8 +24,10 @@ export const CONFIG = {
     MAX_ONE_SHOT_SUBSCRIPTIONS: 10,
     PROFILE_REQUEST_CACHE_LIMIT: 5000,
     REFERENCED_EVENT_REQUEST_CACHE_LIMIT: 5000,
+    REQUEST_CACHE_TTL_MS: 300000,
     RECONNECT_BASE_DELAY_MS: 5000,
     RECONNECT_MAX_DELAY_MS: 60000,
+    EVENT_ACK_TIMEOUT_MS: 10000,
 
     DEFAULT_RELAYS: [
         "wss://relay-jp.nostr.wirednet.jp",
@@ -45,6 +50,8 @@ export const UI_STRINGS = {
     BLOCKED_PUBKEY: "この公開鍵は遮断されています。",
     NIP07_REQUIRED: "NIP-07対応のNostr拡張機能が必要です。",
     NO_RELAY: "接続中のリレーがありません。",
+    EVENT_REJECTED: "リレーに投稿を拒否されました。",
+    EVENT_ACK_TIMEOUT: "リレーから投稿確認が返りませんでした。",
     INVALID_WSS: "有効な wss:// URL を入力してください。",
     INVALID_PUBKEY: "有効な hex 公開鍵 または npub を入力してください。",
     SAVE_RELAY_SUCCESS: "接続設定を保存しました。",
