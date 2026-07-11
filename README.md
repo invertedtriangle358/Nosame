@@ -96,6 +96,29 @@
 ├── nostr-stores.js     # localStorage管理、プロフィールキャッシュ
 ├── nostr-validator.js  # イベント検証、署名検証、フィルタ判定
 └── ui.js               # DOM操作、タイムライン描画、設定画面
+├── package.json        # テスト実行用のnpmスクリプト
+└── tests/
+    └── run-tests.mjs   # 最小回帰テスト
+```
+
+---
+
+## テスト
+
+依存パッケージを追加せず、Node.js 標準機能だけで最小回帰テストを実行できます。
+
+```powershell
+npm test
+```
+
+現在のテスト対象:
+
+- プロフィール取得時の pubkey 検証
+- 参照イベント取得時の event id 検証
+- 巨大 WebSocket メッセージの破棄
+- 投稿後の `OK` 応答処理
+- 再接続時の問い合わせキャッシュクリア
+- リレー編集の保存前検証
 ```
 
 ---
