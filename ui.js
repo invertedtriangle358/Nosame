@@ -1,5 +1,5 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
-import { NostrCodec } from "./nostr-core.js";
+import { NostrCodec } from "./nostr-codec.js";
 
 export class SettingsUIHandler {
     constructor(dom, storage, client, ui) {
