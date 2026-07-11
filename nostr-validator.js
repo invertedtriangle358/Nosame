@@ -14,7 +14,23 @@ export class EventValidator {
         return Number.isInteger(kind) && kind >= 0 && kind <= 65535;
     }
 
-        isEventShapeValid(event) {
+    _byteLength(value) {
+        return new TextEncoder().encode(String(value ?? "")).length;
+    }
+
+    isContentSizeAllowed(content, limit = CONFIG.MAX_EVENT_CONTENT_BYTES) {
+        return this._byteLength(content) <= limit;
+    }
+
+    isEventContentSizeAllowed(event) {
+        const limit = event?.kind === 0
+            ? CONFIG.MAX_METADATA_CONTENT_BYTES
+            : CONFIG.MAX_EVENT_CONTENT_BYTES;
+
+        return this.isContentSizeAllowed(event?.content ?? "", limit);
+    }
+
+    isEventShapeValid(event) {
         return Boolean(
             validateEvent(event) &&
             this.isHex(event.id, 64) &&
@@ -45,6 +61,7 @@ export class EventValidator {
     
     isContentInvalid(text) {
     if (!text) return false;
+    if (!this.isContentSizeAllowed(text)) return true;
 
     const visibleText = this._stripEventReferences(text);
     if (visibleText.length > CONFIG.MAX_POST_LENGTH) return true;
