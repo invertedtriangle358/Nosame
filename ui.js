@@ -22,6 +22,8 @@ export class SettingsUIHandler {
         this.dom.inputs.hideContentWarnings?.addEventListener("change", (e) => {
             this.storage.saveHideContentWarnings(e.target.checked);
             this.ui.rerenderTimelines();
+            this.settingsHandler.setupListeners();
+            this._setupComposerResize();
         });
     }
 
