@@ -12,14 +12,16 @@ export class NostrClient {
         this.profileNotesPubkey = null;
         this.profileReqSerial = 0;
         this.oneShotSubscriptionTimers = new Map();
+        this.oneShotSubscriptionFilters = new Map();
         this.seenEventIds = new Set();
         this.seenProfileEventIds = new Set();
         this.reactedEventIds = new Set();
         this.repostedEventIds = new Set();
         this.reconnectAttempts = new Map();
         this.reconnectTimers = new Map();
-        this.requestedProfilePubkeys = new Set();
-        this.requestedReferencedEventIds = new Set();
+        this.requestedProfilePubkeys = new Map();
+        this.requestedReferencedEventIds = new Map();
+        this.pendingEventAcks = new Map();
 
         this.onEventCallback = null;
         this.onProfileEventCallback = null;
@@ -75,6 +77,7 @@ export class NostrClient {
         this._clearOneShotSubscriptions();
         this._clearReconnectTimers();
         this.reconnectAttempts.clear();
+        this._clearRequestCaches();
 
         this.sockets.forEach((ws) => {
             ws._intentionalClose = true;
@@ -96,6 +99,12 @@ export class NostrClient {
     _clearOneShotSubscriptions() {
         this.oneShotSubscriptionTimers.forEach((timer) => clearTimeout(timer));
         this.oneShotSubscriptionTimers.clear();
+        this.oneShotSubscriptionFilters.clear();
+    }
+
+    _clearRequestCaches() {
+        this.requestedProfilePubkeys.clear();
+        this.requestedReferencedEventIds.clear();
     }
 
     _clearReconnectTimer(url) {
@@ -141,6 +150,7 @@ export class NostrClient {
 
         this.sockets = this.sockets.filter((socket) => socket._relayUrl !== url);
         console.log("Reconnecting relay:", url);
+        this._clearRequestCaches();
 
         try {
             this.sockets.push(this._createSocket(url));
@@ -187,7 +197,7 @@ export class NostrClient {
                 .filter((pubkey) => typeof pubkey === "string" && pubkey)
                 .map((pubkey) => pubkey.toLowerCase())
                 .filter((pubkey) => /^[0-9a-f]{64}$/i.test(pubkey))
-                .filter((pubkey) => !this.requestedProfilePubkeys.has(pubkey))
+                .filter((pubkey) => !this._isRecentlyRequested(this.requestedProfilePubkeys, pubkey))
         )];
         if (normalized.length === 0) return;
 
@@ -195,13 +205,16 @@ export class NostrClient {
         if (openSockets.length === 0) return;
 
         this._chunk(normalized, CONFIG.PROFILE_REQUEST_CHUNK_SIZE).forEach((authors) => {
-        const subId = this._registerOneShotSubscription("profile");
-        if (!subId) return;
+            const subId = this._registerOneShotSubscription("profile", {
+                type: "profile",
+                authors: new Set(authors),
+            });
+            if (!subId) return;
 
-        authors.forEach((pubkey) => this.requestedProfilePubkeys.add(pubkey));
-        openSockets.forEach((ws) => this._sendProfileSubscription(ws, subId, authors));
+            authors.forEach((pubkey) => this._rememberRequest(this.requestedProfilePubkeys, pubkey));
+            openSockets.forEach((ws) => this._sendProfileSubscription(ws, subId, authors));
         });
-        this._trimCacheSet(this.requestedProfilePubkeys, CONFIG.PROFILE_REQUEST_CACHE_LIMIT);
+        this._trimCacheMap(this.requestedProfilePubkeys, CONFIG.PROFILE_REQUEST_CACHE_LIMIT);
     }
 
     _chunk(values, size) {
@@ -212,22 +225,39 @@ export class NostrClient {
         return chunks;
     }
 
-    _trimCacheSet(set, limit) {
-        while (set.size > limit) {
-            set.delete(set.values().next().value);
+    _isRecentlyRequested(cache, key) {
+        const requestedAt = cache.get(key);
+        if (!requestedAt) return false;
+
+        if (Date.now() - requestedAt > CONFIG.REQUEST_CACHE_TTL_MS) {
+            cache.delete(key);
+            return false;
+        }
+
+        return true;
+    }
+
+    _rememberRequest(cache, key) {
+        cache.set(key, Date.now());
+    }
+
+    _trimCacheMap(map, limit) {
+        while (map.size > limit) {
+            map.delete(map.keys().next().value);
         }
     }
 
-    _registerOneShotSubscription(prefix) {
-    if (this.oneShotSubscriptionTimers.size >= CONFIG.MAX_ONE_SHOT_SUBSCRIPTIONS) return null;
+    _registerOneShotSubscription(prefix, filter = {}) {
+        if (this.oneShotSubscriptionTimers.size >= CONFIG.MAX_ONE_SHOT_SUBSCRIPTIONS) return null;
 
-    const subId = `${prefix}-${this.profileReqSerial += 1}`;
-    const timer = setTimeout(() => {
-        this._closeOneShotSubscription(subId);
-    }, CONFIG.ONE_SHOT_SUBSCRIPTION_TIMEOUT_MS);
-    this.oneShotSubscriptionTimers.set(subId, timer);
-    return subId;
-}
+        const subId = `${prefix}-${this.profileReqSerial += 1}`;
+        const timer = setTimeout(() => {
+            this._closeOneShotSubscription(subId);
+        }, CONFIG.ONE_SHOT_SUBSCRIPTION_TIMEOUT_MS);
+        this.oneShotSubscriptionTimers.set(subId, timer);
+        this.oneShotSubscriptionFilters.set(subId, filter);
+        return subId;
+    }
 
     _closeOneShotSubscription(subId, ws = null) {
         if (!this.oneShotSubscriptionTimers.has(subId)) return;
@@ -242,6 +272,7 @@ export class NostrClient {
         if (!ws) {
             clearTimeout(this.oneShotSubscriptionTimers.get(subId));
             this.oneShotSubscriptionTimers.delete(subId);
+            this.oneShotSubscriptionFilters.delete(subId);
         }
     }
 
@@ -277,28 +308,31 @@ export class NostrClient {
     }
 
     requestEvents(ids) {
-    if (!Array.isArray(ids)) return;
+        if (!Array.isArray(ids)) return;
 
-    const normalized = [...new Set(
-        ids
-            .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
-            .map((id) => id.toLowerCase())
-            .filter((id) => !this.requestedReferencedEventIds.has(id))
-    )].slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
-    if (normalized.length === 0) return;
+        const normalized = [...new Set(
+            ids
+                .filter((id) => typeof id === "string" && /^[0-9a-f]{64}$/i.test(id))
+                .map((id) => id.toLowerCase())
+                .filter((id) => !this._isRecentlyRequested(this.requestedReferencedEventIds, id))
+        )].slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
+        if (normalized.length === 0) return;
 
-    const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
-    if (openSockets.length === 0) return;
+        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
+        if (openSockets.length === 0) return;
 
-    this._chunk(normalized, CONFIG.REFERENCED_EVENT_REQUEST_CHUNK_SIZE).forEach((chunk) => {
-        const subId = this._registerOneShotSubscription("refs");
-        if (!subId) return;
+        this._chunk(normalized, CONFIG.REFERENCED_EVENT_REQUEST_CHUNK_SIZE).forEach((chunk) => {
+            const subId = this._registerOneShotSubscription("refs", {
+                type: "refs",
+                ids: new Set(chunk),
+            });
+            if (!subId) return;
 
-        chunk.forEach((id) => this.requestedReferencedEventIds.add(id));
-        openSockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, subId, chunk));
-    });
-    this._trimCacheSet(this.requestedReferencedEventIds, CONFIG.REFERENCED_EVENT_REQUEST_CACHE_LIMIT);
-}
+            chunk.forEach((id) => this._rememberRequest(this.requestedReferencedEventIds, id));
+            openSockets.forEach((ws) => this._sendReferencedEventsSubscription(ws, subId, chunk));
+        });
+        this._trimCacheMap(this.requestedReferencedEventIds, CONFIG.REFERENCED_EVENT_REQUEST_CACHE_LIMIT);
+    }
 
     _sendProfileSubscription(ws, subId, authors) {
         if (ws.readyState !== WebSocket.OPEN) return;
@@ -373,6 +407,7 @@ export class NostrClient {
             return null;
         }
 
+        if (!this.validator.isEventContentSizeAllowed(reposted)) return null;
         if (!this.validator.isEventAuthentic(reposted)) return null;
 
         const targetId = this._getRepostTargetId(event);
@@ -405,10 +440,99 @@ export class NostrClient {
         if (subId === this.activeProfileNotesSubId) return true;
         return typeof subId === "string" && this.oneShotSubscriptionTimers.has(subId);
     }
+
+    _isExpectedEventForSubscription(subId, event) {
+        if (subId === this.subId) return true;
+
+        if (subId === this.activeProfileNotesSubId) {
+            return event.pubkey === this.profileNotesPubkey;
+        }
+
+        const filter = this.oneShotSubscriptionFilters.get(subId);
+        if (!filter) return false;
+
+        if (filter.type === "profile") {
+            return event.kind === NOSTR_KINDS.METADATA && filter.authors?.has(event.pubkey);
+        }
+
+        if (filter.type === "refs") {
+            return filter.ids?.has(String(event.id ?? "").toLowerCase());
+        }
+
+        return false;
+    }
+
+    _handleOkMessage(eventId, accepted, message, ws = null) {
+        if (typeof eventId !== "string" || !/^[0-9a-f]{64}$/i.test(eventId)) return;
+
+        this._recordEventAck(
+            eventId.toLowerCase(),
+            ws?._relayUrl ?? "",
+            accepted === true,
+            String(message ?? "")
+        );
+    }
+
+    _resolveEventAck(eventId, result) {
+        const pending = this.pendingEventAcks.get(eventId);
+        if (!pending) return;
+
+        clearTimeout(pending.timer);
+        this.pendingEventAcks.delete(eventId);
+        pending.resolve(result);
+    }
+
+    _rejectEventAck(eventId, error) {
+        const pending = this.pendingEventAcks.get(eventId);
+        if (!pending) return;
+
+        clearTimeout(pending.timer);
+        this.pendingEventAcks.delete(eventId);
+        pending.reject(error);
+    }
+
+    _recordEventAck(eventId, relayUrl, accepted, message = "") {
+        const pending = this.pendingEventAcks.get(eventId);
+        if (!pending) return;
+
+        const url = relayUrl || "unknown";
+        pending.responses.set(url, { accepted, message });
+
+        if (accepted) {
+            this._resolveEventAck(eventId, {
+                eventId,
+                relayUrl: url,
+                message,
+                responses: [...pending.responses.entries()],
+            });
+            return;
+        }
+
+        const allRelaysAnswered = [...pending.expectedRelays]
+            .every((expectedUrl) => pending.responses.has(expectedUrl));
+        if (!allRelaysAnswered) return;
+
+        const reason = [...pending.responses.values()]
+            .map((response) => response.message)
+            .find(Boolean) || UI_STRINGS.EVENT_REJECTED;
+        this._rejectEventAck(eventId, new Error(reason));
+    }
     
     _handleMessage(ev, ws = null) {
         try {
-            const [type, subId, event] = JSON.parse(ev.data);
+            if (typeof ev.data !== "string") return;
+            if (ev.data.length > CONFIG.MAX_RELAY_MESSAGE_BYTES) return;
+
+            const message = JSON.parse(ev.data);
+            if (!Array.isArray(message)) return;
+
+            const [type, subId, event] = message;
+
+            if (type === "OK") {
+                const [, eventId, accepted, relayMessage] = message;
+                this._handleOkMessage(eventId, accepted, relayMessage, ws);
+                return;
+            }
 
             if (type === "EOSE") {
                 this._closeOneShotSubscription(subId, ws);
@@ -417,6 +541,8 @@ export class NostrClient {
 
             if (type !== "EVENT" || !event?.id) return;
             if (!this._isKnownEventSubscription(subId)) return;
+            if (!this._isExpectedEventForSubscription(subId, event)) return;
+            if (!this.validator.isEventContentSizeAllowed(event)) return;
 
             event._relayUrl = ws?._relayUrl ?? "";
 
@@ -485,46 +611,46 @@ export class NostrClient {
                 tag.substring(1)
             ]);
         });
-        const urls = content.match(/https?:\/\/[^\s)\]}>,]+/g) || [];
+    const urls = content.match(/https?:\/\/[^\s)\]}>,]+/g) || [];
         urls.forEach(url => {
-        tags.push([
-            "r",
-            url
+            tags.push([
+                "r",
+                url
             ]);
         });
         return tags;
     }
     
     async publish(content, extraTags = []) {
-    if (this.validator.isContentInvalid(content)) {
-        throw new Error(UI_STRINGS.INVALID_CONTENT);
+        if (this.validator.isContentInvalid(content)) {
+            throw new Error(UI_STRINGS.INVALID_CONTENT);
+        }
+
+        if (!window.nostr) {
+            throw new Error(UI_STRINGS.NIP07_REQUIRED);
+        }
+
+        const pubkey = await window.nostr.getPublicKey();
+        if (this.validator.isPubkeyBlocked(pubkey)) {
+            throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
+        }
+
+        const event = {
+            kind: NOSTR_KINDS.TEXT,
+            content,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [...this.buildPostTags(content), ...extraTags],
+            pubkey,
+        };
+
+        const signed = await window.nostr.signEvent(event);
+        if (!this.validator.isEventAuthentic(signed)) {
+            throw new Error("Invalid signed event.");
+        }
+
+        await this._broadcast(signed);
+        return signed;
     }
-
-    if (!window.nostr) {
-        throw new Error(UI_STRINGS.NIP07_REQUIRED);
-    }
-
-    const pubkey = await window.nostr.getPublicKey();
-    if (this.validator.isPubkeyBlocked(pubkey)) {
-        throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
-    }
-
-    const event = {
-        kind: NOSTR_KINDS.TEXT,
-        content,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [...this.buildPostTags(content), ...extraTags],
-        pubkey,
-    };
-
-    const signed = await window.nostr.signEvent(event);
-    if (!this.validator.isEventAuthentic(signed)) {
-        throw new Error("Invalid signed event.");
-    }
-
-    this._broadcast(signed);
-    return signed;
-}
 
     async sendReaction(target) {
         if (this.reactedEventIds.has(target.id)) return;
@@ -548,7 +674,7 @@ export class NostrClient {
             throw new Error("Invalid signed event.");
         }
 
-        this._broadcast(signed);
+        await this._broadcast(signed);
         this.reactedEventIds.add(target.id);
         return signed;
     }
@@ -576,13 +702,12 @@ export class NostrClient {
             ],
             pubkey,
         };
-
-        const signed = await window.nostr.signEvent(event);
-        if (!this.validator.isEventAuthentic(signed)) {
-            throw new Error("Invalid signed event.");
+        if (!this.validator.isEventContentSizeAllowed(event)) {
+            throw new Error(UI_STRINGS.INVALID_CONTENT);
         }
 
-        this._broadcast(signed);
+        const signed = await window.nostr.signEvent(event);
+        await this._broadcast(signed);
         this.repostedEventIds.add(target.id);
         return signed;
     }
@@ -601,15 +726,40 @@ export class NostrClient {
 
     _broadcast(event) {
         const data = JSON.stringify(["EVENT", event]);
-        let sent = 0;
+        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
 
-        this.sockets.forEach((ws) => {
-            if (ws.readyState === WebSocket.OPEN) {
-                ws.send(data);
-                sent += 1;
-            }
+        if (openSockets.length === 0) throw new Error(UI_STRINGS.NO_RELAY);
+
+        return new Promise((resolve, reject) => {
+            const expectedRelays = new Set(openSockets.map((ws) => ws._relayUrl ?? "unknown"));
+            const timer = setTimeout(() => {
+                const pending = this.pendingEventAcks.get(event.id);
+                const responseMessage = pending
+                    ? [...pending.responses.values()].map((response) => response.message).find(Boolean)
+                    : "";
+                this._rejectEventAck(event.id, new Error(responseMessage || UI_STRINGS.EVENT_ACK_TIMEOUT));
+            }, CONFIG.EVENT_ACK_TIMEOUT_MS);
+
+            this.pendingEventAcks.set(event.id, {
+                expectedRelays,
+                responses: new Map(),
+                timer,
+                resolve,
+                reject,
+            });
+
+            openSockets.forEach((ws) => {
+                try {
+                    ws.send(data);
+                } catch (err) {
+                    this._recordEventAck(
+                        event.id,
+                        ws._relayUrl ?? "",
+                        false,
+                        err instanceof Error ? err.message : String(err)
+                    );
+                }
+            });
         });
-
-        if (sent === 0) throw new Error(UI_STRINGS.NO_RELAY);
     }
 }
