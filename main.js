@@ -20,12 +20,12 @@ window.addEventListener("DOMContentLoaded", async () => {
         ui.bufferEvent(event);
     };
 
-    client.onProfileNoteCallback = (event) => {
+    client.onProfileEventCallback = (event) => {
         client.requestProfiles([event.pubkey]);
         ui.renderProfileEvent(event);
-    };
+　　};
     
-   client.onReferencedEventCallback = (event) => {
+    client.onReferencedEventCallback = (event) => {
         client.requestProfiles([event.pubkey]);
         ui.storeReferencedEvent(event);
     }; 
