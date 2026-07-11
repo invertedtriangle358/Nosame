@@ -32,73 +32,92 @@ export class SettingsUIHandler {
         this.dom.inputs.hideContentWarnings.checked = this.storage.getHideContentWarnings();
     }
     
-    // ← 全角スペースを半角スペースに修正
-    updateRelayList() {
+    updateRelayList({ resetDraft = false } = {}) {
         const container = this.dom.lists.relays;
         if (!container) return;
 
-        const currentRelays = this.storage.getRelays();
-        const existingRows = new Map(
-            [...container.querySelectorAll('[data-relay-url]')]
-                .map(el => [el.dataset.relayUrl, el])
-        );
+        if (!resetDraft && container.querySelector(".relay-row")) {
+            [...container.querySelectorAll(".relay-row")]
+                .forEach((row) => this._updateRelayRowStatus(row));
+            return;
+        }
 
-        // 削除されたリレーのDOM削除
-        existingRows.forEach((el, url) => {
-            if (!currentRelays.includes(url)) {
-                el.remove();
+        container.innerHTML = "";
+        this.storage.getRelays().forEach((url) => this._appendRelayRow(url));
+    }
+
+    _updateRelayRowStatus(row) {
+        const statusSpan = row.querySelector(".relay-status");
+        const inputUrl = row.querySelector(".relay-url-input")?.value?.trim();
+        const url = inputUrl || row.dataset.relayUrl || "";
+        const isConnected = this._isValidRelayUrl(url) && this.client.getRelayStatus(url);
+
+        if (!statusSpan) return;
+        statusSpan.textContent = isConnected ? "🔵" : "🔴";
+        statusSpan.title = isConnected ? "接続中" : "未接続";
+    }
+
+    _appendRelayRow(url) {
+        const container = this.dom.lists.relays;
+        if (!container) return;
+
+        const row = document.createElement("div");
+        row.className = "relay-row";
+        row.dataset.relayUrl = url;
+
+        const isConnected = this.client.getRelayStatus(url);
+        row.innerHTML = `
+            <span class="relay-status" title="${isConnected ? '接続中' : '未接続'}">
+                ${isConnected ? '🔵' : '🔴'}
+            </span>
+            <input type="text" value="${this.ui._escape(url)}" class="relay-url-input">
+            <button class="btn-delete-relay" type="button">×</button>
+        `;
+
+        row.querySelector(".btn-delete-relay").onclick = () => row.remove();
+        container.appendChild(row);
+    }
+
+    _isValidRelayUrl(url) {
+        try {
+            const parsed = new URL(url);
+            return parsed.protocol === "wss:";
+        } catch {
+            return false;
+        }
+    }
+
+    _relayKey(url) {
+        return String(url ?? "").trim().replace(/\/+$/, "");
+    }
+
+    _getDraftRelays() {
+        const container = this.dom.lists.relays;
+        if (!container) return [];
+
+        const urls = [...container.querySelectorAll(".relay-url-input")]
+            .map((input) => input.value.trim())
+            .filter(Boolean);
+        const seen = new Set();
+        const relays = [];
+
+        for (const url of urls) {
+            if (!this._isValidRelayUrl(url)) {
+                alert(UI_STRINGS.INVALID_WSS);
+                return null;
             }
-        });
 
-        // 新規追加または更新
-        currentRelays.forEach((url) => {
-            const existingRow = existingRows.get(url);
-            
-            if (existingRow) {
-                // ✅ 既存行：ステータスのみ更新
-                const statusSpan = existingRow.querySelector('.relay-status');
-                const isConnected = this.client.getRelayStatus(url);
-                statusSpan.textContent = isConnected ? '🔵' : '🔴';
-                statusSpan.title = isConnected ? '接続中' : '未接続';
-            } else {
-                // ✅ 新規行：DOMを追加
-                const row = document.createElement('div');
-                row.className = 'relay-row';
-                row.dataset.relayUrl = url;
-                
-                const isConnected = this.client.getRelayStatus(url);
-                row.innerHTML = `
-                    <span class="relay-status" title="${isConnected ? '接続中' : '未接続'}">
-                        ${isConnected ? '🔵' : '🔴'}
-                    </span>
-                    <input type="text" value="${this.ui._escape(url)}" class="relay-url-input">
-                    <button class="btn-delete-relay" type="button">×</button>
-                `;
-
-                // 削除ボタン
-                row.querySelector('.btn-delete-relay').onclick = () => {
-                    const relays = this.storage.getRelays();
-                    const idx = relays.indexOf(url);
-                    if (idx > -1) {
-                        relays.splice(idx, 1);
-                        this.storage.saveRelays(relays);
-                        this.updateRelayList();
-                    }
-                };
-
-                // 入力フィールド（URL変更時）
-                row.querySelector('.relay-url-input').oninput = (e) => {
-                    const relays = this.storage.getRelays();
-                    const idx = relays.indexOf(url);
-                    if (idx > -1) {
-                        relays[idx] = e.target.value.trim();
-                        this.storage.saveRelays(relays);
-                    }
-                };
-
-                container.appendChild(row);
+            const key = this._relayKey(url);
+            if (seen.has(key)) {
+                alert(UI_STRINGS.DUPLICATE_RELAY);
+                return null;
             }
-        });
+
+            seen.add(key);
+            relays.push(url);
+        }
+
+        return relays;
     }
 
     updateNgList() {
@@ -159,27 +178,30 @@ export class SettingsUIHandler {
         const url = input?.value?.trim();
         if (!url) return;
 
-        try {
-            const parsed = new URL(url);
-            if (parsed.protocol !== "wss:") throw new Error();
-        } catch {
+        if (!this._isValidRelayUrl(url)) {
             alert(UI_STRINGS.INVALID_WSS);
             return;
         }
 
-        const relays = this.storage.getRelays();
-        if (relays.includes(url)) {
+        const relays = this._getDraftRelays();
+        if (!relays) return;
+
+        const key = this._relayKey(url);
+        if (relays.some((relay) => this._relayKey(relay) === key)) {
             alert(UI_STRINGS.DUPLICATE_RELAY);
             return;
         }
 
-        relays.push(url);
-        this.storage.saveRelays(relays);
+        this._appendRelayRow(url);
         input.value = "";
-        this.updateRelayList();
     }
 
     _saveRelays() {
+        const relays = this._getDraftRelays();
+        if (!relays) return;
+
+        this.storage.saveRelays(relays);
+        this.updateRelayList({ resetDraft: true });
         alert(UI_STRINGS.SAVE_RELAY_SUCCESS);
         this.ui.toggleSettingsPanel(false);
         this.client.connect();
@@ -321,7 +343,7 @@ export class UIManager {
 
         btn.openMenu?.addEventListener("click", () => {
             this.toggleSettingsPanel(true);
-            this.settingsHandler.updateRelayList();
+            this.settingsHandler.updateRelayList({ resetDraft: true });
             this.settingsHandler.updateNgList();
             this.settingsHandler.updateBlockedPubkeyList();
             this.settingsHandler.syncContentWarningToggle();
