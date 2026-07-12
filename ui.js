@@ -692,7 +692,7 @@ export class UIManager {
                 <span class="time">${this._escape(this._formatTimestamp(ev.created_at))}</span>
             </div>
             <div class="note-actions">
-                <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "Sent" : "+"}</button>
+                <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "☆" : "+"}</button>
                 <button class="btn-quote" type="button">💬</button>
                 <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? "済" : "🔁"}</button>
             </div>
