@@ -116,6 +116,8 @@ npm test
 
 - プロフィール取得時の pubkey 検証
 - 参照イベント取得時の event id 検証
+- NIP-10 スレッド購読時の root event id 検証
+- NIP-10 返信タグ生成
 - 巨大 WebSocket メッセージの破棄
 - 投稿後の `OK` 応答処理
 - 再接続時の問い合わせキャッシュクリア
