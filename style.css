@@ -670,7 +670,9 @@ body.is-resizing-composer {
 }
 
 .btn-quote,
-.btn-repost {
+.btn-repost,
+.btn-reply,
+.btn-thread {
     width: 30px;
     height: 30px;
     margin-top: 0;
@@ -684,10 +686,28 @@ body.is-resizing-composer {
     transition: transform 0.2s ease;
 }
 
+}
+
 .btn-quote:disabled,
-.btn-repost:disabled {
+.btn-repost:disabled,
+.btn-reply:disabled,
+.btn-thread:disabled {
     opacity: 0.55;
     cursor: default;
+}
+
+.reply-context {
+    margin-top: 8px;
+    padding: 8px;
+    border-inline-start: 3px solid #004567;
+    background: rgb(0 69 103 / 0.18);
+    color: #eaf7fb;
+    overflow: hidden;
+}
+
+.reply-context > span {
+    font-size: 0.78em;
+    font-weight: 700;
 }
 
 .embedded-note {
