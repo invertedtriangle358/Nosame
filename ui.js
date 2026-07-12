@@ -275,10 +275,14 @@ export class UIManager {
         this.timelineEventIds = new Set();
         this.referencedEvents = new Map();
         this.profilePubkey = null;
+        this.replyTarget = null;
+        this.threadRootId = null;
+        this.defaultComposePlaceholder = "";
     }
 
     init() {
         this._cacheDom();
+        this.defaultComposePlaceholder = this.dom.inputs.compose?.getAttribute("placeholder") ?? "";
         this.settingsHandler = new SettingsUIHandler(this.dom, this.storage, this.client, this);
 
         this._setupListeners();
@@ -517,8 +521,10 @@ export class UIManager {
     try {
         const quoteRefs = this._extractEventReferences(content);
         const quoteTags = quoteRefs.map((ref) => ["q", ref.id, ref.relays?.[0] ?? "", ref.author ?? ""]);
-        const event = await this.client.publish(content, quoteTags);
+        const replyTags = this.replyTarget ? this._buildReplyTags(this.replyTarget) : [];
+        const event = await this.client.publish(content, [...replyTags, ...quoteTags]);
         this.renderEvent(event);
+        this._clearReplyTarget();
         input.value = "";
         if (this.dom.counters.char) {
             this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
@@ -593,6 +599,7 @@ export class UIManager {
         this.timelineEventIds.add(ev.id);
 
         if (this._shouldHideEvent(ev)) return;
+        if (this.threadRootId && !this._isEventInThread(ev, this.threadRootId)) return;
         this._renderEventInto(this.dom.timeline, ev);
 
         if (this.profilePubkey && ev.pubkey === this.profilePubkey) {
@@ -643,6 +650,16 @@ export class UIManager {
 
         const visibleEvents = this.events.filter((event) => !this._shouldHideEvent(event));
 
+        if (this.threadRootId) {
+            this._getAllKnownEvents()
+                .filter((event) => !this._shouldHideEvent(event))
+                .filter((event) => this._isEventInThread(event, this.threadRootId))
+                .sort((a, b) => this._compareEvents(a, b))
+                .forEach((event) => this._renderEventInto(this.dom.timeline, event));
+            this._scrollTimelineToLatest();
+            return;
+        }
+
         visibleEvents
             .filter((event) => this.timelineEventIds.has(event.id))
             .forEach((event) => {
@@ -675,16 +692,20 @@ export class UIManager {
         const reposted = this.client.repostedEventIds.has(ev.id);
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
         const embeddedEvent = this._getEmbeddedEvent(ev);
+        const replyRef = this._getReplyParentReference(ev);
+        const rootRef = this._getReplyRootReference(ev);
+        const replyEvent = replyRef ? this._findKnownEvent(replyRef.id) : null;
         const quoteRefs = this._getQuoteReferences(ev);
-        const isRepost = ev.kind === NOSTR_KINDS.REPOST;
-        const requestedRefs = quoteRefs.slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
-        if (!embeddedEvent && requestedRefs.length > 0) {
-        this.client.requestEvents(requestedRefs.map((ref) => ref.id));
-    }
+        const requestedRefs = [...quoteRefs, replyRef, rootRef]
+            .filter(Boolean)
+            .filter((ref, index, refs) => refs.findIndex((item) => item.id === ref.id) === index)
+            .slice(0, CONFIG.MAX_EVENT_REFERENCE_REQUEST_IDS);
+        if (requestedRefs.length > 0) {
+            this.client.requestEvents(requestedRefs.map((ref) => ref.id));
+        }
         el.innerHTML = `
-            <div class="content">
-            ${isRepost ? '<span class="repost-alert">再投稿</span>' : this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}
-            </div>
+            ${replyRef ? this._renderReplyContext(replyEvent, replyRef) : ""}
+            <div class="content">${this._formatContent(this._getDisplayContent(ev), { stripReferences: Boolean(embeddedEvent) })}</div>
             ${embeddedEvent ? this._renderEmbeddedEvent(embeddedEvent) : ""}
             <div class="meta">
                 <button class="author author-link" type="button">${this._escape(profile.displayName)}</button>
@@ -692,8 +713,10 @@ export class UIManager {
                 <span class="time">${this._escape(this._formatTimestamp(ev.created_at))}</span>
             </div>
             <div class="note-actions">
-                <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "☆" : "+"}</button>
-                <button class="btn-quote" type="button">💬</button>
+                <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "★" : "☆"}</button>
+                <button class="btn-reply" type="button">💬</button>
+                <button class="btn-thread" type="button">🧵</button>
+                <button class="btn-quote" type="button">↩</button>
                 <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? "済" : "🔁"}</button>
             </div>
         `;
@@ -718,6 +741,14 @@ export class UIManager {
         
         el.querySelector(".btn-quote").onclick = () => {
             this._insertQuoteReference(ev);
+        };
+
+        el.querySelector(".btn-reply").onclick = () => {
+            this._setReplyTarget(ev);
+        };
+
+        el.querySelector(".btn-thread").onclick = () => {
+            this.showThread(ev);
         };
 
         el.querySelector(".btn-repost").onclick = async (e) => {
@@ -760,6 +791,145 @@ export class UIManager {
         input.value = `${input.value}${separator}${reference}`;
         input.focus();
         input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    _setReplyTarget(event) {
+        if (!event?.id) return;
+
+        this.replyTarget = event;
+        const profile = this.profiles.getProfile(event.pubkey ?? "");
+        if (this.dom.inputs.compose) {
+            this.dom.inputs.compose.placeholder = `返信先: ${profile.displayName}`;
+            this.dom.inputs.compose.focus();
+        }
+        if (this.dom.buttons.publish) {
+            this.dom.buttons.publish.textContent = "返信";
+        }
+    }
+
+    _clearReplyTarget() {
+        this.replyTarget = null;
+        if (this.dom.inputs.compose) {
+            this.dom.inputs.compose.placeholder = this.defaultComposePlaceholder;
+        }
+        if (this.dom.buttons.publish) {
+            this.dom.buttons.publish.textContent = "投稿";
+        }
+    }
+
+    _isHexId(value) {
+        return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value);
+    }
+
+    _eventToReference(event) {
+        if (!event?.id) return null;
+
+        return {
+            id: event.id.toLowerCase(),
+            relays: event._relayUrl ? [event._relayUrl] : [],
+            author: event.pubkey ?? "",
+            kind: event.kind ?? NOSTR_KINDS.TEXT,
+        };
+    }
+
+    _getEventTagReferences(event) {
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        return tags
+            .filter((tag) => Array.isArray(tag) && tag[0] === "e" && this._isHexId(tag[1] ?? ""))
+            .map((tag) => ({
+                id: tag[1].toLowerCase(),
+                relays: tag[2] ? [tag[2]] : [],
+                marker: tag[3] ?? "",
+                author: tag[4] ?? "",
+                kind: NOSTR_KINDS.TEXT,
+            }));
+    }
+
+    _getReplyRootReference(event) {
+        if (event?.kind !== NOSTR_KINDS.TEXT) return null;
+
+        const refs = this._getEventTagReferences(event);
+        const markedRoot = refs.find((ref) => ref.marker === "root");
+        if (markedRoot) return markedRoot;
+        if (refs.length === 0) return null;
+
+        return refs[0];
+    }
+
+    _getReplyParentReference(event) {
+        if (event?.kind !== NOSTR_KINDS.TEXT) return null;
+
+        const refs = this._getEventTagReferences(event);
+        const markedReply = refs.find((ref) => ref.marker === "reply");
+        if (markedReply) return markedReply;
+        if (refs.length === 0) return null;
+
+        return refs[refs.length - 1];
+    }
+
+    _getReplyParticipantPubkeys(event) {
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        return [
+            event?.pubkey ?? "",
+            ...tags
+                .filter((tag) => Array.isArray(tag) && tag[0] === "p" && this._isHexId(tag[1] ?? ""))
+                .map((tag) => tag[1].toLowerCase()),
+        ].filter((pubkey, index, pubkeys) => this._isHexId(pubkey) && pubkeys.indexOf(pubkey) === index);
+    }
+
+    _buildReplyTags(target) {
+        const parentRef = this._eventToReference(target);
+        if (!parentRef) return [];
+
+        const rootRef = this._getReplyRootReference(target) ?? parentRef;
+        const eventTags = rootRef.id === parentRef.id
+            ? [["e", parentRef.id, parentRef.relays[0] ?? "", "root", parentRef.author ?? ""]]
+            : [
+                ["e", rootRef.id, rootRef.relays[0] ?? "", "root", rootRef.author ?? ""],
+                ["e", parentRef.id, parentRef.relays[0] ?? "", "reply", parentRef.author ?? ""],
+            ];
+
+        const pubkeyTags = this._getReplyParticipantPubkeys(target)
+            .map((pubkey) => ["p", pubkey]);
+
+        return [...eventTags, ...pubkeyTags];
+    }
+
+    _findKnownEvent(id) {
+        if (!id) return null;
+        return this.events.find((event) => event.id === id) ?? this.referencedEvents.get(id) ?? null;
+    }
+
+    _getAllKnownEvents() {
+        const byId = new Map();
+        this.events.forEach((event) => byId.set(event.id, event));
+        this.referencedEvents.forEach((event, id) => byId.set(id, event));
+        return [...byId.values()];
+    }
+
+    _isEventInThread(event, rootId) {
+        if (!event?.id || !rootId) return false;
+        if (event.id === rootId) return true;
+
+        const rootRef = this._getReplyRootReference(event);
+        if (rootRef?.id === rootId) return true;
+
+        return this._getEventTagReferences(event).some((ref) => ref.id === rootId);
+    }
+
+    _renderReplyContext(event, ref) {
+        if (!ref?.id) return "";
+
+        if (!event) {
+            return `<div class="reply-context">返信先を取得中</div>`;
+        }
+
+        return `
+            <div class="reply-context">
+                <span>返信先</span>
+                ${this._renderEmbeddedEvent(event)}
+            </div>
+        `;
     }
 
     _addQuoteReference(refs, ref, limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT) {
@@ -902,6 +1072,22 @@ export class UIManager {
         `;
     }
 
+    showThread(event) {
+        const rootRef = this._getReplyRootReference(event) ?? this._eventToReference(event);
+        if (!rootRef?.id) return;
+
+        this.threadRootId = rootRef.id;
+        this.profilePubkey = null;
+        this.client.stopProfileNotes();
+        this.client.requestEvents([rootRef.id]);
+        this.client.requestThread(rootRef.id);
+
+        this.dom.profilePage.hidden = true;
+        this.dom.profilePage.setAttribute("aria-hidden", "true");
+        this.dom.timeline.style.display = "flex";
+        this.rerenderTimelines();
+    }
+
     showProfile(pubkey) {
         if (!pubkey) return;
 
@@ -917,6 +1103,7 @@ export class UIManager {
     updateProfile(pubkey) {
         if (!pubkey) return;
 
+        this.threadRootId = null;
         this.profilePubkey = pubkey;
         this.client.requestProfiles([pubkey]);
         this.client.requestProfileNotes(pubkey);
@@ -964,9 +1151,11 @@ export class UIManager {
     showTimeline() {
         this.client.stopProfileNotes();
         this.profilePubkey = null;
+        this.threadRootId = null;
         this.dom.profilePage.hidden = true;
         this.dom.profilePage.setAttribute("aria-hidden", "true");
         this.dom.timeline.style.display = "flex";
+        this.rerenderTimelines();
         this._scrollTimelineToLatest();
 
         if (window.location.hash) {
