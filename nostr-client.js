@@ -427,7 +427,7 @@ export class NostrClient {
         return targetTag ? targetTag[1].toLowerCase() : "";
     }
 
-    _hasEventReference(event, id) {
+        _hasEventReference(event, id) {
         const normalized = String(id ?? "").toLowerCase();
         if (!/^[0-9a-f]{64}$/i.test(normalized)) return false;
 
@@ -438,6 +438,17 @@ export class NostrClient {
             String(tag[1] ?? "").toLowerCase() === normalized
         );
     }
+
+    _parseVerifiedRepostContent(event) {
+        const content = String(event?.content ?? "").trim();
+        if (!content) return null;
+
+        let reposted;
+        try {
+            reposted = JSON.parse(content);
+        } catch {
+            return null;
+        }
 
         if (!this.validator.isEventContentSizeAllowed(reposted)) return null;
         if (!this.validator.isEventAuthentic(reposted)) return null;
@@ -751,6 +762,10 @@ export class NostrClient {
         }
 
         const signed = await window.nostr.signEvent(event);
+        if (!this.validator.isEventAuthentic(signed)) {
+            throw new Error("Invalid signed event.");
+        }
+
         await this._broadcast(signed);
         this.repostedEventIds.add(target.id);
         return signed;
