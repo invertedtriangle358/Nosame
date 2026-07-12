@@ -100,7 +100,7 @@ globalThis.WebSocket = {
 
 const { CONFIG, NOSTR_KINDS } = await loadLocalModule("config.js");
 const { NostrClient } = await loadLocalModule("nostr-client.js");
-const { SettingsUIHandler } = await loadLocalModule("ui.js");
+const { SettingsUIHandler, UIManager } = await loadLocalModule("ui.js");
 const createClient = createClientFactory(NostrClient);
 const hex = (char) => char.repeat(64);
 
