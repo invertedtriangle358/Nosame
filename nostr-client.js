@@ -385,6 +385,37 @@ export class NostrClient {
         ]));
     }
 
+    requestThread(rootId) {
+        if (typeof rootId !== "string" || !/^[0-9a-f]{64}$/i.test(rootId)) return;
+
+        const normalized = rootId.toLowerCase();
+        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
+        if (openSockets.length === 0) return;
+
+        const subId = this._registerOneShotSubscription("thread", {
+            type: "thread",
+            rootId: normalized,
+        });
+        if (!subId) return;
+
+        openSockets.forEach((ws) => this._sendThreadSubscription(ws, subId, normalized));
+    }
+
+    _sendThreadSubscription(ws, subId, rootId) {
+        if (ws.readyState !== WebSocket.OPEN) return;
+        if (!subId || !/^[0-9a-f]{64}$/i.test(rootId)) return;
+
+        ws.send(JSON.stringify([
+            "REQ",
+            subId,
+            {
+                kinds: [NOSTR_KINDS.TEXT],
+                "#e": [rootId],
+                limit: CONFIG.THREAD_REQUEST_LIMIT,
+            },
+        ]));
+    }
+
     _getRepostTargetId(event) {
         const tags = Array.isArray(event?.tags) ? event.tags : [];
         const targetTag = tags.find((tag) =>
@@ -396,16 +427,17 @@ export class NostrClient {
         return targetTag ? targetTag[1].toLowerCase() : "";
     }
 
-    _parseVerifiedRepostContent(event) {
-        const content = String(event?.content ?? "").trim();
-        if (!content) return null;
+    _hasEventReference(event, id) {
+        const normalized = String(id ?? "").toLowerCase();
+        if (!/^[0-9a-f]{64}$/i.test(normalized)) return false;
 
-        let reposted;
-        try {
-            reposted = JSON.parse(content);
-        } catch {
-            return null;
-        }
+        const tags = Array.isArray(event?.tags) ? event.tags : [];
+        return tags.some((tag) =>
+            Array.isArray(tag) &&
+            tag[0] === "e" &&
+            String(tag[1] ?? "").toLowerCase() === normalized
+        );
+    }
 
         if (!this.validator.isEventContentSizeAllowed(reposted)) return null;
         if (!this.validator.isEventAuthentic(reposted)) return null;
@@ -457,6 +489,11 @@ export class NostrClient {
 
         if (filter.type === "refs") {
             return filter.ids?.has(String(event.id ?? "").toLowerCase());
+        }
+
+        if (filter.type === "thread") {
+            const rootId = filter.rootId;
+            return event.id?.toLowerCase() === rootId || this._hasEventReference(event, rootId);
         }
 
         return false;
@@ -558,6 +595,13 @@ export class NostrClient {
             if (this.oneShotSubscriptionTimers.has(subId) && subId.startsWith("refs-")) {
                 if (this.validator.isPubkeyBlocked(event.pubkey)) return;
                 if (!this._isTextEventAllowed(event) && !this._isRepostEventAllowed(event)) return;
+                this.onReferencedEventCallback?.(event);
+                return;
+            }
+
+            if (this.oneShotSubscriptionTimers.has(subId) && subId.startsWith("thread-")) {
+                if (this.validator.isPubkeyBlocked(event.pubkey)) return;
+                if (!this._isTextEventAllowed(event)) return;
                 this.onReferencedEventCallback?.(event);
                 return;
             }
