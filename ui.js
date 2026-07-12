@@ -714,10 +714,10 @@ export class UIManager {
             </div>
             <div class="note-actions">
                 <button class="btn-reaction" type="button" aria-label="Send reaction" ${reacted ? "disabled" : ""}>${reacted ? "★" : "☆"}</button>
-                <button class="btn-reply" type="button">💬</button>
-                <button class="btn-thread" type="button">🧵</button>
-                <button class="btn-quote" type="button">↩</button>
-                <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? "済" : "🔁"}</button>
+                <button class="btn-reply" type="button">返答</button>
+                <button class="btn-thread" type="button">会話</button>
+                <button class="btn-quote" type="button">引用</button>
+                <button class="btn-repost" type="button" ${reposted ? "disabled" : ""}>${reposted ? "済" : "拡散"}</button>
             </div>
         `;
 
