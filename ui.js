@@ -799,11 +799,11 @@ export class UIManager {
         this.replyTarget = event;
         const profile = this.profiles.getProfile(event.pubkey ?? "");
         if (this.dom.inputs.compose) {
-            this.dom.inputs.compose.placeholder = `返信先: ${profile.displayName}`;
+            this.dom.inputs.compose.placeholder = `返答先: ${profile.displayName}`;
             this.dom.inputs.compose.focus();
         }
         if (this.dom.buttons.publish) {
-            this.dom.buttons.publish.textContent = "返信";
+            this.dom.buttons.publish.textContent = "返答";
         }
     }
 
