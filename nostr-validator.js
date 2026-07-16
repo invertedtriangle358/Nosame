@@ -1,5 +1,10 @@
 import { CONFIG } from "./config.js";
-import { validateEvent, verifyEvent, getEventHash } from "https://esm.sh/nostr-tools@2";
+import { stripEventReferences } from "./nostr-references.js";
+import {
+    validateEvent,
+    verifyEvent,
+    getEventHash,
+} from "https://esm.sh/nostr-tools@2";
 
 export class EventValidator {
     constructor(storage) {
