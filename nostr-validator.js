@@ -58,22 +58,25 @@ export class EventValidator {
     }
 
     _stripEventReferences(text) {
-    return String(text ?? "")
-        .replace(/nostr:(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-        .replace(/\b(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-        .trim();
-}
-    
+        return stripEventReferences(text);
+    }
+
     isContentInvalid(text) {
-    if (!text) return false;
-    if (!this.isContentSizeAllowed(text)) return true;
+        if (!text) return false;
+        if (!this.isContentSizeAllowed(text)) return true;
 
-    const visibleText = this._stripEventReferences(text);
-    if (visibleText.length > CONFIG.MAX_POST_LENGTH) return true;
+        const visibleText = this._stripEventReferences(text);
 
-    const lower = visibleText.toLowerCase();
-    return this.storage.getAllNgWords().some((ng) => lower.includes(ng.toLowerCase()));
-}
+        if (visibleText.length > CONFIG.MAX_POST_LENGTH) {
+            return true;
+    }
+
+        const lower = visibleText.toLowerCase();
+
+        return this.storage
+            .getAllNgWords()
+            .some((ng) => lower.includes(ng.toLowerCase()));
+    }
 
     isPubkeyBlocked(pubkey) {
         if (!pubkey) return false;
