@@ -54,6 +54,10 @@ export class NostrClient {
 
         ws.onclose = () => {
             console.log("Relay disconnected:", ws._relayUrl);
+
+            // ACKを返す前に切断されたリレーを失敗として記録
+            this._recordRelayDisconnect(ws._relayUrl);
+
             this._notifyStatus();
 
             if (ws._intentionalClose) {
@@ -64,13 +68,6 @@ export class NostrClient {
 
             this._scheduleReconnect(ws._relayUrl);
         };
-
-        ws.onerror = (err) => {
-            console.error("Relay error:", ws._relayUrl, err);
-            ws.close();
-        };
-
-        ws.onmessage = (ev) => this._handleMessage(ev, ws);
     }
 
     _notifyStatus() {
@@ -78,6 +75,10 @@ export class NostrClient {
     }
 
     connect() {
+        this._rejectAllPendingEventAcks(
+            new Error(UI_STRINGS.EVENT_ACK_ABORTED)
+        );
+
         this._clearOneShotSubscriptions();
         this._clearReconnectTimers();
         this.reconnectAttempts.clear();
@@ -96,8 +97,6 @@ export class NostrClient {
                 console.error("Failed to create relay socket:", url, err);
             }
         });
-
-        this._notifyStatus();
     }
 
     _clearOneShotSubscriptions() {
@@ -548,13 +547,13 @@ export class NostrClient {
         return false;
     }
 
-    _handleOkMessage(
-        eventId,
-        accepted,
-        message,
-        ws = null
-    ) {
-        if (typeof eventId !== "string" || !/^[0-9a-f]{64}$/i.test(eventId)) return;
+    _handleOkMessage(eventId, accepted, message, ws = null) {
+        if (
+            typeof eventId !== "string" ||
+            !/^[0-9a-f]{64}$/i.test(eventId)
+        ) {
+            return;
+        }
 
         this._recordEventAck(
             eventId.toLowerCase(),
@@ -582,13 +581,45 @@ export class NostrClient {
         pending.reject(error);
     }
 
+    _rejectAllPendingEventAcks(error) {
+        [...this.pendingEventAcks.keys()]
+            .forEach((eventId) => {
+                this._rejectEventAck(eventId, error);
+            });
+    }
+
+    _recordRelayDisconnect(relayUrl) {
+        const url = relayUrl || "unknown";
+
+        [...this.pendingEventAcks.entries()]
+            .forEach(([eventId, pending]) => {
+                if (!pending.expectedRelays.has(url)) return;
+                if (pending.responses.has(url)) return;
+
+                this._recordEventAck(
+                    eventId,
+                    url,
+                    false,
+                    UI_STRINGS.RELAY_DISCONNECTED_DURING_PUBLISH
+                );
+            });
+    }
+
     _recordEventAck(eventId, relayUrl, accepted, message = "") {
         const pending = this.pendingEventAcks.get(eventId);
         if (!pending) return;
 
         const url = relayUrl || "unknown";
-        pending.responses.set(url, { accepted, message });
 
+        // 実際にイベントを送信したリレー以外からのACKは無視
+        if (!pending.expectedRelays.has(url)) return;
+    
+        pending.responses.set(url, {
+            accepted,
+            message,
+        });
+
+        // 1つでも承認されたら送信成功
         if (accepted) {
             this._resolveEventAck(eventId, {
                 eventId,
@@ -599,13 +630,18 @@ export class NostrClient {
             return;
         }
 
+        // すべての送信先リレーから応答が返るまで待つ
         const allRelaysAnswered = [...pending.expectedRelays]
-            .every((expectedUrl) => pending.responses.has(expectedUrl));
+            .every((expectedUrl) => {
+                return pending.responses.has(expectedUrl);
+            });
+
         if (!allRelaysAnswered) return;
 
         const reason = [...pending.responses.values()]
             .map((response) => response.message)
             .find(Boolean) || UI_STRINGS.EVENT_REJECTED;
+
         this._rejectEventAck(eventId, new Error(reason));
     }
     
@@ -621,7 +657,12 @@ export class NostrClient {
 
             if (type === "OK") {
                 const [, eventId, accepted, relayMessage] = message;
-                this._handleOkMessage(eventId, accepted, relayMessage, ws);
+                this._handleOkMessage(
+                    eventId,
+                    accepted,
+                    relayMessage,
+                    ws
+                );
                 return;
             }
 
@@ -750,11 +791,26 @@ export class NostrClient {
         return signed;
     }
 
-    async sendReaction(target) {
-        if (this.reactedEventIds.has(target.id)) return;
-        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
+    sendReaction(target) {
+    const targetId = String(target?.id ?? "").toLowerCase();
+
+    if (!/^[0-9a-f]{64}$/.test(targetId)) return;
+    if (this.reactedEventIds.has(targetId)) return;
+
+    return this._runSingleFlight(
+        this.pendingReactionSends,
+        targetId,
+        () => this._sendReaction(target, targetId)
+    );
+}
+
+    async _sendReaction(target, targetId) {
+        if (!window.nostr) {
+            throw new Error(UI_STRINGS.NIP07_REQUIRED);
+        }
 
         const pubkey = await window.nostr.getPublicKey();
+
         if (this.validator.isPubkeyBlocked(pubkey)) {
             throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
         }
@@ -763,57 +819,112 @@ export class NostrClient {
             kind: NOSTR_KINDS.REACTION,
             content: "+",
             created_at: Math.floor(Date.now() / 1000),
-            tags: [["e", target.id], ["p", target.pubkey]],
+            tags: [
+                ["e", targetId],
+                ["p", target.pubkey],
+            ],
             pubkey,
         };
 
         const signed = await window.nostr.signEvent(event);
+
         if (!this.validator.isEventAuthentic(signed)) {
             throw new Error("Invalid signed event.");
         }
 
         await this._broadcast(signed);
-        this.reactedEventIds.add(target.id);
+
+        this.reactedEventIds.add(targetId);
         return signed;
     }
 
-    async sendRepost(target) {
-        if (!target?.id) return;
-        if (this.repostedEventIds.has(target.id)) return;
-        if (!window.nostr) throw new Error(UI_STRINGS.NIP07_REQUIRED);
+    sendRepost(target) {
+    const targetId = String(target?.id ?? "").toLowerCase();
+
+    if (!/^[0-9a-f]{64}$/.test(targetId)) return;
+    if (this.repostedEventIds.has(targetId)) return;
+
+    return this._runSingleFlight(
+        this.pendingRepostSends,
+        targetId,
+        () => this._sendRepost(target, targetId)
+    );
+}
+
+    async _sendRepost(target, targetId) {
+        if (!window.nostr) {
+            throw new Error(UI_STRINGS.NIP07_REQUIRED);
+        }
+
         if (!this.validator.isEventAuthentic(target)) {
             throw new Error("Invalid repost target.");
         }
 
         const pubkey = await window.nostr.getPublicKey();
+
         if (this.validator.isPubkeyBlocked(pubkey)) {
             throw new Error(UI_STRINGS.BLOCKED_PUBKEY);
         }
 
         const event = {
             kind: NOSTR_KINDS.REPOST,
-            content: JSON.stringify(this._toRepostContentEvent(target)),
+            content: JSON.stringify(
+                this._toRepostContentEvent(target)
+            ),
             created_at: Math.floor(Date.now() / 1000),
             tags: [
-                ["e", target.id, target._relayUrl ?? ""],
+                ["e", targetId, target._relayUrl ?? ""],
                 ["p", target.pubkey ?? ""],
             ],
             pubkey,
         };
+
         if (!this.validator.isEventContentSizeAllowed(event)) {
             throw new Error(UI_STRINGS.INVALID_CONTENT);
         }
 
         const signed = await window.nostr.signEvent(event);
+
         if (!this.validator.isEventAuthentic(signed)) {
             throw new Error("Invalid signed event.");
         }
 
         await this._broadcast(signed);
-        this.repostedEventIds.add(target.id);
+
+        this.repostedEventIds.add(targetId);
         return signed;
     }
 
+    _runSingleFlight(operationMap, key, operationFactory) {
+        const pending = operationMap.get(key);
+
+        // 同じ対象への処理が実行中なら、そのPromiseを再利用
+        if (pending) return pending;
+
+        const operation = Promise.resolve()
+            .then(operationFactory);
+
+        const tracked = operation.then(
+            (result) => {
+                if (operationMap.get(key) === tracked) {
+                    operationMap.delete(key);
+                }
+
+                return result;
+            },
+            (error) => {
+                if (operationMap.get(key) === tracked) {
+                    operationMap.delete(key);
+                }
+
+                throw error;
+            }
+        );
+
+        operationMap.set(key, tracked);
+        return tracked;
+    }
+    
     _toRepostContentEvent(event) {
         return {
             id: event.id,
@@ -827,41 +938,82 @@ export class NostrClient {
     }
 
     _broadcast(event) {
+        const eventId = String(event?.id ?? "").toLowerCase();
+
+        if (!/^[0-9a-f]{64}$/.test(eventId)) {
+            throw new Error("Invalid event id.");
+        }
+
+        // 同じイベントIDのACK待機がある場合は既存Promiseを返す
+        const existing = this.pendingEventAcks.get(eventId);
+        if (existing) return existing.promise;
+
         const data = JSON.stringify(["EVENT", event]);
-        const openSockets = this.sockets.filter((ws) => ws.readyState === WebSocket.OPEN);
 
-        if (openSockets.length === 0) throw new Error(UI_STRINGS.NO_RELAY);
-
-        return new Promise((resolve, reject) => {
-            const expectedRelays = new Set(openSockets.map((ws) => ws._relayUrl ?? "unknown"));
-            const timer = setTimeout(() => {
-                const pending = this.pendingEventAcks.get(event.id);
-                const responseMessage = pending
-                    ? [...pending.responses.values()].map((response) => response.message).find(Boolean)
-                    : "";
-                this._rejectEventAck(event.id, new Error(responseMessage || UI_STRINGS.EVENT_ACK_TIMEOUT));
-            }, CONFIG.EVENT_ACK_TIMEOUT_MS);
-
-            this.pendingEventAcks.set(event.id, {
-                expectedRelays,
-                responses: new Map(),
-                timer,
-                resolve,
-                reject,
-            });
-
-            openSockets.forEach((ws) => {
-                try {
-                    ws.send(data);
-                } catch (err) {
-                    this._recordEventAck(
-                        event.id,
-                        ws._relayUrl ?? "",
-                        false,
-                        err instanceof Error ? err.message : String(err)
-                    );
-                }
-            });
+        const openSockets = this.sockets.filter((ws) => {
+            return ws.readyState === WebSocket.OPEN;
         });
+
+        if (openSockets.length === 0) {
+            throw new Error(UI_STRINGS.NO_RELAY);
+        }
+
+        let resolveAck;
+        let rejectAck;
+
+        const promise = new Promise((resolve, reject) => {
+            resolveAck = resolve;
+            rejectAck = reject;
+        });
+
+        const expectedRelays = new Set(
+            openSockets.map((ws) => {
+                return ws._relayUrl ?? "unknown";
+            })
+        );
+
+        const timer = setTimeout(() => {
+            const pending = this.pendingEventAcks.get(eventId);
+
+            const responseMessage = pending
+                ? [...pending.responses.values()]
+                    .map((response) => response.message)
+                    .find(Boolean)
+                : "";
+
+            this._rejectEventAck(
+                eventId,
+                new Error(
+                    responseMessage ||
+                    UI_STRINGS.EVENT_ACK_TIMEOUT
+                )
+            );
+        }, CONFIG.EVENT_ACK_TIMEOUT_MS);
+
+        this.pendingEventAcks.set(eventId, {
+            expectedRelays,
+            responses: new Map(),
+            timer,
+            promise,
+            resolve: resolveAck,
+            reject: rejectAck,
+        });
+
+        openSockets.forEach((ws) => {
+        try {
+            ws.send(data);
+        } catch (err) {
+            this._recordEventAck(
+                eventId,
+                ws._relayUrl ?? "",
+                false,
+                err instanceof Error
+                    ? err.message
+                    : String(err)
+            );
+        }
+    });
+
+        return promise;
     }
 }
