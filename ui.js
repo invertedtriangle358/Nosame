@@ -1,10 +1,6 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 import { EventReference } from "./event-reference.js";
 import { NostrCodec } from "./nostr-codec.js";
-import {
-    extractEventReferences,
-    stripEventReferences,
-} from "./nostr-references.js";
 
 export class SettingsUIHandler {
     constructor(dom, storage, client, ui) {
@@ -849,10 +845,15 @@ export class UIManager {
         if (!event?.id || !rootId) return false;
         if (event.id === rootId) return true;
 
-        const rootRef = this._getReplyRootReference(event);
-        if (rootRef?.id === rootId) return true;
+        const rootRef = EventReference.getReplyRoot(event);
+        if (rootRef?.id === rootId) {
+            return true;
+        }
 
-        return this._getEventTagReferences(event).some((ref) => ref.id === rootId);
+        return EventReference.hasEventReference(
+            event,
+            rootId
+        );
     }
 
     _renderReplyContext(event, ref) {
@@ -868,10 +869,6 @@ export class UIManager {
                 ${this._renderEmbeddedEvent(event)}
             </div>
         `;
-    }
-
-    _stripEventReferences(text) {
-        return stripEventReferences(text);
     }
 
     _getVisibleContentLength(text) {
@@ -892,7 +889,7 @@ export class UIManager {
 
         if (!this.client.validator?.isEventAuthentic(reposted)) return null;
 
-        const targetId = this._getRepostTargetId(event);
+        const targetId = EventReference.getRepostTargetId(event);
         if (targetId && reposted.id.toLowerCase() !== targetId) return null;
 
         return reposted;
@@ -919,7 +916,7 @@ export class UIManager {
             if (reposted && !this._shouldHideEmbeddedEvent(reposted)) return reposted;
         }
 
-        const [ref] = this._getQuoteReferences(event);
+        const [ref] = EventReference.getQuoteReferences(event);
         const embedded = ref ? this.events.find((item) => item.id === ref.id) ?? this.referencedEvents.get(ref.id) ?? null : null;
         return embedded && !this._shouldHideEmbeddedEvent(embedded) ? embedded : null;
     }
@@ -938,23 +935,25 @@ export class UIManager {
     }
 
     showThread(event) {
-        const rootRef = EventReference.getReplyRoot(event);
-        if (rootRef?.id === rootId) {
-        return true;
-    }
-        return EventReference.hasEventReference(
-        event,
-        rootId
-    );
+        const rootRef =
+            EventReference.getReplyRoot(event) ??
+            EventReference.fromEvent(event);
+
+        if (!rootRef?.id) return;
 
         this.threadRootId = rootRef.id;
         this.profilePubkey = null;
+
         this.client.stopProfileNotes();
         this.client.requestEvents([rootRef.id]);
         this.client.requestThread(rootRef.id);
 
         this.dom.profilePage.hidden = true;
-        this.dom.profilePage.setAttribute("aria-hidden", "true");
+        this.dom.profilePage.setAttribute(
+            "aria-hidden",
+            "true"
+        );
+
         this.dom.timeline.style.display = "flex";
         this.rerenderTimelines();
     }
