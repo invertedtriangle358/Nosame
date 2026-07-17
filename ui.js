@@ -833,84 +833,6 @@ export class UIManager {
         }
     }
 
-    _isHexId(value) {
-        return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value);
-    }
-
-    _eventToReference(event) {
-        if (!event?.id) return null;
-
-        return {
-            id: event.id.toLowerCase(),
-            relays: event._relayUrl ? [event._relayUrl] : [],
-            author: event.pubkey ?? "",
-            kind: event.kind ?? NOSTR_KINDS.TEXT,
-        };
-    }
-
-    _getEventTagReferences(event) {
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        return tags
-            .filter((tag) => Array.isArray(tag) && tag[0] === "e" && this._isHexId(tag[1] ?? ""))
-            .map((tag) => ({
-                id: tag[1].toLowerCase(),
-                relays: tag[2] ? [tag[2]] : [],
-                marker: tag[3] ?? "",
-                author: tag[4] ?? "",
-                kind: NOSTR_KINDS.TEXT,
-            }));
-    }
-
-    _getReplyRootReference(event) {
-        if (event?.kind !== NOSTR_KINDS.TEXT) return null;
-
-        const refs = this._getEventTagReferences(event);
-        const markedRoot = refs.find((ref) => ref.marker === "root");
-        if (markedRoot) return markedRoot;
-        if (refs.length === 0) return null;
-
-        return refs[0];
-    }
-
-    _getReplyParentReference(event) {
-        if (event?.kind !== NOSTR_KINDS.TEXT) return null;
-
-        const refs = this._getEventTagReferences(event);
-        const markedReply = refs.find((ref) => ref.marker === "reply");
-        if (markedReply) return markedReply;
-        if (refs.length === 0) return null;
-
-        return refs[refs.length - 1];
-    }
-
-    _getReplyParticipantPubkeys(event) {
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        return [
-            event?.pubkey ?? "",
-            ...tags
-                .filter((tag) => Array.isArray(tag) && tag[0] === "p" && this._isHexId(tag[1] ?? ""))
-                .map((tag) => tag[1].toLowerCase()),
-        ].filter((pubkey, index, pubkeys) => this._isHexId(pubkey) && pubkeys.indexOf(pubkey) === index);
-    }
-
-    _buildReplyTags(target) {
-        const parentRef = this._eventToReference(target);
-        if (!parentRef) return [];
-
-        const rootRef = this._getReplyRootReference(target) ?? parentRef;
-        const eventTags = rootRef.id === parentRef.id
-            ? [["e", parentRef.id, parentRef.relays[0] ?? "", "root", parentRef.author ?? ""]]
-            : [
-                ["e", rootRef.id, rootRef.relays[0] ?? "", "root", rootRef.author ?? ""],
-                ["e", parentRef.id, parentRef.relays[0] ?? "", "reply", parentRef.author ?? ""],
-            ];
-
-        const pubkeyTags = this._getReplyParticipantPubkeys(target)
-            .map((pubkey) => ["p", pubkey]);
-
-        return [...eventTags, ...pubkeyTags];
-    }
-
     _findKnownEvent(id) {
         if (!id) return null;
         return this.events.find((event) => event.id === id) ?? this.referencedEvents.get(id) ?? null;
@@ -948,19 +870,6 @@ export class UIManager {
         `;
     }
 
-    _addQuoteReference(refs, ref, limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT) {
-        if (!ref?.id || refs.length >= limit) return;
-        if (refs.some((item) => item.id === ref.id)) return;
-        refs.push(ref);
-    }
-
-    _extractEventReferences(
-        text,
-        limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT
-    ) {
-        return extractEventReferences(text, limit);
-    }
-
     _stripEventReferences(text) {
         return stripEventReferences(text);
     }
@@ -969,55 +878,6 @@ export class UIManager {
         return EventReference
             .stripFromText(text)
             .length;
-    }
-    
-    _getQuoteReferences(event) {
-        const refs = [];
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        const limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT;
-
-        tags
-            .filter((tag) => Array.isArray(tag) && tag[0] === "q" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
-            .forEach((tag) => {
-                this._addQuoteReference(refs, {
-                    id: tag[1].toLowerCase(),
-                    relays: tag[2] ? [tag[2]] : [],
-                    author: tag[3] ?? "",
-                    kind: NOSTR_KINDS.TEXT,
-                }, limit);
-            });
-
-        if (event?.kind === NOSTR_KINDS.REPOST) {
-            tags
-                .filter((tag) => Array.isArray(tag) && tag[0] === "e" && /^[0-9a-f]{64}$/i.test(tag[1] ?? ""))
-                .forEach((tag) => {
-                    this._addQuoteReference(refs, {
-                        id: tag[1].toLowerCase(),
-                        relays: tag[2] ? [tag[2]] : [],
-                        author: "",
-                        kind: NOSTR_KINDS.TEXT,
-                    }, limit);
-                });
-        }
-
-        if (event?.kind !== NOSTR_KINDS.REPOST) {
-            this._extractEventReferences(event?.content ?? "", limit - refs.length).forEach((ref) => {
-                this._addQuoteReference(refs, ref, limit);
-            });
-        }
-
-        return refs;
-    }
-
-    _getRepostTargetId(event) {
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        const targetTag = tags.find((tag) =>
-            Array.isArray(tag) &&
-            tag[0] === "e" &&
-            /^[0-9a-f]{64}$/i.test(tag[1] ?? "")
-        );
-
-        return targetTag ? targetTag[1].toLowerCase() : "";
     }
 
     _getVerifiedRepostContent(event) {
