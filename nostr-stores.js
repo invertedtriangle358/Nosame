@@ -1,12 +1,140 @@
 import { CONFIG, NOSTR_KINDS } from "./config.js";
 
+export const STORAGE_SCHEMA_VERSION = 1;
+
+export const STORAGE_VERSION_KEY =
+    "nosameStorageSchemaVersion";
+
 export class StorageManager {
     constructor(storageAdapter = localStorage) {
-        this.storage = storageAdapter;
-        this.defaultNgWords = [];
-        this.warnedInvalidKeys = new Set();
+    this.storage = storageAdapter;
+    this.defaultNgWords = [];
+    this.warnedInvalidKeys = new Set();
+
+    this._migrateStorage();
+}
+
+    _getStoredVersion() {
+        const version = this._load(
+            STORAGE_VERSION_KEY,
+            0
+        );
+
+        return (
+            Number.isInteger(version) &&
+            version >= 0
+        )
+            ? version
+            : 0;
     }
 
+    _hasStoredValue(key) {
+        return (
+            this.storage.getItem(key) !== null
+        );
+    }
+
+    _migrateStorage() {
+        let version =
+            this._getStoredVersion();
+
+        if (
+            version >
+            STORAGE_SCHEMA_VERSION
+        ) {
+            console.warn(
+                `Unsupported localStorage schema version: ${version}. ` +
+                `Current version: ${STORAGE_SCHEMA_VERSION}.`
+            );
+
+            return false;
+        }
+
+        try {
+            while (
+                version <
+                STORAGE_SCHEMA_VERSION
+            ) {
+                if (version === 0) {
+                    this._migrateV0ToV1();
+                } else {
+                    throw new Error(
+                        `Missing migration from storage version ${version}.`
+                    );
+                }
+                version += 1;
+            /*
+             * 各段階のデータ移行がすべて成功した後で
+             * バージョンを保存する。
+             */
+                this._save(
+                    STORAGE_VERSION_KEY,
+                    version
+                );
+            }
+
+            return true;
+        } catch (err) {
+            console.error(
+                `Failed to migrate localStorage from version ${version}.`,
+                err
+            );
+
+        /*
+         * バージョンは更新しない。
+         * 次回起動時に同じ移行を再試行する。
+         */
+            return false;
+        }
+    }
+
+    _migrateV0ToV1() {
+        if (
+            this._hasStoredValue("relays")
+        ) {
+            this.saveRelays(
+                this._loadArray(
+                    "relays",
+                    CONFIG.DEFAULT_RELAYS
+                )
+            );
+        }
+
+        if (
+            this._hasStoredValue(
+                "userNgWords"
+            )
+        ) {
+            this.saveUserNgWords(
+                this._loadArray(
+                    "userNgWords"
+                )
+            );
+        }
+
+        if (
+            this._hasStoredValue(
+                "blockedPubkeys"
+            )
+        ) {
+            this.saveBlockedPubkeys(
+                this._loadArray(
+                    "blockedPubkeys"
+                )
+            );
+        }
+
+        if (
+            this._hasStoredValue(
+                "hideContentWarnings"
+            )
+        ) {
+            this.saveHideContentWarnings(
+                this.getHideContentWarnings()
+            );
+        }
+    }
+    
     _load(key, fallback) {
         try {
             const raw = this.storage.getItem(key);
