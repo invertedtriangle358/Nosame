@@ -413,7 +413,7 @@ export class UIManager {
         this._syncRoute();
     }
 
-        _setupComposerResize() {
+    _setupComposerResize() {
         const handle = this.dom.composerResizeHandle;
         const sidebar = handle?.closest(".sidebar");
         if (!handle || !sidebar) return;
@@ -768,12 +768,23 @@ export class UIManager {
         };
 
         el.querySelector(".btn-repost").onclick = async (e) => {
+            const button = e.currentTarget;
+
+            if (button.disabled) return;
+
+                button.disabled = true;
+
             try {
-                const repostEvent = await this.client.sendRepost(ev);
-                if (repostEvent) this.renderEvent(repostEvent);
-                e.target.textContent = "済";
-                e.target.disabled = true;
-            } catch (err) {
+                const repostEvent =
+                await this.client.sendRepost(ev);
+
+            if (repostEvent) {
+                this.renderEvent(repostEvent);
+            }
+
+                button.textContent = "済";
+                } catch (err) {
+                button.disabled = false;
                 alert(err.message);
             }
         };
