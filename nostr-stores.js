@@ -4,16 +4,111 @@ export class StorageManager {
     constructor(storageAdapter = localStorage) {
         this.storage = storageAdapter;
         this.defaultNgWords = [];
+        this.warnedInvalidKeys = new Set();
     }
 
     _load(key, fallback) {
         try {
             const raw = this.storage.getItem(key);
-            return raw ? JSON.parse(raw) : fallback;
+            return raw === null ? fallback : JSON.parse(raw);
         } catch (err) {
-            console.warn(`Failed to parse localStorage key: ${key}`, err);
+            console.warn(
+                `Failed to parse localStorage key: ${key}`,
+                err
+            );
             return fallback;
         }
+    }
+
+    _loadArray(key, fallback = []) {
+        const value = this._load(key, fallback);
+
+        if (Array.isArray(value)) {
+            return value;
+        }
+
+        if (!this.warnedInvalidKeys.has(key)) {
+            console.warn(
+                `Invalid localStorage type for key: ${key}. Expected an array.`
+            );
+            this.warnedInvalidKeys.add(key);
+        }
+
+        return [...fallback];
+    }
+
+    _normalizeRelays(relays) {
+        if (!Array.isArray(relays)) {
+            return [];
+        }
+
+        const result = [];
+        const seen = new Set();
+
+        relays.forEach((value) => {
+            if (typeof value !== "string") {
+                return;
+            }
+
+            const relay = value.trim();
+
+            if (!relay) {
+                return;
+            }
+
+            try {
+                const parsed = new URL(relay);
+
+                if (parsed.protocol !== "wss:") {
+                    return;
+                }
+
+                const key = parsed.href.replace(/\/+$/, "");
+
+                if (seen.has(key)) {
+                    return;
+                }
+
+                seen.add(key);
+                result.push(relay);
+            } catch {
+                // 古いデータや破損データの不正なURLは無視する
+            }
+        });
+
+        return result;
+    }
+
+    _normalizeNgWords(words) {
+        if (!Array.isArray(words)) {
+            return [];
+        }
+
+        return [
+            ...new Set(
+                words
+                    .filter((word) => typeof word === "string")
+                    .map((word) => word.trim())
+                    .filter(Boolean)
+            ),
+        ];
+    }
+
+    _normalizeBlockedPubkeys(pubkeys) {
+        if (!Array.isArray(pubkeys)) {
+            return [];
+        }
+
+        return [
+            ...new Set(
+                pubkeys
+                    .filter((pubkey) => typeof pubkey === "string")
+                    .map((pubkey) => pubkey.trim().toLowerCase())
+                    .filter((pubkey) =>
+                        /^[0-9a-f]{64}$/.test(pubkey)
+                    )
+            ),
+        ];
     }
 
     _save(key, value) {
@@ -21,41 +116,68 @@ export class StorageManager {
     }
 
     getRelays() {
-        return this._load("relays", [...CONFIG.DEFAULT_RELAYS]);
+        return this._normalizeRelays(
+            this._loadArray(
+                "relays",
+                CONFIG.DEFAULT_RELAYS
+            )
+        );
     }
 
     saveRelays(relays) {
-        this._save("relays", relays);
+        this._save(
+            "relays",
+            this._normalizeRelays(relays)
+        );
     }
 
     getUserNgWords() {
-        return this._load("userNgWords", []);
+        return this._normalizeNgWords(
+            this._loadArray("userNgWords")
+        );
     }
 
     saveUserNgWords(words) {
-        this._save("userNgWords", words);
+        this._save(
+            "userNgWords",
+            this._normalizeNgWords(words)
+        );
     }
 
     getBlockedPubkeys() {
-        return this._load("blockedPubkeys", []);
+        return this._normalizeBlockedPubkeys(
+            this._loadArray("blockedPubkeys")
+        );
     }
 
     saveBlockedPubkeys(pubkeys) {
-        this._save("blockedPubkeys", pubkeys);
+        this._save(
+            "blockedPubkeys",
+            this._normalizeBlockedPubkeys(pubkeys)
+        );
     }
 
     getHideContentWarnings() {
-        return this._load("hideContentWarnings", true) === true;
+        const value = this._load(
+            "hideContentWarnings",
+            true
+        );
+
+        return typeof value === "boolean"
+            ? value
+            : true;
     }
 
     saveHideContentWarnings(hidden) {
-        this._save("hideContentWarnings", Boolean(hidden));
+        this._save(
+            "hideContentWarnings",
+            Boolean(hidden)
+        );
     }
 
     getAllNgWords() {
-        return this.getUserNgWords()
-            .filter((word) => typeof word === "string" && word.trim());
-     }
+        return this.getUserNgWords();
+    }
 }
 
 export class ProfileStore {
