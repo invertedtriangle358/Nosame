@@ -277,6 +277,7 @@ export class UIManager {
         this.replyTarget = null;
         this.threadRootId = null;
         this.defaultComposePlaceholder = "";
+        this.publishInFlight = false;
     }
 
     init() {
@@ -504,50 +505,72 @@ export class UIManager {
     }
 
     async _handlePublish() {
-    const input = this.dom.inputs.compose;
-    const content = input?.value?.trim();
+        if (this.publishInFlight) return;
 
-    if (!content) {
-        alert(UI_STRINGS.EMPTY_POST);
-        return;
-    }
+        const input = this.dom.inputs.compose;
+        const content = input?.value?.trim();
 
-    if (this._getVisibleContentLength(content) > CONFIG.MAX_POST_LENGTH) {
-        alert(UI_STRINGS.INVALID_CONTENT);
-        return;
-    }
+        if (!content) {
+            alert(UI_STRINGS.EMPTY_POST);
+            return;
+        }
 
-    try {
-        const quoteRefs =
-    EventReference.extractFromText(
-        content,
-        CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT
-    );
+        if (
+            this._getVisibleContentLength(content) >
+            CONFIG.MAX_POST_LENGTH
+        ) {
+            alert(UI_STRINGS.INVALID_CONTENT);
+            return;
+        }
 
-    const quoteTags = quoteRefs.map(
-        (ref) => [
-            "q",
-            ref.id,
-            ref.relays?.[0] ?? "",
-            ref.author ?? "",
-        ]
-    );
+        const publishButton = this.dom.buttons.publish;
 
-    const replyTags = this.replyTarget
-        ? EventReference.buildReplyTags(
-            this.replyTarget
-        )
-        : [];
-        const event = await this.client.publish(content, [...replyTags, ...quoteTags]);
+        this.publishInFlight = true;
+
+        if (publishButton) {
+            publishButton.disabled = true;
+        }
+
+        try {
+            const quoteRefs = EventReference.extractFromText(
+                content,
+                CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT
+            );
+
+            const quoteTags = quoteRefs.map((ref) => [
+                "q",
+                ref.id,
+                ref.relays?.[0] ?? "",
+                ref.author ?? "",
+            ]);
+
+            const replyTags = this.replyTarget
+                ? EventReference.buildReplyTags(this.replyTarget)
+                : [];
+
+            const event = await this.client.publish(
+                content,
+                [...replyTags, ...quoteTags]
+            );
+
             this.renderEvent(event);
             this._clearReplyTarget();
+
             input.value = "";
+
             if (this.dom.counters.char) {
-                this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+                this.dom.counters.char.textContent =
+                    `0 / ${CONFIG.MAX_POST_LENGTH}`;
                 this.dom.counters.char.style.color = "";
             }
         } catch (err) {
             alert(err.message);
+        } finally {
+            this.publishInFlight = false;
+
+            if (publishButton) {
+                publishButton.disabled = false;
+            }
         }
     }
 
@@ -746,11 +769,19 @@ export class UIManager {
         };
 
         el.querySelector(".btn-reaction").onclick = async (e) => {
+            const button = e.currentTarget;
+
+            if (button.disabled) return;
+
+            // awaitより前に無効化
+            button.disabled = true;
+
             try {
                 await this.client.sendReaction(ev);
-                e.target.textContent = "Sent";
-                e.target.disabled = true;
+                button.textContent = "★";
             } catch (err) {
+                // 失敗した場合だけ再操作可能にする
+                button.disabled = false;
                 alert(err.message);
             }
         };
@@ -772,18 +803,18 @@ export class UIManager {
 
             if (button.disabled) return;
 
-                button.disabled = true;
+            button.disabled = true;
 
             try {
                 const repostEvent =
-                await this.client.sendRepost(ev);
+                    await this.client.sendRepost(ev);
 
-            if (repostEvent) {
-                this.renderEvent(repostEvent);
-            }
+                if (repostEvent) {
+                    this.renderEvent(repostEvent);
+                }
 
                 button.textContent = "済";
-                } catch (err) {
+            } catch (err) {
                 button.disabled = false;
                 alert(err.message);
             }
