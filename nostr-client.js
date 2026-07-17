@@ -1,4 +1,5 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
+import { EventReference } from "./event-reference.js";
 
 export class NostrClient {
     constructor(storage, validator) {
@@ -416,29 +417,6 @@ export class NostrClient {
         ]));
     }
 
-    _getRepostTargetId(event) {
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        const targetTag = tags.find((tag) =>
-            Array.isArray(tag) &&
-            tag[0] === "e" &&
-            /^[0-9a-f]{64}$/i.test(tag[1] ?? "")
-        );
-
-        return targetTag ? targetTag[1].toLowerCase() : "";
-    }
-
-        _hasEventReference(event, id) {
-        const normalized = String(id ?? "").toLowerCase();
-        if (!/^[0-9a-f]{64}$/i.test(normalized)) return false;
-
-        const tags = Array.isArray(event?.tags) ? event.tags : [];
-        return tags.some((tag) =>
-            Array.isArray(tag) &&
-            tag[0] === "e" &&
-            String(tag[1] ?? "").toLowerCase() === normalized
-        );
-    }
-
     _parseVerifiedRepostContent(event) {
         const content = String(event?.content ?? "").trim();
         if (!content) return null;
@@ -453,7 +431,7 @@ export class NostrClient {
         if (!this.validator.isEventContentSizeAllowed(reposted)) return null;
         if (!this.validator.isEventAuthentic(reposted)) return null;
 
-        const targetId = this._getRepostTargetId(event);
+        const targetId = EventReference.getRepostTargetId(event);
         if (targetId && reposted.id.toLowerCase() !== targetId) return null;
 
         return reposted;
@@ -464,16 +442,45 @@ export class NostrClient {
     }
 
     _isRepostEventAllowed(event) {
-        if (event.kind !== NOSTR_KINDS.REPOST) return false;
-        if (!this._getRepostTargetId(event)) return false;
+        if (
+            event.kind !== NOSTR_KINDS.REPOST
+        ) {
+            return false;
+        }
 
-        const content = String(event.content ?? "").trim();
+        if (
+            !EventReference.getRepostTargetId(event)
+        ) {
+            return false;
+        }
+
+        const content = String(
+            event.content ?? ""
+        ).trim();
+
         if (!content) return true;
 
-        const reposted = this._parseVerifiedRepostContent(event);
+        const reposted =
+            this._parseVerifiedRepostContent(event);
+
         if (!reposted) return false;
-        if (this.validator.isPubkeyBlocked(reposted.pubkey)) return false;
-        if (reposted.kind === NOSTR_KINDS.TEXT && this.validator.isContentInvalid(reposted.content)) return false;
+
+        if (
+            this.validator.isPubkeyBlocked(
+                reposted.pubkey
+            )
+        ) {
+            return false;
+        }
+
+        if (
+            reposted.kind === NOSTR_KINDS.TEXT &&
+            this.validator.isContentInvalid(
+                reposted.content
+            )
+        ) {
+            return false;
+        }
 
         return true;
     }
@@ -504,10 +511,14 @@ export class NostrClient {
 
         if (filter.type === "thread") {
             const rootId = filter.rootId;
-            return event.id?.toLowerCase() === rootId || this._hasEventReference(event, rootId);
-        }
 
-        return false;
+            return (
+                event.id?.toLowerCase() === rootId ||
+                EventReference.hasEventReference(
+                event,
+                rootId
+            )
+        );
     }
 
     _handleOkMessage(eventId, accepted, message, ws = null) {
