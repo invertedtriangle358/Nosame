@@ -48,8 +48,14 @@ export class NostrClient {
             this.reconnectAttempts.delete(ws._relayUrl);
             this._clearReconnectTimer(ws._relayUrl);
             this._notifyStatus();
-            if (this.subId) this._sendTextSubscription(ws);
-            if (this.profileNotesPubkey) this._sendProfileNotesSubscription(ws);
+
+            if (this.subId) {
+                this._sendTextSubscription(ws);
+            }
+
+            if (this.profileNotesPubkey) {
+                this._sendProfileNotesSubscription(ws);
+            }
         };
 
         ws.onclose = () => {
@@ -67,6 +73,16 @@ export class NostrClient {
             }
 
             this._scheduleReconnect(ws._relayUrl);
+        };
+
+        ws.onerror = (err) => {
+            console.error("Relay error:", ws._relayUrl, err);
+            ws.close();
+        };
+
+        // リレーからEVENT・OK・EOSEを受信するために必須
+        ws.onmessage = (ev) => {
+            this._handleMessage(ev, ws);
         };
     }
 
