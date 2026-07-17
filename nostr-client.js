@@ -855,17 +855,17 @@ export class NostrClient {
     }
 
     sendRepost(target) {
-    const targetId = String(target?.id ?? "").toLowerCase();
+        const targetId = String(target?.id ?? "").toLowerCase();
 
-    if (!/^[0-9a-f]{64}$/.test(targetId)) return;
-    if (this.repostedEventIds.has(targetId)) return;
+        if (!/^[0-9a-f]{64}$/.test(targetId)) return;
+        if (this.repostedEventIds.has(targetId)) return;
 
-    return this._runSingleFlight(
-        this.pendingRepostSends,
-        targetId,
-        () => this._sendRepost(target, targetId)
-    );
-}
+        return this._runSingleFlight(
+            this.pendingRepostSends,
+            targetId,
+            () => this._sendRepost(target, targetId)
+        );
+    }
 
     async _sendRepost(target, targetId) {
         if (!window.nostr) {
