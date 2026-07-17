@@ -1,5 +1,5 @@
 import { CONFIG } from "./config.js";
-import { stripEventReferences } from "./nostr-references.js";
+import { EventReference } from "./event-reference.js";
 import {
     validateEvent,
     verifyEvent,
