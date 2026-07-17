@@ -1026,9 +1026,9 @@ export class NostrClient {
                 err instanceof Error
                     ? err.message
                     : String(err)
-            );
-        }
-    });
+        );
+    }
+});
 
         return promise;
     }
