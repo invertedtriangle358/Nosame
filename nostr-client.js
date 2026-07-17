@@ -22,7 +22,10 @@ export class NostrClient {
         this.reconnectTimers = new Map();
         this.requestedProfilePubkeys = new Map();
         this.requestedReferencedEventIds = new Map();
+
         this.pendingEventAcks = new Map();
+        this.pendingReactionSends = new Map();
+        this.pendingRepostSends = new Map();
 
         this.onEventCallback = null;
         this.onProfileEventCallback = null;
