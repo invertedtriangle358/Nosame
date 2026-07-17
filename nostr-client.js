@@ -492,36 +492,65 @@ export class NostrClient {
     }
 
     _isExpectedEventForSubscription(subId, event) {
-        if (subId === this.subId) return true;
-
-        if (subId === this.activeProfileNotesSubId) {
-            return event.pubkey === this.profileNotesPubkey;
+        if (subId === this.subId) {
+            return true;
         }
 
-        const filter = this.oneShotSubscriptionFilters.get(subId);
-        if (!filter) return false;
+        if (
+            subId ===
+            this.activeProfileNotesSubId
+        ) {
+            return (
+                event.pubkey ===
+                this.profileNotesPubkey
+            );
+        }
+
+        const filter =
+            this.oneShotSubscriptionFilters.get(
+                subId
+            );
+
+        if (!filter) {
+            return false;
+        }
 
         if (filter.type === "profile") {
-            return event.kind === NOSTR_KINDS.METADATA && filter.authors?.has(event.pubkey);
+            return (
+                event.kind ===
+                    NOSTR_KINDS.METADATA &&
+                filter.authors?.has(event.pubkey)
+            );
         }
 
         if (filter.type === "refs") {
-            return filter.ids?.has(String(event.id ?? "").toLowerCase());
+            return filter.ids?.has(
+                String(event.id ?? "")
+                    .toLowerCase()
+            );
         }
 
         if (filter.type === "thread") {
             const rootId = filter.rootId;
 
             return (
-                event.id?.toLowerCase() === rootId ||
+                event.id?.toLowerCase() ===
+                    rootId ||
                 EventReference.hasEventReference(
-                event,
-                rootId
-            )
-        );
+                    event,
+                    rootId
+                )
+            );
+        }
+        return false;
     }
 
-    _handleOkMessage(eventId, accepted, message, ws = null) {
+    _handleOkMessage(
+        eventId,
+        accepted,
+        message,
+        ws = null
+    ) {
         if (typeof eventId !== "string" || !/^[0-9a-f]{64}$/i.test(eventId)) return;
 
         this._recordEventAck(
