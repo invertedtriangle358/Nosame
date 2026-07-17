@@ -1,4 +1,5 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
+import { EventReference } from "./event-reference.js";
 import { NostrCodec } from "./nostr-codec.js";
 import {
     extractEventReferences,
@@ -521,21 +522,38 @@ export class UIManager {
     }
 
     try {
-        const quoteRefs = this._extractEventReferences(content);
-        const quoteTags = quoteRefs.map((ref) => ["q", ref.id, ref.relays?.[0] ?? "", ref.author ?? ""]);
-        const replyTags = this.replyTarget ? this._buildReplyTags(this.replyTarget) : [];
+        const quoteRefs =
+    EventReference.extractFromText(
+        content,
+        CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT
+    );
+
+    const quoteTags = quoteRefs.map(
+        (ref) => [
+            "q",
+            ref.id,
+            ref.relays?.[0] ?? "",
+            ref.author ?? "",
+        ]
+    );
+
+    const replyTags = this.replyTarget
+        ? EventReference.buildReplyTags(
+            this.replyTarget
+        )
+        : [];
         const event = await this.client.publish(content, [...replyTags, ...quoteTags]);
-        this.renderEvent(event);
-        this._clearReplyTarget();
-        input.value = "";
-        if (this.dom.counters.char) {
-            this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
-            this.dom.counters.char.style.color = "";
+            this.renderEvent(event);
+            this._clearReplyTarget();
+            input.value = "";
+            if (this.dom.counters.char) {
+                this.dom.counters.char.textContent = `0 / ${CONFIG.MAX_POST_LENGTH}`;
+                this.dom.counters.char.style.color = "";
+            }
+        } catch (err) {
+            alert(err.message);
         }
-    } catch (err) {
-        alert(err.message);
     }
-}
 
     bufferEvent(event) {
         this.eventBuffer.push(event);
@@ -694,10 +712,10 @@ export class UIManager {
         const reposted = this.client.repostedEventIds.has(ev.id);
         const profile = this.profiles.getProfile(ev.pubkey ?? "");
         const embeddedEvent = this._getEmbeddedEvent(ev);
-        const replyRef = this._getReplyParentReference(ev);
-        const rootRef = this._getReplyRootReference(ev);
+        const replyRef = EventReference.getReplyParent(ev);
+        const rootRef = EventReference.getReplyRoot(ev);
+        const quoteRefs = EventReference.getQuoteReferences(ev);
         const replyEvent = replyRef ? this._findKnownEvent(replyRef.id) : null;
-        const quoteRefs = this._getQuoteReferences(ev);
         const requestedRefs = [...quoteRefs, replyRef, rootRef]
             .filter(Boolean)
             .filter((ref, index, refs) => refs.findIndex((item) => item.id === ref.id) === index)
@@ -781,12 +799,8 @@ export class UIManager {
         const input = this.dom.inputs.compose;
         if (!input || !event?.id) return;
 
-        const nevent = NostrCodec.toNevent({
-            id: event.id,
-            relays: event._relayUrl ? [event._relayUrl] : [],
-            author: event.pubkey ?? "",
-            kind: event.kind ?? 1,
-        });
+        const nevent = EventReference.toNevent(event);
+        if (!nevent) return;
         const reference = `nostr:${nevent}`;
         const separator = input.value.trim() ? "\n" : "";
 
@@ -952,7 +966,9 @@ export class UIManager {
     }
 
     _getVisibleContentLength(text) {
-        return this._stripEventReferences(text).length;
+        return EventReference
+            .stripFromText(text)
+            .length;
     }
     
     _getQuoteReferences(event) {
@@ -1062,8 +1078,14 @@ export class UIManager {
     }
 
     showThread(event) {
-        const rootRef = this._getReplyRootReference(event) ?? this._eventToReference(event);
-        if (!rootRef?.id) return;
+        const rootRef = EventReference.getReplyRoot(event);
+        if (rootRef?.id === rootId) {
+        return true;
+    }
+        return EventReference.hasEventReference(
+        event,
+        rootId
+    );
 
         this.threadRootId = rootRef.id;
         this.profilePubkey = null;
@@ -1220,7 +1242,7 @@ export class UIManager {
 
     _formatContent(text, { stripReferences = false } = {}) {
         const value = stripReferences
-            ? this._stripEventReferences(text)
+            ? EventReference.stripFromText(text)
             : text;
 
         const safe = this._escape(value);
