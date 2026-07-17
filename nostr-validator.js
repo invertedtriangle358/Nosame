@@ -62,21 +62,29 @@ export class EventValidator {
     }
 
     isContentInvalid(text) {
-        if (!text) return false;
-        if (!this.isContentSizeAllowed(text)) return true;
-
-        const visibleText = this._stripEventReferences(text);
-
-        if (visibleText.length > CONFIG.MAX_POST_LENGTH) {
-            return true;
+    if (!text) return false;
+    if (!this.isContentSizeAllowed(text)) {
+        return true;
     }
 
-        const lower = visibleText.toLowerCase();
+    const visibleText =
+        EventReference.stripFromText(text);
 
-        return this.storage
-            .getAllNgWords()
-            .some((ng) => lower.includes(ng.toLowerCase()));
+    if (
+        visibleText.length >
+        CONFIG.MAX_POST_LENGTH
+    ) {
+        return true;
     }
+
+    const lower = visibleText.toLowerCase();
+
+    return this.storage
+        .getAllNgWords()
+        .some((ng) =>
+            lower.includes(ng.toLowerCase())
+        );
+}
 
     isPubkeyBlocked(pubkey) {
         if (!pubkey) return false;
