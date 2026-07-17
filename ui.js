@@ -1,5 +1,9 @@
 import { CONFIG, NOSTR_KINDS, UI_STRINGS } from "./config.js";
 import { NostrCodec } from "./nostr-codec.js";
+import {
+    extractEventReferences,
+    stripEventReferences,
+} from "./nostr-references.js";
 
 export class SettingsUIHandler {
     constructor(dom, storage, client, ui) {
@@ -938,32 +942,19 @@ export class UIManager {
         refs.push(ref);
     }
 
-    _extractEventReferences(text, limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT) {
-        const refs = [];
-        const pattern = /(?:nostr:)?(?:nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi;
-
-        for (const match of String(text ?? "").matchAll(pattern)) {
-            if (refs.length >= limit) break;
-
-            try {
-                this._addQuoteReference(refs, NostrCodec.fromNevent(match[0]), limit);
-            } catch {
-            // Ignore malformed user-pasted references.
-            }
-        }
-
-        return refs;
+    _extractEventReferences(
+        text,
+        limit = CONFIG.MAX_QUOTE_REFERENCES_PER_EVENT
+    ) {
+        return extractEventReferences(text, limit);
     }
 
     _stripEventReferences(text) {
-    return String(text ?? "")
-        .replace(/nostr:(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-        .replace(/\b(nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "")
-        .trim();
+        return stripEventReferences(text);
     }
 
     _getVisibleContentLength(text) {
-    return this._stripEventReferences(text).length;
+        return this._stripEventReferences(text).length;
     }
     
     _getQuoteReferences(event) {
@@ -1231,11 +1222,16 @@ export class UIManager {
 
     _formatContent(text, { stripReferences = false } = {}) {
         const value = stripReferences
-            ? String(text ?? "").replace(/(?:nostr:)?(?:nevent|note)1[023456789acdefghjklmnpqrstuvwxyz]+/gi, "").trim()
+            ? this._stripEventReferences(text)
             : text;
+
         const safe = this._escape(value);
+
         return safe
-            .replace(/【緊急地震速報】/g, '<span class="alert-eew">【緊急地震速報】</span>')
+            .replace(
+                /【緊急地震速報】/g,
+                '<span class="alert-eew">【緊急地震速報】</span>'
+            )
             .replace(/\n/g, "<br>");
-    }
+        }
 }
