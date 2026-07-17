@@ -53,6 +53,8 @@ export const UI_STRINGS = {
     NO_RELAY: "接続中のリレーがありません。",
     EVENT_REJECTED: "リレーに投稿を拒否されました。",
     EVENT_ACK_TIMEOUT: "リレーから投稿確認が返りませんでした。",
+    EVENT_ACK_ABORTED: "リレー接続が再構築されたため、送信確認を中断しました。",
+    RELAY_DISCONNECTED_DURING_PUBLISH: "送信確認前にリレー接続が切断されました。",
     INVALID_WSS: "有効な wss:// URL を入力してください。",
     INVALID_PUBKEY: "有効な hex 公開鍵 または npub を入力してください。",
     SAVE_RELAY_SUCCESS: "接続設定を保存しました。",
