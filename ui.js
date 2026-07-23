@@ -306,6 +306,7 @@ export class UIManager {
             buttons: {
                 titleHome: $("appTitle"),
                 publish: $("btnPublish"),
+                clearCompose: $("btnClearCompose"),
                 openMenu: $("btnMenu"),
                 closeMenu: $("btnCloseMenu"),
                 addRelay: $("btnAddRelay"),
@@ -357,8 +358,31 @@ export class UIManager {
             this.toggleSettingsPanel(false);
         });
 
-        btn.publish?.addEventListener("click", () => this._handlePublish());
-        btn.titleHome?.addEventListener("click", () => this.showTimeline());
+        btn.publish?.addEventListener("click", () => {
+            this._handlePublish();
+        });
+
+        btn.clearCompose?.addEventListener("click", () => {
+            const input = this.dom.inputs.compose;
+
+            if (!input || this.publishInFlight) return;
+            input.value = "";
+
+    // 文字数表示とクリアボタンの状態を更新
+            input.dispatchEvent(
+                new Event("input", { bubbles: true })
+            );
+
+    // 返答状態も解除する
+            this._clearReplyTarget();
+
+            input.focus();
+        });
+
+        btn.titleHome?.addEventListener("click", () => {
+            this.showTimeline();
+        });
+        
         btn.titleHome?.addEventListener("keydown", (e) => {
             if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -385,12 +409,27 @@ export class UIManager {
         });
 
         this.dom.inputs.compose?.addEventListener("input", (e) => {
-            const len = this._getVisibleContentLength(e.target.value);
-            const counter = this.dom.counters.char;
-            if (!counter) return;
+        const len = this._getVisibleContentLength(e.target.value);
+        const counter = this.dom.counters.char;
 
-            counter.textContent = `${len} / ${CONFIG.MAX_POST_LENGTH}`;
-            counter.style.color = len > CONFIG.MAX_POST_LENGTH ? "red" : "";
+        if (counter) {
+            counter.textContent =
+                `${len} / ${CONFIG.MAX_POST_LENGTH}`;
+
+            counter.style.color =
+                len > CONFIG.MAX_POST_LENGTH
+                    ? "red"
+                    : "";
+        }
+
+        const clearButton =
+            this.dom.buttons.clearCompose;
+
+            if (clearButton) {
+                clearButton.disabled =
+                    this.publishInFlight ||
+                    !e.target.value;
+            }
         });
 
         this.dom.inputs.compose?.addEventListener("keydown", (e) => {
@@ -524,6 +563,17 @@ export class UIManager {
         }
 
         const publishButton = this.dom.buttons.publish;
+        const clearButton = this.dom.buttons.clearCompose;
+
+        this.publishInFlight = true;
+
+        if (publishButton) {
+            publishButton.disabled = true;
+        }
+
+        if (clearButton) {
+            clearButton.disabled = true;
+        }
 
         this.publishInFlight = true;
 
@@ -570,6 +620,10 @@ export class UIManager {
 
             if (publishButton) {
                 publishButton.disabled = false;
+            }
+
+            if (clearButton) {
+                clearButton.disabled = !input?.value;
             }
         }
     }
