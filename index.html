@@ -105,10 +105,12 @@
     </aside>
 
     <aside class="sidebar">
+      <div id="composerResizeHandle" class="composer-resize-handle" aria-hidden="true"></div>
       <div class="sidebar-header">
         <button id="btnPublish" type="button" aria-label="投稿する">投稿</button>
-        <button id="btnClearCompose" type="button" aria-label="投稿内容を消去">取消</button>
+        <button id="btnClearCompose" type="button" aria-label="投稿内容を消去">消去</button>
       </div>
+
       <div class="composer">
         <textarea id="compose" placeholder="本文を入力......" aria-label="投稿本文"></textarea>
         <small id="charCount">0 / 108</small>
