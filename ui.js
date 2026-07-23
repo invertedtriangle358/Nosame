@@ -575,12 +575,6 @@ export class UIManager {
             clearButton.disabled = true;
         }
 
-        this.publishInFlight = true;
-
-        if (publishButton) {
-            publishButton.disabled = true;
-        }
-
         try {
             const quoteRefs = EventReference.extractFromText(
                 content,
